@@ -37,3 +37,12 @@ def align( node=None, target=None, translate=True, orient=True, scale=False, par
     if parent:
         if not node.getParent() == target:
             node.setParent(target)
+
+def getMatrixFromPos(pos):
+    '''
+    :param pos: position vector
+    :return: pm.datatypes.Matrix object with its translation set to pos
+    '''
+    mtx = pm.datatypes.Matrix()
+    mtx.translate = pos
+    return mtx
