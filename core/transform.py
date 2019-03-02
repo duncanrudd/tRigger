@@ -46,3 +46,16 @@ def getMatrixFromPos(pos):
     mtx = pm.datatypes.Matrix()
     mtx.translate = pos
     return mtx
+
+def decomposeMatrix(mtx, recycle=1, name=None):
+    node = [node for node in pm.listConnections(mtx)
+            if type(node) == pm.nodetypes.DecomposeMatrix
+            and recycle]
+    if node:
+        node = node[0]
+    if not node:
+        node = pm.createNode('decomposeMatrix')
+        if name:
+            node.rename(name)
+        mtx.connect(node.inputMatrix)
+    return node

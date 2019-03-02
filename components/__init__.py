@@ -44,3 +44,33 @@ class TBaseComponent(object):
             return index
         else:
             return max(compIndices) + 1
+
+    def addObjects(self):
+        # Overload this function in derived component classes to add
+        # all required dag nodes for the component
+        print 'Added Objects: %s' % self.comp_name
+
+    def addAttributes(self):
+        # Overload this function in derived component classes to add
+        # any config or anim parameters to the component's host node
+        print 'Added Attributes: %s' % self.comp_name
+
+    def addSystems(self):
+        # Overload this function in derived component classes to add
+        # any solvers / rigging / connections required by the component
+        print 'Added Systems: %s' % self.comp_name
+
+    def addDeformers(self):
+        # Overload this function in derived component classes to add
+        # joints to the component's output - for use in skinning
+        print 'Added Deformers: %s' % self.comp_name
+
+    def addConnections(self):
+        # Overload this function in derived component classes to add
+        # connections between components - simple inheritance or space switching systems
+        print 'Added Connections: %s' % self.comp_name
+
+    def finish(self):
+        # Overload this function in derived component classes to
+        # complete the component setup. Lock attrs, hide unnecessary nodes etc.
+        print 'Finished: %s' % self.comp_name

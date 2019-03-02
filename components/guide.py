@@ -1,9 +1,10 @@
 import pymel.core as pm
 
-from tRigger.core import icon, attribute, dag, transform
+from tRigger.core import icon, attribute, dag, transform, curve
 reload(attribute)
 reload(icon)
 reload(transform)
+reload(curve)
 
 class TGuide(object):
     def __init__(self):
@@ -24,8 +25,11 @@ class TGuideBaseComponent(object):
         attribute.addStringAttr(self.root, 'guide_side', side)
         attribute.addIntAttr(self.root, 'guide_index', self.guide_index)
 
+    # -------------------------------------------------------------------
+    # Add Objects to Guide
+    # -------------------------------------------------------------------
     def addGuideRoot(self, parent):
-        root = icon.crossBoxIcon(name=self.getName('root'), colour='red')
+        root = icon.crossBoxIcon(name=self.getName('root'), colour='red', size=6)
         attribute.addBoolAttr(root, 'is_tGuide_root')
         if parent:
             root.setParent(parent)
@@ -33,7 +37,7 @@ class TGuideBaseComponent(object):
         return root
 
     def addGuideLoc(self, name, mtx, parent=None):
-        loc = icon.crossBallIcon(name=name, colour='yellow')
+        loc = icon.crossBallIcon(name=name, colour='yellow', size=5)
         attribute.addBoolAttr(loc, 'is_tGuide_loc')
         if not parent:
             parent = self.root
@@ -42,6 +46,25 @@ class TGuideBaseComponent(object):
         self.locs.append(loc)
         return loc
 
+    def addGuideUpNode(self, axis='y'):
+        loc = self.addGuideLoc(self.guide_name + '_upNode',
+                               pm.datatypes.Matrix(),
+                               self.root)
+        icon.setColour(loc, 'cyan')
+        pm.setAttr('%s.t%s' % (loc.name(), axis), 5.0)
+        self.addGuideCurve([self.root, loc, self.locs[1]], name=self.guide_name + '_upCrv', degree=1)
+
+    def addGuideCurve(self, nodes, name, degree=1):
+        crv = curve.curveThroughPoints(name, nodes, degree)
+        curve.driveCurve(crv, nodes)
+        crv.inheritsTransform.set(0)
+        crv.setParent(self.root)
+        pm.xform(crv, ws=1, m=pm.datatypes.Matrix())
+        dag.setDisplayType(crv, 'template')
+
+    # -------------------------------------------------------------------
+    # Get information about the Guide
+    # -------------------------------------------------------------------
     def getName(self, name):
         return '%s_%s%s_%s_guide' % (self.guide_name, self.guide_side, self.guide_index, name)
 

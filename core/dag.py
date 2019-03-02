@@ -25,3 +25,8 @@ def addChild(parent, childType, name, zero=1):
         return node
     else:
         return 'addChild: node not created'
+
+def setDisplayType(node, displayType):
+    displayDict = {'normal': 0, 'template': 1, 'reference': 2}
+    node.overrideEnabled.set(1)
+    node.overrideDisplayType.set(displayDict[displayType])

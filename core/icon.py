@@ -21,6 +21,8 @@ def setColour(node, colour=None):
                    'C': 14,         # green
                    'R': 13,         # red
                    'L': 6,          # blue
+                   'cyan': 18,
+                   'magenta': 9,
                   }
 
 

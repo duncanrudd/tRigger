@@ -17,3 +17,6 @@ class TFkChainGuide(guide.TGuideBaseComponent):
             num = str(i+1).zfill(2)
             mtx = transform.getMatrixFromPos(axisDict[axis])
             self.addGuideLoc(self.getName(num), mtx, self.locs[-1])
+
+        self.crv = self.addGuideCurve(self.locs, name=self.guide_name + '_crv', degree=1)
+        self.upNode = self.addGuideUpNode(upAxis)
