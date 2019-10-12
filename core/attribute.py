@@ -17,3 +17,19 @@ def addBoolAttr(node, name, value=True):
     attr = pm.Attribute('%s.%s' % (node.name(), name))
     attr.set(value)
     return attr
+
+def addMatrixAttr(node, name):
+    pm.addAttr(node, ln=name, at='matrix')
+    attr = pm.Attribute('%s.%s' % (node.name(), name))
+    return attr
+
+def addAngleAttr(node, name, value=0, k=1, h=0):
+    pm.addAttr(node, ln=name, at='doubleAngle', k=k, h=h)
+    attr = pm.Attribute('%s.%s' % (node.name(), name))
+    return attr
+
+def addFloatAttr(node, name, value=0, k=1, h=0):
+    pm.addAttr(node, ln=name, at='float', k=k, h=h)
+    attr = pm.Attribute('%s.%s' % (node.name(), name))
+    return attr
+
