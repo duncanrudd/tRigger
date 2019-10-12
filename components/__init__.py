@@ -19,7 +19,7 @@ class TBaseComponent(object):
         self.comp_name = name
         self.comp_type = compType
         self.comp_side = side
-        self.comp_index = self.requestIndex(index)
+        self.comp_index = index
         self.createGroups()
         attribute.addStringAttr(self.root, 'comp_type', 'root')
         attribute.addStringAttr(self.root, 'comp_name', name)
@@ -74,3 +74,4 @@ class TBaseComponent(object):
         # Overload this function in derived component classes to
         # complete the component setup. Lock attrs, hide unnecessary nodes etc.
         print 'Finished: %s' % self.comp_name
+

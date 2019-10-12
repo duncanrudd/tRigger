@@ -1,4 +1,5 @@
 import pymel.core as pm
+import os
 
 from tRigger.core import icon, attribute, dag, transform, curve
 reload(attribute)
@@ -13,19 +14,25 @@ class TGuide(object):
         attribute.addBoolAttr(self.root, 'is_tGuide')
 
 class TGuideBaseComponent(object):
-    def __init__(self, name, guideType, side='C', index='0'):
+    def __init__(self, name, guideType, side='C', index='0', fromDagNode=0):
         self.guide_name = name
         self.guide_type = guideType
         self.guide_side = side
-        self.guide_index = self.requestIndex(index)
-        self.root = self.addGuideRoot(self.getGuideParent())
+        self.params = ['guide_type', 'guide_name', 'guide_side', 'guide_index']
+        if not fromDagNode:
+            self.guide_index = self.requestIndex(index)
+            self.root = self.addGuideRoot(self.getGuideParent())
+            attribute.addStringAttr(self.root, 'guide_type', guideType)
+            attribute.addStringAttr(self.root, 'guide_name', name)
+            attribute.addStringAttr(self.root, 'guide_side', side)
+            attribute.addIntAttr(self.root, 'guide_index', self.guide_index)
+        else:
+            self.root = fromDagNode
+            self.guide_index = index
         self.locs = [self.root]
-        attribute.addStringAttr(self.root, 'guide_type', guideType)
-        attribute.addStringAttr(self.root, 'guide_name', name)
-        attribute.addStringAttr(self.root, 'guide_side', side)
-        attribute.addIntAttr(self.root, 'guide_index', self.guide_index)
 
-    # -------------------------------------------------------------------
+
+# -------------------------------------------------------------------
     # Add Objects to Guide
     # -------------------------------------------------------------------
     def addGuideRoot(self, parent):
@@ -90,38 +97,16 @@ class TGuideBaseComponent(object):
                 parent = guide.root
         return parent
 
-def validateGuideRoot(guideRoot):
-    if not guideRoot or not guideRoot.hasAttr('is_tGuide'):
-        sel = pm.selected()
-        if sel:
-            if sel[0].hasAttr('is_tGuide'):
-                guideRoot = sel[0]
-    return guideRoot
+    def getGuideLocs(self, root):
+        locs = [root]
+        guide_id = '%s_%s%s' % (self.guide_name, self.guide_side, self.guide_index)
+        childLocs = [node for node in pm.listRelatives(root, c=1, ad=1, s=0)
+                     if node.hasAttr('is_tGuide_loc')
+                     and guide_id in node.name()]
+        print guide_id
+        return locs + childLocs
 
-def compileGuide(guideRoot=None):
-    '''
-    :param guideRoot: Instance of TGuide class.
-    :return: Dictionary representing all the guide components ready to be built
-    '''
-    guideRoot = validateGuideRoot(guideRoot)
-    if not guideRoot:
-        return 'Please supply a valid TGuide root node'
-    compRoots = findComponentRoots(guideRoot)
-    if not compRoots:
-        return 'Specified Guide contains no valid components'
-    guideDict = {}
-    for root in compRoots:
-        guideDict[root.name()] = {}
-    print '\n'.join(guideDict.keys())
 
-def findComponentRoots(guideRoot=None):
-    '''
-    :param guideRoot: Instance of TGuide class.
-    :return: List of component root nodes in specified guide hierarchy
-    '''
-    guideRoot = validateGuideRoot(guideRoot)
-    if not guideRoot:
-        return 'Please supply a valid TGuide root node'
 
-    compRoots = [node for node in pm.listRelatives(guideRoot, c=1, ad=1, s=0) if node.hasAttr('guide_type')]
-    return compRoots
+
+
