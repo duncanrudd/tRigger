@@ -1,14 +1,20 @@
 import pymel.core as pm
 
-from tRigger.components import guide
+from tRigger.components import guide, attribute
 reload(guide)
 
 class TRootGuide(guide.TGuideBaseComponent):
-    def __init__(self, name, side='C', index=0,  fromDagNode=0):
+    def __init__(self, name, side='C', index=0, numCtrls=3, fromDagNode=0):
         guide.TGuideBaseComponent.__init__(self, name, 'root', side, index,  fromDagNode=fromDagNode)
+        self.num_ctrls = numCtrls
+        for param in ['num_ctrls']:
+            self.params.append(param)
+        if not fromDagNode:
+            attribute.addIntAttr(self.root, 'num_ctrls', numCtrls)
 
 def instantiateFromDagNode(dagNode):
     return TRootGuide(dagNode.guide_name.get(),
                       dagNode.guide_side.get(),
                       dagNode.guide_index.get(),
+                      numCtrls=dagNode.num_ctrls.get(),
                       fromDagNode=dagNode)

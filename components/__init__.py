@@ -1,6 +1,8 @@
 #tRigger
-from tRigger.core import attribute, dag
+from tRigger.core import attribute, dag, icon
 reload(attribute)
+reload(dag)
+reload(icon)
 
 import pymel.core as pm
 
@@ -26,6 +28,8 @@ class TBaseComponent(object):
         attribute.addStringAttr(self.root, 'comp_side', side)
         attribute.addIntAttr(self.root, 'comp_index', self.comp_index)
 
+        self.controls_list = []
+
     def createGroups(self):
         self.root = pm.createNode('transform', name=self.getName('comp'))
         self.input = dag.addChild(self.root, 'group', name=self.getName('input'))
@@ -45,7 +49,19 @@ class TBaseComponent(object):
         else:
             return max(compIndices) + 1
 
-    def addObjects(self):
+    def addCtrl(self, shape, size, name, xform, parent=None):
+        ctrl = eval('icon.%sIcon(%s, "%s")' % (shape, size, name))
+        pm.xform(ctrl, ws=1, m=xform)
+        if parent:
+            ctrl.setParent(parent)
+        else:
+            ctrl.setParent(self.controls)
+        self.controls_list.append(ctrl)
+
+    #----------------------------------------------------------------
+    # BUILD ROUTINES
+    #----------------------------------------------------------------
+    def addObjects(self, guide):
         # Overload this function in derived component classes to add
         # all required dag nodes for the component
         print 'Added Objects: %s' % self.comp_name

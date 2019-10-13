@@ -1,5 +1,7 @@
 import pymel.core as pm
 import os
+import tRigger.components as tComponents
+reload(tComponents)
 
 def validateGuideRoot(guideRoot):
     if not guideRoot or not guideRoot.hasAttr('is_tGuide'):
@@ -64,10 +66,15 @@ def buildFromGuide(guideRoot=None, buildLevel='objects'):
 
     returnDict = {}
 
+    # Create rig instance
+    rObj = tComponents.TRig(name='rig')
+
     for cmpnt in guideDict.keys():
         exec("import tRigger.components.%s as mod" % guideDict[cmpnt]['pObj'].guide_type)
         reload(mod)
         cObj = mod.build(guideDict[cmpnt]['pObj'])
+        cObj.root.setParent(rObj.systems)
+        cObj.addObjects(guideDict[cmpnt]['pObj'])
         fullCompName = '%s_%s%s_comp' % (guideDict[cmpnt]['pObj'].guide_name,
                                          guideDict[cmpnt]['pObj'].guide_side,
                                          guideDict[cmpnt]['pObj'].guide_index)

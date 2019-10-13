@@ -77,7 +77,7 @@ class TGuideBaseComponent(object):
 
     def requestIndex(self, index):
         guideNodes = [node for node in pm.ls(type='transform') if node.hasAttr('guide_type')]
-        guideIndices = [node.guide_index.get() for node in guideNodes if node.guide_type.get() == self.guide_type]
+        guideIndices = [node.guide_index.get() for node in guideNodes if node.guide_name.get() == self.guide_name]
         if not index in guideIndices:
             return index
         else:

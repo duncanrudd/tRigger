@@ -139,3 +139,21 @@ def crossBallIcon(size=20.0, name='', colour=None):
         setColour(icon, colour)
 
     return icon
+
+def squarePointIcon(size=20.0, name='', colour=None):
+    '''
+    creates a square shaped nurbs curve with a point at the front
+    '''
+    pos = size * 0.5
+    neg = pos * -1
+    points = [(0, neg*.05, pos), (0, 0, pos*1.1), (0, pos*.05, pos), (0, 0, pos),
+              (pos, 0, pos), (pos, 0, neg), (neg, 0, neg), (neg, 0, pos), (neg*.05, 0, pos)]
+
+    knots = [i for i in range(len(points))]
+
+    icon = pm.curve(degree=1, p=points, k=knots, name=name)
+
+    if colour:
+        setColour(icon, colour)
+
+    return icon
