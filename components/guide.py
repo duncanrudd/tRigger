@@ -21,7 +21,7 @@ class TGuideBaseComponent(object):
         self.params = ['guide_type', 'guide_name', 'guide_side', 'guide_index']
         if not fromDagNode:
             self.guide_index = self.requestIndex(index)
-            self.root = self.addGuideRoot(self.getGuideParent())
+            self.root = self.addGuideRoot(self.requestGuideParent())
             attribute.addStringAttr(self.root, 'guide_type', guideType)
             attribute.addStringAttr(self.root, 'guide_name', name)
             attribute.addStringAttr(self.root, 'guide_side', side)
@@ -41,6 +41,7 @@ class TGuideBaseComponent(object):
         if parent:
             root.setParent(parent)
             transform.align(root, parent)
+        self.addSpaceSwitchAttr(root)
         return root
 
     def addGuideLoc(self, name, mtx, parent=None):
@@ -52,6 +53,9 @@ class TGuideBaseComponent(object):
         pm.xform(loc, m=mtx, ws=0)
         self.locs.append(loc)
         return loc
+
+    def addSpaceSwitchAttr(self, node):
+        attribute.addStringAttr(node, 'spaces', '')
 
     def addGuideUpNode(self, axis='y'):
         loc = self.addGuideLoc(self.guide_name + '_upNode',
@@ -83,7 +87,7 @@ class TGuideBaseComponent(object):
         else:
             return max(guideIndices) + 1
 
-    def getGuideParent(self):
+    def requestGuideParent(self):
         parent = None
         sel = pm.selected()
         if sel:
@@ -97,6 +101,14 @@ class TGuideBaseComponent(object):
                 parent = guide.root
         return parent
 
+    def getGuideParent(self):
+        parent = self.root.getParent()
+        if parent:
+            if parent.hasAttr('is_tGuide_root') or parent.hasAttr('is_tGuide_loc'):
+                return parent
+            else:
+                return None
+
     def getGuideLocs(self, root):
         locs = [root]
         guide_id = '%s_%s%s' % (self.guide_name, self.guide_side, self.guide_index)
@@ -105,6 +117,18 @@ class TGuideBaseComponent(object):
                      and guide_id in node.name()]
         print guide_id
         return locs + childLocs
+
+
+
+    def getRequiredInputs(self):
+        switchNodes = [node for node in self.locs if node.hasAttr('spaces')]
+        inputs = []
+        for node in switchNodes:
+            spaces = [space.split(':')[1] for space in node.spaces.get().split(',')]
+            for space in spaces:
+                if not space in inputs:
+                    inputs.append(space)
+        return inputs
 
 
 

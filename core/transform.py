@@ -59,3 +59,11 @@ def decomposeMatrix(mtx, recycle=1, name=None):
             node.rename(name)
         mtx.connect(node.inputMatrix)
     return node
+
+def connectSrt(src, dest, s=1, r=1, t=1):
+    if s:
+        src.outputScale.connect(dest.s)
+    if r:
+        src.outputRotate.connect(dest.r)
+    if t:
+        src.outputTranslate.connect(dest.t)

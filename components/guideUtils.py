@@ -66,6 +66,8 @@ def buildFromGuide(guideRoot=None, buildLevel='objects'):
 
     returnDict = {}
 
+    buildDict = {'objects': 0, 'attributes': 1, 'systems': 2, 'connections': 3, 'deformers': 4, 'finish': 5}
+
     # Create rig instance
     rObj = tComponents.TRig(name='rig')
 
@@ -79,4 +81,20 @@ def buildFromGuide(guideRoot=None, buildLevel='objects'):
                                          guideDict[cmpnt]['pObj'].guide_side,
                                          guideDict[cmpnt]['pObj'].guide_index)
         returnDict[fullCompName] = cObj
+
+    for cmpnt in returnDict.keys():
+        if buildDict[buildLevel] >= 1:
+            returnDict[cmpnt].addAttributes()
+    for cmpnt in returnDict.keys():
+        if buildDict[buildLevel] >= 2:
+            returnDict[cmpnt].addSystems()
+    for cmpnt in returnDict.keys():
+        if buildDict[buildLevel] >= 3:
+            returnDict[cmpnt].addConnections(returnDict)
+    for cmpnt in returnDict.keys():
+        if buildDict[buildLevel] >= 4:
+            returnDict[cmpnt].addDeformers()
+    for cmpnt in returnDict.keys():
+        if buildDict[buildLevel] >= 5:
+            returnDict[cmpnt].finish()
     return returnDict

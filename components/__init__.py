@@ -1,8 +1,9 @@
 #tRigger
-from tRigger.core import attribute, dag, icon
+from tRigger.core import attribute, dag, icon, transform
 reload(attribute)
 reload(dag)
 reload(icon)
+reload(transform)
 
 import pymel.core as pm
 
@@ -22,6 +23,9 @@ class TBaseComponent(object):
         self.comp_type = compType
         self.comp_side = side
         self.comp_index = index
+        self.guideToRigMapping = {}
+        self.inputs = []
+        self.outputs = []
         self.createGroups()
         attribute.addStringAttr(self.root, 'comp_type', 'root')
         attribute.addStringAttr(self.root, 'comp_name', name)
@@ -57,6 +61,20 @@ class TBaseComponent(object):
         else:
             ctrl.setParent(self.controls)
         self.controls_list.append(ctrl)
+
+    def addOutput(self, node):
+        conns = [conn for conn in pm.listConnections(self.output, p=1, c=1, s=1) if conn[1] == node.worldMatrix[0]]
+        if conns:
+            return conns[0][0]
+        else:
+            attr = attribute.addMatrixAttr(self.output, '%s_outMtx' % node.name())
+            node.worldMatrix[0].connect(attr)
+            return attr
+
+    def mapToGuideLocs(self, rigNode, guideNode):
+        if type(rigNode) == 'str' or type(rigNode) == 'unicode':
+            rigNode, guideNode = pm.PyNode(rigNode), pm.PyNode(guideNode)
+        self.guideToRigMapping[guideNode] = rigNode
 
     #----------------------------------------------------------------
     # BUILD ROUTINES
