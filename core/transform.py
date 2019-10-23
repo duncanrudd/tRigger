@@ -67,3 +67,37 @@ def connectSrt(src, dest, s=1, r=1, t=1):
         src.outputRotate.connect(dest.r)
     if t:
         src.outputTranslate.connect(dest.t)
+
+def pmMtx2fourFourMtx(mtx, name=None):
+    node = pm.createNode('fourByFourMatrix')
+    if name:
+        node.rename(name)
+    mtxList = mtx.tolist()
+
+    node.in00.set(mtxList[0][0])
+    node.in01.set(mtxList[0][1])
+    node.in02.set(mtxList[0][2])
+
+    node.in10.set(mtxList[1][0])
+    node.in11.set(mtxList[1][1])
+    node.in12.set(mtxList[1][2])
+
+    node.in20.set(mtxList[2][0])
+    node.in21.set(mtxList[2][1])
+    node.in22.set(mtxList[2][2])
+
+    node.in30.set(mtxList[3][0])
+    node.in31.set(mtxList[3][1])
+    node.in32.set(mtxList[3][2])
+
+    return node
+
+def multiplyMatrices(mtxList, name=None):
+    node = pm.createNode('multMatrix')
+    if name:
+        node.rename(name)
+    for i, mtx in enumerate(mtxList):
+        mtx.connect(node.matrixIn[i])
+    return node
+
+

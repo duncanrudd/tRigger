@@ -71,6 +71,19 @@ class TBaseComponent(object):
             node.worldMatrix[0].connect(attr)
             return attr
 
+    def connectToInput(self, input, node):
+        targMtx = node.worldMatrix[0].get()
+        mtxAttr = input
+        suffix = input.name().split('.')[1].replace('_mtx', '')
+        if input.get() != targMtx:
+            offsetMtx = targMtx * input.get().inverse()
+            offset = transform.pmMtx2fourFourMtx(offsetMtx, name=self.getName('%s_offsetMtx' % suffix))
+            multMtx = transform.multiplyMatrices([offset.output, input], name=self.getName('%s_mtx' % suffix))
+            mtxAttr = multMtx.matrixSum
+
+        dm = transform.decomposeMatrix(mtxAttr, name=self.getName('%s_mtx2Srt' % suffix))
+        transform.connectSrt(dm, self.controls_list[0].getParent())
+
     def mapToGuideLocs(self, rigNode, guideNode):
         if type(rigNode) == 'str' or type(rigNode) == 'unicode':
             rigNode, guideNode = pm.PyNode(rigNode), pm.PyNode(guideNode)

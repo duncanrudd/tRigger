@@ -20,7 +20,7 @@ class TControl(components.TBaseComponent):
                 parent = self.controls_list[-1]
             else:
                 parent = dag.addChild(self.controls, 'group', name=self.getName('buffer_srt'))
-                pm.xform(parent, e=1, ws=1, m=xform)
+                pm.xform(parent, ws=1, m=xform)
             num = str(i+1).zfill(2)
             self.addCtrl(shape='squarePoint', size=20.0-(i*3),
                          name=self.getName('%s_ctrl' % num), xform=xform, parent=parent)
@@ -35,8 +35,7 @@ class TControl(components.TBaseComponent):
             output = rig[compObj.name()].addOutput(parentObj)
             input = attribute.addMatrixAttr(self.input, 'parent_in_mtx')
             output.connect(input)
-            dm = transform.decomposeMatrix(input, name=self.getName('parent_mtx2Srt'))
-            transform.connectSrt(dm, self.controls_list[0].getParent())
+            self.connectToInput(input, self.controls_list[0].getParent())
             print 'Parent Object: %s' % parentObj.name()
         else:
             print 'No parent found: %s' % self.guide.root.name()
