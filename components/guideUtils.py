@@ -75,7 +75,7 @@ def buildFromGuide(guideRoot=None, buildLevel='objects'):
         exec("import tRigger.components.%s as mod" % guideDict[cmpnt]['pObj'].guide_type)
         reload(mod)
         cObj = mod.build(guideDict[cmpnt]['pObj'])
-        cObj.root.setParent(rObj.systems)
+        cObj.root.setParent(rObj.components)
         cObj.addObjects(guideDict[cmpnt]['pObj'])
         fullCompName = '%s_%s%s_comp' % (guideDict[cmpnt]['pObj'].guide_name,
                                          guideDict[cmpnt]['pObj'].guide_side,

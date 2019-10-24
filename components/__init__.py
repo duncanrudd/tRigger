@@ -11,7 +11,8 @@ import pymel.core as pm
 class TRig(object):
     def __init__(self, name):
         self.root = pm.createNode('transform', name=name)
-        self.systems = dag.addChild(self.root, 'group', 'systems')
+        self.components = dag.addChild(self.root, 'group', 'components')
+        self.joints = dag.addChild(self.root, 'group', 'joints')
         self.geo = dag.addChild(self.root, 'group', 'geo')
         self.rig_name = name
         attribute.addStringAttr(self.root, 'rig_name', name)
@@ -24,6 +25,7 @@ class TBaseComponent(object):
         self.comp_side = side
         self.comp_index = index
         self.guideToRigMapping = {}
+        self.guideToJointMapping = {}
         self.inputs = []
         self.outputs = []
         self.createGroups()
@@ -33,6 +35,7 @@ class TBaseComponent(object):
         attribute.addIntAttr(self.root, 'comp_index', self.comp_index)
 
         self.controls_list = []
+        self.joints_list = []
 
     def createGroups(self):
         self.root = pm.createNode('transform', name=self.getName('comp'))
@@ -40,6 +43,7 @@ class TBaseComponent(object):
         self.controls = dag.addChild(self.root, 'group', name=self.getName('controls'))
         self.rig = dag.addChild(self.root, 'group', name=self.getName('rig'))
         self.output = dag.addChild(self.root, 'group', name=self.getName('output'))
+        self.deform = dag.addChild(self.root, 'group', name=self.getName('deform'))
 
 
     def getName(self, name):
@@ -89,6 +93,11 @@ class TBaseComponent(object):
             rigNode, guideNode = pm.PyNode(rigNode), pm.PyNode(guideNode)
         self.guideToRigMapping[guideNode] = rigNode
 
+    def mapJointToGuideLocs(self, jointNode, guideNode):
+        if type(jointNode) == 'str' or type(jointNode) == 'unicode':
+            jointNode, guideNode = pm.PyNode(jointNode), pm.PyNode(guideNode)
+        self.guideToJointMapping[guideNode] = jointNode
+
     #----------------------------------------------------------------
     # BUILD ROUTINES
     #----------------------------------------------------------------
@@ -112,7 +121,7 @@ class TBaseComponent(object):
         # joints to the component's output - for use in skinning
         print 'Added Deformers: %s' % self.comp_name
 
-    def addConnections(self):
+    def addConnections(self, rig):
         # Overload this function in derived component classes to add
         # connections between components - simple inheritance or space switching systems
         print 'Added Connections: %s' % self.comp_name

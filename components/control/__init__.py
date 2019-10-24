@@ -25,6 +25,11 @@ class TControl(components.TBaseComponent):
             self.addCtrl(shape='squarePoint', size=20.0-(i*3),
                          name=self.getName('%s_ctrl' % num), xform=xform, parent=parent)
         self.mapToGuideLocs(self.controls_list[-1], guide.locs[-1])
+
+        if guide.root.add_joint.get():
+            j = pm.createNode('joint', name=self.getName('jnt'))
+            self.joints_list.append(j)
+            self.mapJointToGuideLocs(j, guide.locs[-1])
         components.TBaseComponent.addObjects(self, guide)
 
     def addConnections(self, rig):
