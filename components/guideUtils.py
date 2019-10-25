@@ -93,7 +93,7 @@ def buildFromGuide(guideRoot=None, buildLevel='objects'):
             returnDict[cmpnt].addConnections(returnDict)
     for cmpnt in returnDict.keys():
         if buildDict[buildLevel] >= 4:
-            returnDict[cmpnt].addDeformers()
+            returnDict[cmpnt].addDeformers(returnDict, rObj)
     for cmpnt in returnDict.keys():
         if buildDict[buildLevel] >= 5:
             returnDict[cmpnt].finish()

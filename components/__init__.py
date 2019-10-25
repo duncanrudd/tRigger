@@ -116,14 +116,52 @@ class TBaseComponent(object):
         # any solvers / rigging / connections required by the component
         print 'Added Systems: %s' % self.comp_name
 
-    def addDeformers(self):
-        # Overload this function in derived component classes to add
-        # joints to the component's output - for use in skinning
+    def addDeformers(self, rig, rObj):
+        if self.guide.root.add_joint.get():
+            parent = self.guide.getGuideParent()
+            parentJoint = None
+            if parent:
+                while not parentJoint:
+                    compObj = pm.PyNode('_'.join(parent.name().split('_')[:2]) + '_comp')
+                    try:
+                        parentJoint = rig[compObj.name()].guideToJointMapping[parent]
+                    except:
+                        parent = parent.getParent()
+                        if parent.hasAttr('is_tGuide'):
+                            parentJoint = rObj.joints
+            else:
+                parentJoint = rObj.joints
+            self.joints_list[0]['joint'].setParent(parentJoint)
+
+            # Create input node inside rig's joints group. This is where the connection from the component to drive
+            # each joint comes in.
+            input = dag.addChild(rObj.joints, 'group', self.getName('joints_input'))
+            for j in self.joints_list:
+                name = j['joint'].name()
+                outAttr = attribute.addMatrixAttr(self.deform, '%s_out_mtx' % name)
+                j['driver'].worldMatrix[0].connect(outAttr)
+                inAttr = attribute.addMatrixAttr(input, '%s_in_mtx' % name)
+                outAttr.connect(inAttr)
+                mul = transform.multiplyMatrices([inAttr, j['joint'].getParent().worldInverseMatrix[0]],
+                                                 name=self.getName('%s_mtx' % name))
+                dm = transform.decomposeMatrix(mul.matrixSum, name=self.getName('%s_mtx2Srt' % name))
+                transform.connectSrt(dm, j['joint'])
+                j['joint'].jo.set(0,0,0)
+
         print 'Added Deformers: %s' % self.comp_name
 
     def addConnections(self, rig):
-        # Overload this function in derived component classes to add
-        # connections between components - simple inheritance or space switching systems
+        parent = self.guide.getGuideParent()
+        if parent:
+            compObj = pm.PyNode('_'.join(parent.name().split('_')[:2]) + '_comp')
+            parentObj = rig[compObj.name()].guideToRigMapping[parent]
+            output = rig[compObj.name()].addOutput(parentObj)
+            input = attribute.addMatrixAttr(self.input, 'parent_in_mtx')
+            output.connect(input)
+            self.connectToInput(input, self.controls_list[0].getParent())
+            print 'Parent Object: %s' % parentObj.name()
+        else:
+            print 'No parent found: %s' % self.guide.root.name()
         print 'Added Connections: %s' % self.comp_name
 
     def finish(self):

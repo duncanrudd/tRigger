@@ -28,23 +28,9 @@ class TControl(components.TBaseComponent):
 
         if guide.root.add_joint.get():
             j = pm.createNode('joint', name=self.getName('jnt'))
-            self.joints_list.append(j)
+            self.joints_list.append({'joint': j, 'driver': self.controls_list[-1]})
             self.mapJointToGuideLocs(j, guide.locs[-1])
         components.TBaseComponent.addObjects(self, guide)
-
-    def addConnections(self, rig):
-        parent = self.guide.getGuideParent()
-        if parent:
-            compObj = pm.PyNode('_'.join(parent.name().split('_')[:2]) + '_comp')
-            parentObj = rig[compObj.name()].guideToRigMapping[parent]
-            output = rig[compObj.name()].addOutput(parentObj)
-            input = attribute.addMatrixAttr(self.input, 'parent_in_mtx')
-            output.connect(input)
-            self.connectToInput(input, self.controls_list[0].getParent())
-            print 'Parent Object: %s' % parentObj.name()
-        else:
-            print 'No parent found: %s' % self.guide.root.name()
-
 
 def build(guide):
     '''
