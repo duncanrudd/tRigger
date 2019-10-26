@@ -41,6 +41,7 @@ class TBaseComponent(object):
         self.root = pm.createNode('transform', name=self.getName('comp'))
         self.input = dag.addChild(self.root, 'group', name=self.getName('input'))
         self.controls = dag.addChild(self.root, 'group', name=self.getName('controls'))
+        self.params = dag.addChild(self.controls, 'group', name=self.getName('anim_params'))
         self.rig = dag.addChild(self.root, 'group', name=self.getName('rig'))
         self.output = dag.addChild(self.root, 'group', name=self.getName('output'))
         self.deform = dag.addChild(self.root, 'group', name=self.getName('deform'))
@@ -87,6 +88,24 @@ class TBaseComponent(object):
 
         dm = transform.decomposeMatrix(mtxAttr, name=self.getName('%s_mtx2Srt' % suffix))
         transform.connectSrt(dm, self.controls_list[0].getParent())
+
+    def connectToMultiInputs(self, inputs, enumNames, node):
+        name = '_'.join(node.name().split('_')[2:])
+        switch = pm.createNode('choice', name=self.getName('%s_spaceSwitch' % name))
+        dm = transform.decomposeMatrix(switch.output, name=self.getName('%s_mtx2Srt' % node.name()))
+        for i, input in enumerate(inputs):
+            suffix = input.name().split('.')[1].replace('_mtx', '')
+            targMtx = node.worldMatrix[0].get()
+            offsetMtx = targMtx * input.get().inverse()
+            offset = transform.pmMtx2fourFourMtx(offsetMtx,
+                                                 name=self.getName('%s_%s_offsetMtx' % (suffix, name)))
+            multMtx = transform.multiplyMatrices([offset.output, input],
+                                                 name=self.getName('%s_%s_mtx' % (suffix, name)))
+            multMtx.matrixSum.connect(switch.input[i])
+        switchAttr = attribute.addEnumAttr(self.params, 'parent_space', [enum for enum in enumNames])
+        switchAttr.connect(switch.selector)
+        transform.connectSrt(dm, node.getParent())
+
 
     def mapToGuideLocs(self, rigNode, guideNode):
         if type(rigNode) == 'str' or type(rigNode) == 'unicode':
@@ -151,6 +170,7 @@ class TBaseComponent(object):
         print 'Added Deformers: %s' % self.comp_name
 
     def addConnections(self, rig):
+        # First add simple connection based on guide hierarchy
         parent = self.guide.getGuideParent()
         if parent:
             compObj = pm.PyNode('_'.join(parent.name().split('_')[:2]) + '_comp')
@@ -163,6 +183,36 @@ class TBaseComponent(object):
         else:
             print 'No parent found: %s' % self.guide.root.name()
         print 'Added Connections: %s' % self.comp_name
+
+        # Next check for nodes that have multiple spaces
+        switchNodes = [node for node in self.guide.locs if node.hasAttr('spaces')]
+        for node in switchNodes:
+            spaces = [space for space in node.spaces.get().replace(' ', '').split(',')]
+            enumNames = []
+            inputs = []
+            if len(spaces) != 0:
+                if spaces[0]:
+                    for space in spaces:
+                        spaceName, spaceTarg = space.split(':')
+                        enumNames.append(spaceName)
+                        inputName = '%s_in_mtx' % spaceName
+                        try:
+                            input = pm.Attribute('%s.%s' % (self.input.name(), inputName))
+                        except:
+                            input = attribute.addMatrixAttr(self.input, inputName)
+                        inputs.append(input)
+
+                        compObj = pm.PyNode('_'.join(spaceTarg.split('_')[:2]) + '_comp')
+                        parentObj = rig[compObj.name()].guideToRigMapping[pm.PyNode(spaceTarg)]
+                        output = rig[compObj.name()].addOutput(parentObj)
+                        output.connect(input)
+                    drivenNode = self.guideToRigMapping[node]
+                    if node.hasAttr('is_tGuide_root'):
+                        drivenNode = self.controls_list[0]
+                    print 'controls: %s' % self.controls_list
+                    self.connectToMultiInputs(inputs, enumNames, drivenNode)
+
+
 
     def finish(self):
         # Overload this function in derived component classes to

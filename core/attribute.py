@@ -33,3 +33,8 @@ def addFloatAttr(node, name, value=0, k=1, h=0):
     attr = pm.Attribute('%s.%s' % (node.name(), name))
     return attr
 
+def addEnumAttr(node, name, enumNames, k=1, h=0):
+    pm.addAttr(node, ln=name, at='enum', enumName=':'.join(enumNames), k=k, h=h)
+    attr = pm.Attribute('%s.%s' % (node.name(), name))
+    return attr
+
