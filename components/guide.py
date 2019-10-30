@@ -44,9 +44,9 @@ class TGuideBaseComponent(object):
         self.addSpaceSwitchAttr(root)
         return root
 
-    def addGuideLoc(self, name, mtx, parent=None):
-        loc = icon.crossBallIcon(name=name, colour='yellow', size=5)
-        attribute.addBoolAttr(loc, 'is_tGuide_loc')
+    def addGuideLoc(self, name, mtx, parent=None, size=5, colour='yellow', locType='loc'):
+        loc = icon.crossBallIcon(name=name, colour=colour, size=size)
+        attribute.addBoolAttr(loc, 'is_tGuide_%s' % locType)
         if not parent:
             parent = self.root
         loc.setParent(parent)
@@ -58,12 +58,13 @@ class TGuideBaseComponent(object):
         attribute.addStringAttr(node, 'spaces', '')
 
     def addGuideUpNode(self, axis='y'):
-        loc = self.addGuideLoc(self.guide_name + '_upNode',
+        loc = self.addGuideLoc(self.getName('upNode'),
                                pm.datatypes.Matrix(),
                                self.root)
         icon.setColour(loc, 'cyan')
         pm.setAttr('%s.t%s' % (loc.name(), axis), 5.0)
-        self.addGuideCurve([self.root, loc, self.locs[1]], name=self.guide_name + '_upCrv', degree=1)
+        self.addGuideCurve([self.root, loc, self.locs[1]], name=self.getName('upCrv'), degree=1)
+        return loc
 
     def addGuideCurve(self, nodes, name, degree=1):
         crv = curve.curveThroughPoints(name, nodes, degree)
@@ -72,6 +73,7 @@ class TGuideBaseComponent(object):
         crv.setParent(self.root)
         pm.xform(crv, ws=1, m=pm.datatypes.Matrix())
         dag.setDisplayType(crv, 'template')
+        return crv
 
     # -------------------------------------------------------------------
     # Get information about the Guide
@@ -109,11 +111,13 @@ class TGuideBaseComponent(object):
             else:
                 return None
 
-    def getGuideLocs(self, root):
-        locs = [root]
+    def getGuideLocs(self, root, locType='loc'):
+        locs = []
+        if locType == 'loc':
+            locs.append(root)
         guide_id = '%s_%s%s' % (self.guide_name, self.guide_side, self.guide_index)
         childLocs = [node for node in pm.listRelatives(root, c=1, ad=1, s=0)
-                     if node.hasAttr('is_tGuide_loc')
+                     if node.hasAttr('is_tGuide_%s' % locType)
                      and guide_id in node.name()]
         print guide_id
         return locs + childLocs

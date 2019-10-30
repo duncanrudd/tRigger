@@ -22,6 +22,7 @@ class TFkChainGuide(guide.TGuideBaseComponent):
             attribute.addStringAttr(self.root, 'axis', axis)
             attribute.addStringAttr(self.root, 'up_axis', upAxis)
             self.addLocs(segments)
+            attribute.addBoolAttr(self.root, 'add_joint')
         else:
             self.locs = self.getGuideLocs(fromDagNode)
 

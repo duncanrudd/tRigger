@@ -42,6 +42,8 @@ class TBaseComponent(object):
         self.input = dag.addChild(self.root, 'group', name=self.getName('input'))
         self.controls = dag.addChild(self.root, 'group', name=self.getName('controls'))
         self.params = dag.addChild(self.controls, 'group', name=self.getName('anim_params'))
+        self.base_srt = dag.addChild(self.controls, 'group', name=self.getName('base_srt'))
+        transform.align(self.base_srt, self.guide.root)
         self.rig = dag.addChild(self.root, 'group', name=self.getName('rig'))
         self.output = dag.addChild(self.root, 'group', name=self.getName('output'))
         self.deform = dag.addChild(self.root, 'group', name=self.getName('deform'))
@@ -64,7 +66,7 @@ class TBaseComponent(object):
         if parent:
             ctrl.setParent(parent)
         else:
-            ctrl.setParent(self.controls)
+            ctrl.setParent(self.base_srt)
         self.controls_list.append(ctrl)
 
     def addOutput(self, node):
@@ -87,7 +89,7 @@ class TBaseComponent(object):
             mtxAttr = multMtx.matrixSum
 
         dm = transform.decomposeMatrix(mtxAttr, name=self.getName('%s_mtx2Srt' % suffix))
-        transform.connectSrt(dm, self.controls_list[0].getParent())
+        transform.connectSrt(dm, self.base_srt)
 
     def connectToMultiInputs(self, inputs, enumNames, node):
         name = '_'.join(node.name().split('_')[2:])
@@ -178,7 +180,7 @@ class TBaseComponent(object):
             output = rig[compObj.name()].addOutput(parentObj)
             input = attribute.addMatrixAttr(self.input, 'parent_in_mtx')
             output.connect(input)
-            self.connectToInput(input, self.controls_list[0].getParent())
+            self.connectToInput(input, self.base_srt)
             print 'Parent Object: %s' % parentObj.name()
         else:
             print 'No parent found: %s' % self.guide.root.name()

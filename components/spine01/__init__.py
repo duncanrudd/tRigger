@@ -4,11 +4,11 @@ reload(components)
 
 import pymel.core as pm
 
-class TFkChain(components.TBaseComponent):
+class TSpine01(components.TBaseComponent):
     def __init__(self, guide):
         self.guide = guide
-        components.TBaseComponent.__init__(self, guide.guide_name, guide.guide_side, guide.guide_index, 'fkChain')
-        print 'Created FK Chain Component: %s' % self.comp_name
+        components.TBaseComponent.__init__(self, guide.guide_name, guide.guide_side, guide.guide_index, 'spine01')
+        print 'Created Spine01 Component: %s' % self.comp_name
 
 def build(guide):
     '''
@@ -16,4 +16,4 @@ def build(guide):
     Its job is to instantiate the component
     :return: The newly created component instance
     '''
-    return TFkChain(guide)
+    return TSpine01(guide)

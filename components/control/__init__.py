@@ -8,8 +8,8 @@ import pymel.core as pm
 
 class TControl(components.TBaseComponent):
     def __init__(self, guide):
-        components.TBaseComponent.__init__(self, guide.guide_name, guide.guide_side, guide.guide_index, 'control')
         self.guide = guide
+        components.TBaseComponent.__init__(self, guide.guide_name, guide.guide_side, guide.guide_index, 'control')
         print 'Created Control Component: %s' % self.comp_name
 
     def addObjects(self, guide):
@@ -19,7 +19,7 @@ class TControl(components.TBaseComponent):
             if i > 0:
                 parent = self.controls_list[-1]
             else:
-                parent = dag.addChild(self.controls, 'group', name=self.getName('buffer_srt'))
+                parent = dag.addChild(self.base_srt, 'group', name=self.getName('buffer_srt'))
                 pm.xform(parent, ws=1, m=xform)
             num = str(i+1).zfill(2)
             self.addCtrl(shape='squarePoint', size=20.0-(i*3),
