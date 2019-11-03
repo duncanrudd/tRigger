@@ -1,4 +1,5 @@
 import pymel.core as pm
+from maya.api import OpenMaya as om2
 
 def addStringAttr(node, name, value=''):
     pm.addAttr(node, ln=name, dt="string")
@@ -43,4 +44,24 @@ def addEnumAttr(node, name, enumNames, k=1, h=0):
     pm.addAttr(node, ln=name, at='enum', enumName=':'.join(enumNames), k=k, h=h)
     attr = pm.Attribute('%s.%s' % (node.name(), name))
     return attr
+
+def addCallbackToAttr(mob, attr, fn):
+    '''
+    :param node: the target node
+    :param attr: the name of the attribute to add the callback to
+    :param fn: the function to call when the callback is triggered
+    '''
+    # Make sure mob is an MObject
+    if not type(mob) == om2.MObject:
+        ls = om2.MGlobal.getSelectionListByName(mob.name())
+        mob = ls.getDependNode(0)
+
+    # Remove existing callbacks from the node
+    for eachCB in om2.MMessage.nodeCallbacks(mob):
+        om2.MMessage.removeCallback(eachCB)
+
+    om2.MNodeMessage.addAttributeChangedCallback(mob, fn)
+
+
+
 

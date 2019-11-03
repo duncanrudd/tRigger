@@ -93,7 +93,7 @@ class TGuideBaseComponent(object):
         parent = None
         sel = pm.selected()
         if sel:
-            if sel[0].hasAttr('is_tGuide_root') or sel[0].hasAttr('is_tGuide_loc'):
+            if sel[0].hasAttr('is_tGuide_root') or sel[0].hasAttr('is_tGuide_loc') or sel[0].hasAttr('is_tGuide_div'):
                 parent = sel[0]
         else:
             try:
@@ -106,7 +106,7 @@ class TGuideBaseComponent(object):
     def getGuideParent(self):
         parent = self.root.getParent()
         if parent:
-            if parent.hasAttr('is_tGuide_root') or parent.hasAttr('is_tGuide_loc'):
+            if parent.hasAttr('is_tGuide_root') or parent.hasAttr('is_tGuide_loc') or parent.hasAttr('is_tGuide_div'):
                 return parent
             else:
                 return None
@@ -121,8 +121,6 @@ class TGuideBaseComponent(object):
                      and guide_id in node.name()]
         print guide_id
         return locs + childLocs
-
-
 
     def getRequiredInputs(self):
         switchNodes = [node for node in self.locs if node.hasAttr('spaces')]

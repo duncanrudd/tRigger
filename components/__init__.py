@@ -60,14 +60,17 @@ class TBaseComponent(object):
         else:
             return max(compIndices) + 1
 
-    def addCtrl(self, shape, size, name, xform, parent=None):
-        ctrl = eval('icon.%sIcon(%s, "%s")' % (shape, size, name))
+    def addCtrl(self, shape, size, name, xform, parent=None, buffer=0):
+        ctrl = eval('icon.%sIcon(%s, "%s")' % (shape, size, '%s_ctrl' % name))
         pm.xform(ctrl, ws=1, m=xform)
         if parent:
             ctrl.setParent(parent)
         else:
             ctrl.setParent(self.base_srt)
         self.controls_list.append(ctrl)
+        if buffer:
+            dag.addParent(ctrl, 'group', name='%s_buffer_srt' % name)
+        return ctrl
 
     def addOutput(self, node):
         conns = [conn for conn in pm.listConnections(self.output, p=1, c=1, s=1) if conn[1] == node.worldMatrix[0]]

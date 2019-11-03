@@ -23,7 +23,7 @@ class TControl(components.TBaseComponent):
                 pm.xform(parent, ws=1, m=xform)
             num = str(i+1).zfill(2)
             self.addCtrl(shape='squarePoint', size=20.0-(i*3),
-                         name=self.getName('%s_ctrl' % num), xform=xform, parent=parent)
+                         name=self.getName(num), xform=xform, parent=parent)
         self.mapToGuideLocs(self.controls_list[-1], guide.locs[-1])
 
         if guide.root.add_joint.get():
