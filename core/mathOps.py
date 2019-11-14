@@ -2,6 +2,7 @@ import pymel.core as pm
 import pymel.core.datatypes as dt
 import pymel.util as pmUtil
 import math
+from tRigger.core import transform
 
 
 # --------------------------------------------------------------------------------
@@ -205,6 +206,16 @@ def angleBetween(input1, input2, name=None):
         node.vector2.set(input2)
     return node
 
+def distance(start, end, name):
+    node = pm.createNode('distanceBetween')
+    if name:
+        node.rename(name)
+    start.worldMatrix[0].connect(node.inMatrix1)
+    end.worldMatrix[0].connect(node.inMatrix2)
+
+    return node
+
+
 # -----------------------------------------------------------------------
 # MATRIX OPS
 # -----------------------------------------------------------------------
@@ -264,6 +275,18 @@ def createTransformedPoint(point, matrix, name=None):
     node.operation.set(4)
     return node
 
+def createMatrixAxisVector(matrix, axis, name=None):
+    node = pm.createNode('vectorProduct')
+    if name:
+        node.rename(name)
+    matrix.connect(node.matrix)
+    if type(axis) == pm.general.Attribute:
+        axis.connect(node.input1)
+    else:
+        node.input1.set(axis)
+    node.operation.set(3)
+    return node
+
 def createComposeMatrix(inputTranslate=(0,0,0), inputRotate=(0,0,0), inputScale=(1,1,1), name=None):
     node = pm.createNode('composeMatrix')
     if name:
@@ -290,6 +313,31 @@ def inverseMatrix(matrix, name=None):
     if name:
         node.rename(name)
     matrix.connect(node.inputMatrix)
+    return node
+
+def vectors2Mtx44(vec1, vec2, vec3, vec4=[0, 0, 0], name=''):
+    node = pm.createNode('fourByFourMatrix')
+    if name:
+        node.rename(name)
+
+    vec1[0].connect(node.in00)
+    vec1[1].connect(node.in01)
+    vec1[2].connect(node.in02)
+
+    vec2[0].connect(node.in10)
+    vec2[1].connect(node.in11)
+    vec2[2].connect(node.in12)
+
+    vec3[0].connect(node.in20)
+    vec3[1].connect(node.in21)
+    vec3[2].connect(node.in22)
+
+    node.in30.set(vec4[0])
+    node.in31.set(vec4[1])
+    node.in32.set(vec4[2])
+
+    node.in33.set(1)
+
     return node
 
 
@@ -346,6 +394,27 @@ def getDistance(start, end):
     calc.append(startPos[2] - endPos[2])
 
     return mag(calc)
+
+def normalize(vector, name=''):
+    node = pm.createNode('vectorProduct')
+    if name:
+        node.rename(name)
+    vector.connect(node.input1)
+    node.normalizeOutput.set(1)
+    node.operation.set(0)
+
+    return node
+
+def createCrossProduct(vec1, vec2, normalize=1, name=''):
+    node = pm.createNode('vectorProduct')
+    if name:
+        node.rename(name)
+    vec1.connect(node.input1)
+    vec2.connect(node.input2)
+    node.operation.set(2)
+    node.normalizeOutput.set(normalize)
+
+    return node
 
 # -----------------------------------------------------------------------
 # MISC

@@ -1,4 +1,5 @@
 import pymel.core as pm
+import math
 
 def setColour(node, colour=None):
     '''
@@ -148,6 +149,28 @@ def squarePointIcon(size=20.0, name='', colour=None):
     neg = pos * -1
     points = [(0, neg*.05, pos), (0, 0, pos*1.1), (0, pos*.05, pos), (0, 0, pos),
               (pos, 0, pos), (pos, 0, neg), (neg, 0, neg), (neg, 0, pos), (neg*.05, 0, pos)]
+
+    knots = [i for i in range(len(points))]
+
+    icon = pm.curve(degree=1, p=points, k=knots, name=name)
+
+    if colour:
+        setColour(icon, colour)
+
+    return icon
+
+def circlePointIcon(size=20.0, name='', colour=None):
+    '''
+    creates a circle shaped nurbs curve with a point at the front
+    '''
+    radius = size*0.5
+    points = []
+    for i in range(24):
+        interval = math.radians(15*(i+1))
+        points.append((math.sin(interval)*radius, 0, math.cos(interval)*radius))
+    points.append((0, radius*.05, radius))
+    points.append((0, 0, radius*1.1))
+    points.append((0, radius*-.05, radius))
 
     knots = [i for i in range(len(points))]
 
