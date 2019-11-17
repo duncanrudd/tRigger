@@ -4,7 +4,7 @@ from tRigger.core import transform
 def curveThroughPoints(name, positions=None, degree=3, bezier=0, rebuild=1):
     if not positions:
         positions = [pm.xform(p, q=1, ws=1, t=1) for p in pm.selected()]
-    elif type(positions[0] == pm.nodetypes.Transform):
+    elif type(positions[0]) == pm.nodetypes.Transform:
         positions = [pm.xform(p, q=1, ws=1, t=1) for p in positions]
 
     if len(positions) < (degree + 1):

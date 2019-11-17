@@ -83,6 +83,24 @@ def blendAngles(inputA, inputB, weightA, weightB, name=None):
         node.weightB.set(weightB)
     return node
 
+def multiplyAngleByScalar(input, weight, name=None):
+    '''
+    creates an animBlendNodeAdditiveDA node and connects input1 with weightA as multiplier
+    '''
+    node = pm.createNode('animBlendNodeAdditiveDA')
+    if name:
+        node.rename(name)
+    if type(input) == pm.general.Attribute:
+        input.connect(node.inputA)
+    else:
+        node.inputA.set(input)
+    if type(weight) == pm.general.Attribute:
+        weight.connect(node.weightA)
+    else:
+        node.weightA.set(weight)
+
+    return node
+
 def getAngleBetweenVectors(v1, v2, vUp, degrees=1):
     '''
     returns the signed angle between v1 and v2
@@ -471,4 +489,25 @@ def remap(input, oldMin, oldMax, min, max, name=None):
     else:
         node.minX.set(min)
     return node
+
+def isolateRotationOnAxis(rotationAttr, axis, name=''):
+    quatNode = pm.createNode('eulerToQuat')
+    if name:
+        quatNode.rename('%s_quat2Euler' % name)
+    eulerNode = pm.createNode('quatToEuler')
+    if name:
+        eulerNode.rename('%s_euler2Quat' % name)
+    rotationAttr.connect(quatNode.inputRotate)
+    sourceAttr = pm.Attribute('%s.outputQuat%s' % (quatNode.name(), axis.upper()))
+    destAttr = pm.Attribute('%s.inputQuat%s' % (eulerNode.name(), axis.upper()))
+    sourceAttr.connect(destAttr)
+    quatNode.outputQuatW.connect(eulerNode.inputQuatW)
+
+    if 'Y' in axis.upper():
+        eulerNode.inputRotateOrder.set(4)
+    elif 'Z' in axis.upper():
+        eulerNode.inputRotateOrder.set(2)
+
+
+    return[quatNode, eulerNode]
 
