@@ -358,6 +358,14 @@ def vectors2Mtx44(vec1, vec2, vec3, vec4=[0, 0, 0], name=''):
 
     return node
 
+def connectSrt(src, dest, s=1, r=1, t=1):
+    if s:
+        src.outputScale.connect(dest.s)
+    if r:
+        src.outputRotate.connect(dest.r)
+    if t:
+        src.outputTranslate.connect(dest.t)
+
 
 # -----------------------------------------------------------------------
 # VECTOR OPS

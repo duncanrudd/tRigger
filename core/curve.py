@@ -71,3 +71,9 @@ def scaleCVs(nodes, scale):
     for node in nodes:
         pm.select('%s.cv[:]' % node.name())
         pm.scale(scale, scale, scale, objectSpace=1)
+
+def sampleCurvePosition(crv, uValue, fractionMode=1):
+    mp = createMotionPathNode(crv, uValue, fractionMode=fractionMode)
+    pos = mp.allCoordinates.get()
+    pm.delete(mp)
+    return pos

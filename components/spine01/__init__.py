@@ -17,12 +17,11 @@ class TSpine01(components.TBaseComponent):
         xform = pm.xform(pm.PyNode(guide.root), q=1, ws=1, m=1)
         self.base_ctrl = self.addCtrl(shape='circlePoint', size=20.0,
                                       name=self.getName('fk_base'), xform=xform, parent=self.base_srt, buffer=1)
-        xform = pm.xform(pm.PyNode(guide.divisionLocs[guide.num_divisions-1]), q=1, ws=1, m=1)
         self.lower_ctrl = self.addCtrl(shape='circlePoint', size=15.0,
-                                       name=self.getName('fk_base'), xform=xform, parent=self.base_ctrl, buffer=1)
-        xform = pm.xform(pm.PyNode(guide.divisionLocs[len(guide.divisionLocs)-1]), q=1, ws=1, m=1)
+                                       name=self.getName('fk_lower'), xform=xform, parent=self.base_ctrl, buffer=1)
+        xform = pm.xform(pm.PyNode(guide.divisionLocs[guide.num_divisions-1]), q=1, ws=1, m=1)
         self.upper_ctrl = self.addCtrl(shape='circlePoint', size=15.0,
-                                       name=self.getName('fk_base'), xform=xform, parent=self.lower_ctrl, buffer=1)
+                                       name=self.getName('fk_upper'), xform=xform, parent=self.lower_ctrl, buffer=1)
 
         self.divs = []
         for i, div in enumerate(guide.divisionLocs):
@@ -41,15 +40,15 @@ class TSpine01(components.TBaseComponent):
         xform = pm.xform(self.base_ctrl, q=1, ws=1, m=1)
         self.ik_lower_ctrl = self.addCtrl(shape='squarePoint', size=10.0,
                                           name=self.getName('ik_lower'), xform=xform, parent=self.controls, buffer=1)
-        xform = pm.xform(self.lower_ctrl, q=1, ws=1, m=1)
+        xform = pm.xform(pm.PyNode(guide.divisionLocs[guide.num_divisions-1]), q=1, ws=1, m=1)
         self.ik_mid_ctrl = self.addCtrl(shape='squarePoint', size=8.0,
                                         name=self.getName('ik_mid'), xform=xform, parent=self.controls, buffer=1)
-        xform = pm.xform(self.upper_ctrl, q=1, ws=1, m=1)
+        xform = pm.xform(pm.PyNode(guide.divisionLocs[len(guide.divisionLocs)-1]), q=1, ws=1, m=1)
         self.ik_upper_ctrl = self.addCtrl(shape='squarePoint', size=10.0,
-                                          name=self.getName('ik_base'), xform=xform, parent=self.controls, buffer=1)
+                                          name=self.getName('ik_upper'), xform=xform, parent=self.controls, buffer=1)
 
         # Drive ik mid buffer
-        dm = transform.decomposeMatrix(self.lower_ctrl.worldMatrix[0], name=self.getName('lower_ctrl_mtx2Srt'))
+        dm = transform.decomposeMatrix(self.upper_ctrl.worldMatrix[0], name=self.getName('upper_ctrl_mtx2Srt'))
         pb = pm.createNode('pairBlend', name=self.getName('ik_mid_translate_blend'))
         pb.weight.set(self.guide.root.mid_point.get())
         ikDist = mathOps.distance(self.ik_lower_ctrl, self.ik_upper_ctrl, name=self.getName('ik_dist'))
@@ -144,12 +143,12 @@ class TSpine01(components.TBaseComponent):
         lowerTangentLen = mathOps.multiply(lowerTangentPos[1], stretchFactor.outputX,
                                            name=self.getName('ik_lowerTangent_len'))
         p2Base = mathOps.createTransformedPoint(lowerTangentPos, self.ik_lower_ctrl.worldMatrix[0],
-                                            name=self.getName('ik_lower_tangentBase_point'))
+                                                name=self.getName('ik_lower_tangentBase_point'))
         lowerTangentLen.output.connect(p2Base.input1Y)
         p2Ref = mathOps.createTransformedPoint(p2Base.output, self.ik_mid_ctrl.getParent().worldInverseMatrix[0],
-                                            name=self.getName('ik_lower_tangentRef_point'))
+                                               name=self.getName('ik_lower_tangentRef_point'))
         p2Disp = mathOps.createTransformedPoint(p2Ref.output, self.ik_mid_ctrl.matrix,
-                                            name=self.getName('ik_lower_tangentDisplace_point'))
+                                                name=self.getName('ik_lower_tangentDisplace_point'))
         p2 = mathOps.createTransformedPoint(p2Disp.output, self.ik_mid_ctrl.getParent().worldMatrix[0],
                                             name=self.getName('ik_lower_tangent_point'))
 
@@ -160,12 +159,12 @@ class TSpine01(components.TBaseComponent):
         upperTangentLen = mathOps.multiply(upperTangentPos[1], stretchFactor.outputX,
                                            name=self.getName('ik_upperTangent_len'))
         p3Base = mathOps.createTransformedPoint(upperTangentPos, self.ik_upper_ctrl.worldMatrix[0],
-                                            name=self.getName('ik_upper_tangentBase_point'))
+                                                name=self.getName('ik_upper_tangentBase_point'))
         upperTangentLen.output.connect(p3Base.input1Y)
         p3Ref = mathOps.createTransformedPoint(p3Base.output, self.ik_mid_ctrl.getParent().worldInverseMatrix[0],
-                                            name=self.getName('ik_upper_tangentRef_point'))
+                                               name=self.getName('ik_upper_tangentRef_point'))
         p3Disp = mathOps.createTransformedPoint(p3Ref.output, self.ik_mid_ctrl.matrix,
-                                            name=self.getName('ik_upper_tangentDisplace_point'))
+                                                name=self.getName('ik_upper_tangentDisplace_point'))
         p3 = mathOps.createTransformedPoint(p3Disp.output, self.ik_mid_ctrl.getParent().worldMatrix[0],
                                             name=self.getName('ik_upper_tangent_point'))
 
@@ -177,7 +176,7 @@ class TSpine01(components.TBaseComponent):
 
         points = [(p, 0, 0) for p in range(4)]
 
-        self.crv = curve.curveThroughPoints(name=self.getName('ik_crv'), positions=points)
+        self.crv = curve.curveThroughPoints(name=self.getName('ik_crv'), positions=points, degree=2)
         self.crv.setParent(self.rig)
 
         p1.outputTranslate.connect(self.crv.controlPoints[0])
@@ -186,13 +185,13 @@ class TSpine01(components.TBaseComponent):
         p4.outputTranslate.connect(self.crv.controlPoints[3])
 
         offsetLower = mathOps.createMatrixAxisVector(self.ik_lower_ctrl.worldMatrix[0], (0, 0, 1),
-                                                name=self.getName('ik_railLower_offset_vec'))
+                                                     name=self.getName('ik_railLower_offset_vec'))
 
         offsetMid = mathOps.createMatrixAxisVector(self.ik_mid_ctrl.worldMatrix[0], (0, 0, 1),
-                                                name=self.getName('ik_railMid_offset_vec'))
+                                                   name=self.getName('ik_railMid_offset_vec'))
 
         offsetUpper = mathOps.createMatrixAxisVector(self.ik_upper_ctrl.worldMatrix[0], (0, 0, 1),
-                                                name=self.getName('ik_railUpper_offset_vec'))
+                                                     name=self.getName('ik_railUpper_offset_vec'))
         #u1
         u1 = mathOps.addVector([offsetLower.output, p1.outputTranslate], name=self.getName('ik_lower_rail_point'))
         #u2
@@ -204,7 +203,7 @@ class TSpine01(components.TBaseComponent):
         #u4
         u4 = mathOps.addVector([offsetUpper.output, p4.outputTranslate], name=self.getName('ik_upper_rail_point'))
 
-        self.rail = curve.curveThroughPoints(name=self.getName('ik_rail'), positions=points)
+        self.rail = curve.curveThroughPoints(name=self.getName('ik_rail'), positions=points, degree=2)
         self.rail.setParent(self.rig)
 
         u1.output3D.connect(self.rail.controlPoints[0])
@@ -217,6 +216,8 @@ class TSpine01(components.TBaseComponent):
 
     def addSystems(self):
         pass
+
+
 
 
 
