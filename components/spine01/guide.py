@@ -4,6 +4,7 @@ from tRigger.components import guide
 from tRigger.core import transform, attribute, curve, mathOps
 from maya.api import OpenMaya as om2
 reload(guide)
+reload(mathOps)
 
 axisDict = {'x': pm.datatypes.Vector(10, 0, 0),
             'y': pm.datatypes.Vector(0, 10, 0),
@@ -43,12 +44,29 @@ class TSpine01Guide(guide.TGuideBaseComponent):
             pass
         pm.delete(toDelete)
         self.locs = [self.root]
-        for i in range(3):
+        for i in range(4):
             num = str(i+1).zfill(2)
             mtx = transform.getMatrixFromPos(axisDict[self.axis])
             self.addGuideLoc(self.getName(num), mtx, self.locs[-1])
         self.crv = self.addGuideCurve(self.locs, name=self.getName('crv'), degree=3)
         self.upNode = self.addGuideUpNode(self.up_axis)
+        self.locs[4].setParent(self.root)
+        self.locs[3].setParent(self.locs[4])
+        self.locs[2].setParent(self.root)
+        lowerTangentScaled = mathOps.multiplyVector(self.locs[1].t, (1.5, 1.5, 1.5),
+                                                   name=self.getName('lower_tangent_scaled'))
+        lowerTangentPoint = mathOps.createTransformedPoint(lowerTangentScaled.output, self.root.worldMatrix[0],
+                                                           name=self.getName('lower_tangent_point'))
+        upperTangentScaled = mathOps.multiplyVector(self.locs[3].t, (1.5, 1.5, 1.5),
+                                                    name=self.getName('upper_tangent_scaled'))
+        upperTangentPoint = mathOps.createTransformedPoint(upperTangentScaled.output, self.locs[4].worldMatrix[0],
+                                                           name=self.getName('upper_tangent_point'))
+        midBlendPoint = mathOps.pairBlend(translateA=lowerTangentPoint.output, translateB=upperTangentPoint.output,
+                                          name=self.getName('mid_blend_point'))
+        midPoint = mathOps.createTransformedPoint(midBlendPoint.outTranslate, self.root.worldInverseMatrix[0],
+                                                  name=self.getName('mid_point'))
+        midPoint.output.connect(self.locs[2].t)
+
 
     def installCallbacks(self):
         attribute.addCallbackToAttr(self.root, 'num_divisions', self.callback)

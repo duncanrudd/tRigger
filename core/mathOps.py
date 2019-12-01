@@ -83,6 +83,39 @@ def blendAngles(inputA, inputB, weightA, weightB, name=None):
         node.weightB.set(weightB)
     return node
 
+def pairBlend(translateA=None, translateB=None, rotateA=None, rotateB=None, weight=0.5, quatBlend=0, name=None):
+    node = pm.createNode('pairBlend')
+    if name:
+        node.rename(name)
+    if translateA and translateB:
+        if type(translateA) == pm.general.Attribute:
+            translateA.connect(node.inTranslate1)
+        else:
+            node.inTranslate1.set(translateA)
+
+        if type(translateB) == pm.general.Attribute:
+            translateB.connect(node.inTranslate2)
+        else:
+            node.inTranslate2.set(translateB)
+
+    if rotateA and rotateB:
+        if type(rotateA) == pm.general.Attribute:
+            rotateA.connect(node.inRotate1)
+        else:
+            node.inRotate1.set(rotateA)
+
+        if type(rotateB) == pm.general.Attribute:
+            rotateB.connect(node.inRotate2)
+        else:
+            node.inRotate2.set(rotateB)
+        if quatBlend:
+            node.rotInterpolation.set(1)
+    if type(weight) == pm.general.Attribute:
+        weight.connect(node.weight)
+    else:
+        node.weight.set(weight)
+    return node
+
 def multiplyAngleByScalar(input, weight, name=None):
     '''
     creates an animBlendNodeAdditiveDA node and connects input1 with weightA as multiplier
@@ -441,6 +474,15 @@ def createCrossProduct(vec1, vec2, normalize=1, name=''):
     node.normalizeOutput.set(normalize)
 
     return node
+
+def addTerms(vec1, vec2):
+    return tuple([vec1[i] + vec2[i] for i in range(len(vec1))])
+
+def subtractTerms(vec1, vec2):
+    return tuple([vec1[i] - vec2[i] for i in range(len(vec1))])
+
+def multiplyTerms(vec1, vec2):
+    return tuple([vec1[i] * vec2[i] for i in range(len(vec1))])
 
 # -----------------------------------------------------------------------
 # MISC
