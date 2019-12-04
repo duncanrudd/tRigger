@@ -1,8 +1,9 @@
 from tRigger import components
-from tRigger.core import attribute, dag, mathOps, transform, curve
+from tRigger.core import attribute, dag, mathOps, transform, curve, anim
 reload(components)
 reload(mathOps)
 reload(curve)
+reload(anim)
 
 import pymel.core as pm
 
@@ -34,14 +35,21 @@ class TSpine01(components.TBaseComponent):
         for i, div in enumerate(guide.divisionLocs):
             num = str(i+1).zfill(2)
             mtx = pm.xform(div, q=1, ws=1, m=1)
-            parent = self.rig
-            if i > 0:
-                parent = self.divs[i-1]
-            node = dag.addChild(parent, 'group', name=self.getName('div_%s_driven_srt' % num))
+            node = dag.addChild(self.rig, 'group', name=self.getName('div_%s_srt' % num))
             pm.xform(node, ws=1, m=mtx)
-            buffer = dag.addParent(node, 'group', name=self.getName('div_%s_buffer_srt' % num))
             self.mapToGuideLocs(node, div)
             self.divs.append(node)
+
+        # Joints
+        if guide.root.add_joint.get():
+            for i, div in enumerate(self.divs):
+                num = str(i+1).zfill(2)
+                j = pm.createNode('joint', name=self.getName('%s_jnt' % num))
+                self.joints_list.append({'joint': j, 'driver': div})
+                self.mapJointToGuideLocs(j, self.guide.divisionLocs[i])
+                if i != 0:
+                    pass
+                    # j.setParent(self.joints_list[0]['joint'])
 
         # IK controls - lower, mid, upper
         xform = pm.xform(self.base_ctrl, q=1, ws=1, m=1)
@@ -64,7 +72,9 @@ class TSpine01(components.TBaseComponent):
         upperDist = mathOps.distance(self.ik_upper_ctrl, self.ik_mid_ctrl.getParent(), name=self.getName('ik_upper_dist'))
         stretchLen = mathOps.addScalar([lowerDist.distance, upperDist.distance], name=self.getName('ik_stretch_len'))
 
-        stretchFactor = mathOps.divide(stretchLen.output1D, defaultLen.output, name=self.getName('ik_stretch_factor'))
+        stretchFactor = mathOps.divide((1, 1, 1), (1, 1, 1), name=self.getName('ik_stretch_factor'))
+        stretchLen.output1D.connect(stretchFactor.input1X)
+        defaultLen.output.connect(stretchFactor.input2X)
 
         # Drive ik mid buffer
         lowerTangentVec = mathOps.multiplyTerms(guide.locs[1].t.get(), (1.5, 1.5, 1.5))
@@ -205,8 +215,54 @@ class TSpine01(components.TBaseComponent):
         components.TBaseComponent.addObjects(self, guide)
 
 
+    def addAttributes(self):
+        attribute.addFloatAttr(self.params, 'bulge_amount')
+        attribute.addFloatAttr(self.params, 'bulge_position')
+        attribute.addFloatAttr(self.params, 'bulge_falloff')
+        attribute.addFloatAttr(self.params, 'auto_bulge')
+
+
+
     def addSystems(self):
-        pass
+        stretchNode = pm.PyNode(self.getName('ik_stretch_factor'))
+        stretchRev = mathOps.reverse(stretchNode.outputX, name=self.getName('stretch_rev'))
+        stretchAuto = mathOps.multiply(stretchRev.outputX, self.params.auto_bulge,
+                                       name=self.getName('bulge_auto_mult'))
+        dm = mathOps.decomposeMatrix(self.base_ctrl.worldMatrix[0], recycle=1)
+        # Motion path nodes
+
+        for i, div in enumerate(self.divs):
+            num = str(i+1).zfill(2)
+            param = pm.listConnections(self.guide.divisionLocs[i], type='motionPath')[0].uValue.get()
+            mp = curve.createMotionPathNode(self.crv, uValue=param, frontAxis='y', upAxis='z',
+                                            name=self.getName('%s_mp' % num))
+            railMp = curve.createMotionPathNode(self.rail, uValue=param, follow=0, name=self.getName('%s_rail_mp' % num))
+            upVec = mathOps.subtractVector([railMp.allCoordinates, mp.allCoordinates],
+                                           name=self.getName('%s_upVec' % num))
+            upVec.output3D.connect(mp.worldUpVector)
+
+            mp.allCoordinates.connect(div.t)
+            mp.rotate.connect(div.r)
+
+            # Squash n Stretch
+            bulgeDist = pm.createNode('distanceBetween', name=self.getName('%s_bulge_dist' % num))
+            self.params.bulge_position.connect(bulgeDist.point1X)
+            bulgeDist.point2X.set(param)
+            bulgeRemap = mathOps.remap(bulgeDist.distance, 0, self.params.bulge_falloff, 1, 0,
+                                       name=self.getName('%s_bulge_remap' % num))
+            bulgeEase = anim.easeCurve(input=bulgeRemap.outValueX,
+                                             name=self.getName('%s_bulgeAmount_easeCrv' % num))
+            bulgeAmount = mathOps.multiply(bulgeEase.output, self.params.bulge_amount,
+                                           name=self.getName('%s_bulge_amount' % num))
+            bulgeAuto = mathOps.multiply(bulgeEase.output, stretchAuto.output,
+                                         name=self.getName('%s_bulge_auto_amount' % num))
+            bulgeSum = mathOps.addScalar([dm.outputScaleX, bulgeAmount.output, bulgeAuto.output],
+                                         name=self.getName('%s_bulge_sum' % num))
+
+            bulgeSum.output1D.connect(div.sx)
+            bulgeSum.output1D.connect(div.sz)
+            dm.outputScaleY.connect(div.sy)
+
 
 
 

@@ -31,7 +31,7 @@ def addAngleAttr(node, name, value=0, k=1, h=0):
     return attr
 
 def addFloatAttr(node, name, value=0, k=1, h=0, minValue=None, maxValue=None):
-    pm.addAttr(node, ln=name, at='float', k=k, h=h, minValue=minValue, maxValue=maxValue)
+    pm.addAttr(node, ln=name, at='float', k=k, h=h)
     attr = pm.Attribute('%s.%s' % (node.name(), name))
     attr.set(value)
     if minValue:

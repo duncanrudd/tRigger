@@ -155,12 +155,14 @@ class TBaseComponent(object):
                             parentJoint = rObj.joints
             else:
                 parentJoint = rObj.joints
-            self.joints_list[0]['joint'].setParent(parentJoint)
+            joints = [self.joints_list[i]['joint'] for i in range(len(self.joints_list))]
 
             # Create input node inside rig's joints group. This is where the connection from the component to drive
             # each joint comes in.
             input = dag.addChild(rObj.joints, 'group', self.getName('joints_input'))
-            for j in self.joints_list:
+            for i, j in enumerate(self.joints_list):
+                if not joints[i].getParent() in joints:
+                    j['joint'].setParent(parentJoint)
                 name = j['joint'].name()
                 outAttr = attribute.addMatrixAttr(self.deform, '%s_out_mtx' % name)
                 j['driver'].worldMatrix[0].connect(outAttr)
@@ -171,6 +173,12 @@ class TBaseComponent(object):
                 dm = transform.decomposeMatrix(mul.matrixSum, name=self.getName('%s_mtx2Srt' % name))
                 transform.connectSrt(dm, j['joint'])
                 j['joint'].jo.set(0,0,0)
+
+                try:
+                    j['joint'].getParent().s.disconnect(j['joint'].inverseScale)
+                except:
+                    pass
+                j['joint'].segmentScaleCompensate.set(0)
 
         print 'Added Deformers: %s' % self.comp_name
 

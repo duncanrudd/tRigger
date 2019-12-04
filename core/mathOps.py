@@ -300,12 +300,18 @@ def multiplyMatrices(mtxList, name=None):
         mtxList[i].connect(mtx.matrixIn[i])
     return mtx
 
-def decomposeMatrix(mtx, name=None):
-    dm = pm.createNode('decomposeMatrix')
-    if name:
-        dm.rename(name)
-    mtx.connect(dm.inputMatrix)
-    return dm
+def decomposeMatrix(mtx, recycle=1, name=None):
+    node = [node for node in pm.listConnections(mtx)
+            if type(node) == pm.nodetypes.DecomposeMatrix
+            and recycle]
+    if node:
+        node = node[0]
+    if not node:
+        node = pm.createNode('decomposeMatrix')
+        if name:
+            node.rename(name)
+        mtx.connect(node.inputMatrix)
+    return node
 
 def getTransformedPoint(point, matrix):
     point = dt.VectorN(point[0], point[1], point[2], 1.0)
