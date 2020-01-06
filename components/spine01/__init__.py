@@ -15,21 +15,20 @@ class TSpine01(components.TBaseComponent):
 
     def addObjects(self, guide):
         # FK controls - base, lower, mid, upper
-        xform = pm.xform(pm.PyNode(guide.root), q=1, ws=1, m=1)
+        xform = pm.PyNode(guide.root).worldMatrix[0].get()
         self.base_ctrl = self.addCtrl(shape='circlePoint', size=20.0,
-                                      name=self.getName('base'), xform=xform, parent=self.base_srt, buffer=1)
-
+                                      name=self.getName('base'), xform=xform, parent=self.base_srt, buffer=0)
         self.fk_base_ctrl = self.addCtrl(shape='circlePoint', size=15.0,
-                                         name=self.getName('fk_base'), xform=xform, parent=self.base_ctrl, buffer=1)
-        xform = pm.xform(pm.PyNode(guide.locs[1]), q=1, ws=1, m=1)
+                                         name=self.getName('fk_base'), xform=xform, parent=self.base_ctrl, buffer=0)
+        xform = pm.PyNode(guide.locs[1]).worldMatrix[0].get()
         self.fk_lower_ctrl = self.addCtrl(shape='circlePoint', size=15.0,
-                                          name=self.getName('fk_lower'), xform=xform, parent=self.fk_base_ctrl, buffer=1)
-        xform = pm.xform(pm.PyNode(guide.locs[5]), q=1, ws=1, m=1)
+                                          name=self.getName('fk_lower'), xform=xform, parent=self.fk_base_ctrl, buffer=0)
+        xform = pm.PyNode(guide.locs[5]).worldMatrix[0].get()
         self.fk_mid_ctrl = self.addCtrl(shape='circlePoint', size=15.0,
-                                        name=self.getName('fk_mid'), xform=xform, parent=self.fk_lower_ctrl, buffer=1)
-        xform = pm.xform(pm.PyNode(guide.locs[3]), q=1, ws=1, m=1)
+                                        name=self.getName('fk_mid'), xform=xform, parent=self.fk_lower_ctrl, buffer=0)
+        xform = pm.PyNode(guide.locs[3]).worldMatrix[0].get()
         self.fk_upper_ctrl = self.addCtrl(shape='circlePoint', size=15.0,
-                                          name=self.getName('fk_upper'), xform=xform, parent=self.fk_mid_ctrl, buffer=1)
+                                          name=self.getName('fk_upper'), xform=xform, parent=self.fk_mid_ctrl, buffer=0)
 
         self.divs = []
         for i, div in enumerate(guide.divisionLocs):
@@ -52,15 +51,17 @@ class TSpine01(components.TBaseComponent):
                     # j.setParent(self.joints_list[0]['joint'])
 
         # IK controls - lower, mid, upper
-        xform = pm.xform(self.base_ctrl, q=1, ws=1, m=1)
+        xform = self.base_ctrl.worldMatrix[0].get()
         self.ik_lower_ctrl = self.addCtrl(shape='squarePoint', size=10.0,
-                                          name=self.getName('ik_lower'), xform=xform, parent=self.base_ctrl, buffer=1)
-        xform = pm.xform(pm.PyNode(guide.divisionLocs[guide.num_divisions-1]), q=1, ws=1, m=1)
+                                          name=self.getName('ik_lower'), xform=xform, parent=self.base_ctrl, buffer=0)
+        self.mapToGuideLocs(self.ik_lower_ctrl, guide.locs[0])
+        xform = pm.PyNode(guide.divisionLocs[guide.num_divisions-1]).worldMatrix[0].get()
         self.ik_mid_ctrl = self.addCtrl(shape='squarePoint', size=8.0,
                                         name=self.getName('ik_mid'), xform=xform, parent=self.controls, buffer=1)
-        xform = pm.xform(pm.PyNode(guide.locs[4]), q=1, ws=1, m=1)
+        xform = pm.PyNode(guide.locs[4]).worldMatrix[0].get()
         self.ik_upper_ctrl = self.addCtrl(shape='squarePoint', size=10.0,
-                                          name=self.getName('ik_upper'), xform=xform, parent=self.fk_upper_ctrl, buffer=1)
+                                          name=self.getName('ik_upper'), xform=xform, parent=self.fk_upper_ctrl, buffer=0)
+        self.mapToGuideLocs(self.ik_upper_ctrl, guide.locs[4])
 
         # Default length
         dm = mathOps.decomposeMatrix(self.base_ctrl.worldMatrix[0], name=self.getName('base_ctrl_mtx2Srt'))
@@ -104,30 +105,38 @@ class TSpine01(components.TBaseComponent):
         pb = mathOps.pairBlend(translateA=lowerMidPos.output, translateB=upperMidPos.output,
                                name=self.getName('mid_blend_point'))
 
-        dm = transform.decomposeMatrix(self.base_ctrl.worldMatrix[0], name=self.getName('fk_base_ctrl_mtx2Srt'))
         ikAimVec = mathOps.subtractVector([upperAimPos.output, lowerAimPos.output],
                                           name=self.getName('ik_mid_aimVec'))
-        ikAimVecOffset = mathOps.addVector([ikAimVec.output3D, dm.outputTranslate],
-                                           name=self.getName('ik_mid_aimVec_offset'))
-        ikAimVecLocal = mathOps.createTransformedPoint(ikAimVecOffset.output3D, self.base_ctrl.worldInverseMatrix[0],
-                                                       name=self.getName('ik_aimVec_local'))
-        ikAimVecNormal = mathOps.normalize(ikAimVecLocal.output, name=self.getName('ik_aimVec_normal'))
-        ang = mathOps.angleBetween((0, 1, 0), ikAimVecLocal.output, name=self.getName('ik_mid_angle'))
-        ikUpMtx = mathOps.createComposeMatrix(inputRotate=ang.euler, name=self.getName('ik_up_mtx'))
-        ikUpVec = mathOps.createMatrixAxisVector(ikUpMtx.outputMatrix, (1, 0, 0), self.getName('ik_upVec'))
-        ikSideVec = mathOps.createCrossProduct(ikUpVec.output, ikAimVecNormal.output, name=self.getName('ik_sideVec'))
 
-        ikAimMtx = mathOps.vectors2Mtx44((ikUpVec.outputX, ikUpVec.outputY, ikUpVec.outputZ),
-                                         (ikAimVecNormal.outputX, ikAimVecNormal.outputY, ikAimVecNormal.outputZ),
-                                         (ikSideVec.outputX, ikSideVec.outputY, ikSideVec.outputZ),
-                                         name=self.getName('ik_mid_mtx'))
+        ikAimNode1 = pm.createNode('aimMatrix', name=self.getName('ik_mid_01_aimMtx'))
+        self.base_ctrl.worldMatrix[0].connect(ikAimNode1.inputMatrix)
+        ikAimVec.output3D.connect(ikAimNode1.secondary.secondaryTargetVector)
+        ikAimNode1.primaryMode.set(0)
+        ikAimNode1.primaryInputAxis.set((1, 0, 0))
+        ikAimNode1.secondaryMode.set(2)
+        ikAimNode1.secondaryInputAxis.set((0, 1, 0))
 
-        ikMidMtx = mathOps.multiplyMatrices([ikAimMtx.output, self.base_ctrl.worldMatrix[0]],
-                                            name=self.getName('ik_mid_mtx'))
+        ikAimNode2 = pm.createNode('aimMatrix', name=self.getName('ik_mid_02_aimMtx'))
+        ikAimNode1.outputMatrix.connect(ikAimNode2.inputMatrix)
+        ikAimVec.output3D.connect(ikAimNode2.secondary.secondaryTargetVector)
+        ikAimNode2.primaryMode.set(0)
+        ikAimNode2.primaryInputAxis.set((0, 0, 1))
+        ikAimNode2.secondaryMode.set(2)
+        ikAimNode2.secondaryInputAxis.set((0, 1, 0))
 
-        dm = transform.decomposeMatrix(ikMidMtx.matrixSum, name=self.getName('ik_mid_mtx2Srt'))
-        transform.connectSrt(dm, self.ik_mid_ctrl.getParent(), t=0)
-        pb.outTranslate.connect(self.ik_mid_ctrl.getParent().t)
+        translateMtx = pm.createNode('composeMatrix', name=self.getName('ik_mid_translate_mtx'))
+        pb.outTranslate.connect(translateMtx.inputTranslate)
+
+        blend = pm.createNode('blendMatrix', name=self.getName('ik_mid_mtx'))
+        translateMtx.outputMatrix.connect(blend.inputMatrix)
+        ikAimNode2.outputMatrix.connect(blend.target[0].targetMatrix)
+        blend.target[0].useTranslate.set(0)
+        blend.target[0].useScale.set(0)
+
+        blend.outputMatrix.connect(self.ik_mid_ctrl.getParent().offsetParentMatrix)
+        self.base_ctrl.s.connect(self.ik_mid_ctrl.getParent().s)
+        self.ik_mid_ctrl.getParent().t.set(0, 0, 0)
+        self.ik_mid_ctrl.getParent().r.set(0, 0, 0)
 
         # Drive mid IK twist
         ikUpper_midSpace_mtx = mathOps.multiplyMatrices([self.ik_upper_ctrl.worldMatrix[0],
@@ -148,8 +157,6 @@ class TSpine01(components.TBaseComponent):
         twistSum = mathOps.addAngles(upperTwistMult.output, lowerTwistMult.output, name=self.getName('ik_twist_sum'))
         twistSrt = dag.addParent(self.ik_mid_ctrl, 'group', name=self.getName('ik_mid_twist_srt'))
         twistSum.output.connect(twistSrt.ry)
-
-
 
         #P1
         p1 = mathOps.decomposeMatrix(self.ik_lower_ctrl.worldMatrix[0], name=self.getName('ik_lower_ctrl_mtx2Srt'))
@@ -214,14 +221,11 @@ class TSpine01(components.TBaseComponent):
 
         components.TBaseComponent.addObjects(self, guide)
 
-
     def addAttributes(self):
         attribute.addFloatAttr(self.params, 'bulge_amount')
         attribute.addFloatAttr(self.params, 'bulge_position')
         attribute.addFloatAttr(self.params, 'bulge_falloff')
         attribute.addFloatAttr(self.params, 'auto_bulge')
-
-
 
     def addSystems(self):
         stretchNode = pm.PyNode(self.getName('ik_stretch_factor'))

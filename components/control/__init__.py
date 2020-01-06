@@ -14,13 +14,10 @@ class TControl(components.TBaseComponent):
 
     def addObjects(self, guide):
         for i in range(guide.num_ctrls):
-            xform = pm.xform(pm.PyNode(guide.root), q=1, ws=1, m=1)
-            parent = None
+            xform = pm.PyNode(guide.root).worldMatrix[0].get()
+            parent = self.base_srt
             if i > 0:
                 parent = self.controls_list[-1]
-            else:
-                parent = dag.addChild(self.base_srt, 'group', name=self.getName('buffer_srt'))
-                pm.xform(parent, ws=1, m=xform)
             num = str(i+1).zfill(2)
             self.addCtrl(shape='squarePoint', size=20.0-(i*3),
                          name=self.getName(num), xform=xform, parent=parent)
