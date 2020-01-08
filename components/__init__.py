@@ -109,6 +109,7 @@ class TBaseComponent(object):
                 ctrl.offsetParentMatrix.set(xform)
             ctrl.t.set((0, 0, 0))
             ctrl.r.set((0, 0, 0))
+            ctrl.s.set((1, 1, 1))
         return ctrl
 
     def addOutput(self, node):

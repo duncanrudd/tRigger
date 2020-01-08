@@ -100,6 +100,90 @@ def multiplyMatrices(mtxList, name=None):
         mtx.connect(node.matrixIn[i])
     return node
 
+def createAimMatrix(input, target, name=None):
+    '''
+    Creates an aimMatrix node. Connects input to input matrix and output to primary target matrix
+    Args:
+        input: (pyNode or pymel.nodetypes.Attribute) The input node or an input matrix attribute
+        target: (pyNode or pymel.nodetypes.Attribute) The target node or an input matrix attribute
+        name: (string) name of the new aimMatrix node
+    Returns:
+        (pyNode) The new aimMatrix node
+
+    '''
+    node = pm.createNode('aimMatrix')
+    if name:
+        node.rename(name)
+    # Coerce input and output to be matrix attributes
+    if pm.nodetypes.Transform in type(input).__mro__:
+        input = input.worldMatrix[0]
+    if pm.nodetypes.Transform in type(target).__mro__:
+        target = target.worldMatrix[0]
+    input.connect(node.inputMatrix)
+    target.connect(node.primaryTargetMatrix)
+    return node
+
+def createNonRollMatrix(input, target, axis='x', name=None):
+    '''
+    Creates a non rolling aim matrix for use in isolating twist.
+    Args:
+        input: (pyNode or pymel.nodetypes.Attribute) The input node or an input matrix attribute
+        target: (pyNode or pymel.nodetypes.Attribute) The target node or an input matrix attribute
+        axis: (string) the axis to aim along
+        name: ([string]) names of the new aimMatrix nodes
+
+    Returns:
+        ([pynode]) the two new aimMatrix nodes
+    '''
+    lockVec = (0, 1, 0)
+    lockVec2 = (0, 0, 1)
+    aimVec = (1, 0, 0)
+    if 'y' in axis:
+        lockVec = (1, 0, 0)
+        aimVec = (0, 1, 0)
+    elif 'z' in axis:
+        lockVec2 = (1, 0, 0)
+        aimVec = (0, 0, 1)
+    if '-' in axis:
+        aimVec = tuple([aimVec[i] * -1 for i in range(len(aimVec))])
+
+    name1, name2 = None, None
+    if name:
+        name1, name2 = name[0], name[1]
+    node1 = createAimMatrix(input, target, name1)
+    node1.primaryMode.set(0)
+    node1.primaryInputAxis.set(lockVec)
+    node1.secondaryMode.set(1)
+    node1.secondaryInputAxis.set(aimVec)
+    conn = pm.listConnections(node1.primaryTargetMatrix, p=1, d=0)[0]
+    conn.connect(node1.secondaryTargetMatrix)
+    conn.disconnect(node1.primaryTargetMatrix)
+
+    node2 = createAimMatrix(node1.outputMatrix, target, name2)
+    node2.primaryMode.set(0)
+    node2.primaryInputAxis.set(lockVec2)
+    node2.secondaryMode.set(1)
+    node2.secondaryInputAxis.set(aimVec)
+    conn = pm.listConnections(node2.primaryTargetMatrix, p=1, d=0)[0]
+    conn.connect(node2.secondaryTargetMatrix)
+    conn.disconnect(node2.primaryTargetMatrix)
+
+    return [node1, node2]
+
+def bakeSrtToOffsetParentMtx(node):
+    '''
+    Zeros out the channel box srt attributes and bakes the values into the offsetParentMatrix attribute
+    Args:
+        node: (pyNode) te node to bake
+    '''
+    node.offsetParentMatrix.set(node.worldMatrix[0].get())
+    node.t.set((0, 0, 0))
+    node.r.set((0, 0, 0))
+    node.s.set((1, 1, 1))
+
+
+
+
 
 
 

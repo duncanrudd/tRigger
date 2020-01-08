@@ -28,8 +28,8 @@ class TShoulderFKGuide(guide.TGuideBaseComponent):
         tip.tx.set(10)
         orbit = self.addGuideLoc(self.getName('orbit'), xform, self.root)
         orbit.tx.set(12.5)
-        self.crv = self.addGuideCurve([self.root, tip], name=self.guide_name + '_crv', degree=1)
-        self.orbit_crv = self.addGuideCurve([self.root, orbit], name=self.guide_name + '_orbit_crv', degree=1)
+        self.crv = self.addGuideCurve([self.root, tip], name='crv', degree=1)
+        self.orbit_crv = self.addGuideCurve([self.root, orbit], name='orbit_crv', degree=1)
         self.upNode = self.addGuideUpNode(self.up_axis)
 
 def instantiateFromDagNode(dagNode):

@@ -35,9 +35,9 @@ def addFloatAttr(node, name, value=0, k=1, h=0, minValue=None, maxValue=None):
     attr = pm.Attribute('%s.%s' % (node.name(), name))
     attr.set(value)
     if minValue:
-        pm.addAttr(attr, e=1, minValue=minValue)
+        pm.addAttr(attr, e=1, minValue=minValue, hasMinValue=1)
     if maxValue:
-        pm.addAttr(attr, e=1, maxValue=maxValue)
+        pm.addAttr(attr, e=1, maxValue=maxValue, hasMaxValue=1)
     return attr
 
 def addEnumAttr(node, name, enumNames, k=1, h=0):
@@ -57,10 +57,35 @@ def addCallbackToAttr(mob, attr, fn):
         mob = ls.getDependNode(0)
 
     # Remove existing callbacks from the node
+    '''
+    print 'Removing Callbacks:'
     for eachCB in om2.MMessage.nodeCallbacks(mob):
+        print eachCB
         om2.MMessage.removeCallback(eachCB)
+    '''
 
-    om2.MNodeMessage.addAttributeChangedCallback(mob, fn)
+    return om2.MNodeMessage.addAttributeChangedCallback(mob, fn)
+
+def removeAttributeCallback(mob, callback):
+    '''
+    Removes the specified callback from the MMobject
+    Args:
+        mob: (pyNode or MMobject) the node to remove the callback from
+        callback: (int) the callback ID to remove
+
+    Returns:
+    '''
+    # Make sure mob is an MObject
+    if not type(mob) == om2.MObject:
+        ls = om2.MGlobal.getSelectionListByName(mob.name())
+        mob = ls.getDependNode(0)
+
+    try:
+        om2.MMessage.removeCallback(callback)
+        print 'Attribute removed: %s' % callback
+    except:
+        print 'no callback found at ID: %s' % callback
+
 
 
 

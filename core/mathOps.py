@@ -273,6 +273,17 @@ def distance(start, end, name):
 
 axisDict = {'x': 0, 'y': 1, 'z': 2, '-x': 0, '-y': 1, '-z': 2}
 
+def invertHandedness(mtx):
+    '''
+    Multiplies a mtx scaled to -1 in x by the supplied matrix
+    Args:
+        mtx: (pymel.datatypes.Matrix) The matrix whose handedness to invert
+    Returns:
+        (pymel.datatypes.Matrix) The same as input mtx but with inverted handedness
+    '''
+    return pm.datatypes.Matrix((-1, 0, 0), (0, 1, 0), (0, 0, 1), (0, 0, 0)) * mtx
+
+
 def getMatrixAxisAsVector(mtx, axis):
     '''
     returns a vector representing the supplied axis of mtx

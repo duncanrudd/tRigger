@@ -48,7 +48,7 @@ class TSpine01Guide(guide.TGuideBaseComponent):
             num = str(i+1).zfill(2)
             mtx = transform.getMatrixFromPos(axisDict[self.axis])
             self.addGuideLoc(self.getName(num), mtx, self.locs[-1])
-        self.crv = self.addGuideCurve(self.locs, name=self.getName('crv'), degree=3)
+        self.crv = self.addGuideCurve(self.locs, name='crv', degree=3)
         self.upNode = self.addGuideUpNode(self.up_axis)
         self.locs[4].setParent(self.root)
         self.locs[3].setParent(self.locs[4])
@@ -69,10 +69,15 @@ class TSpine01Guide(guide.TGuideBaseComponent):
 
 
     def installCallbacks(self):
-        attribute.addCallbackToAttr(self.root, 'num_divisions', self.callback)
-        print 'Callback Installed'
+        try:
+            attribute.removeAttributeCallback(self.root, self.num_divisions_CB)
+            self.num_divisions_CB = None
+        except:
+            pass
+        self.num_divisions_CB = attribute.addCallbackToAttr(self.root, 'num_divisions', self.num_divisions_callback)
+        guide.TGuideBaseComponent.installCallbacks(self)
 
-    def callback(self, msg, plug1, plug2, payload):
+    def num_divisions_callback(self, msg, plug1, plug2, payload):
         if msg == 2056:
             mfn_dep = om2.MFnDependencyNode(plug1.node())
             if mfn_dep.findPlug('num_divisions', False) == plug1:
