@@ -388,21 +388,42 @@ def vectors2Mtx44(vec1, vec2, vec3, vec4=[0, 0, 0], name=''):
     if name:
         node.rename(name)
 
-    vec1[0].connect(node.in00)
-    vec1[1].connect(node.in01)
-    vec1[2].connect(node.in02)
+    print vec1
+    if type(vec1) == pm.general.Attribute:
+        vec1[0].connect(node.in00)
+        vec1[1].connect(node.in01)
+        vec1[2].connect(node.in02)
+    else:
+        node.in00.set(vec1[0])
+        node.in01.set(vec1[1])
+        node.in02.set(vec1[2])
 
-    vec2[0].connect(node.in10)
-    vec2[1].connect(node.in11)
-    vec2[2].connect(node.in12)
+    if type(vec2) == pm.general.Attribute:
+        vec2[0].connect(node.in10)
+        vec2[1].connect(node.in11)
+        vec2[2].connect(node.in12)
+    else:
+        node.in10.set(vec2[0])
+        node.in11.set(vec2[1])
+        node.in12.set(vec2[2])
 
-    vec3[0].connect(node.in20)
-    vec3[1].connect(node.in21)
-    vec3[2].connect(node.in22)
+    if type(vec3) == pm.general.Attribute:
+        vec3[0].connect(node.in20)
+        vec3[1].connect(node.in21)
+        vec3[2].connect(node.in22)
+    else:
+        node.in20.set(vec3[0])
+        node.in21.set(vec3[1])
+        node.in22.set(vec3[2])
 
-    node.in30.set(vec4[0])
-    node.in31.set(vec4[1])
-    node.in32.set(vec4[2])
+    if type(vec3) == pm.general.Attribute:
+        vec4[0].connect(node.in30)
+        vec4[1].connect(node.in31)
+        vec4[2].connect(node.in32)
+    else:
+        node.in30.set(vec4[0])
+        node.in31.set(vec4[1])
+        node.in32.set(vec4[2])
 
     node.in33.set(1)
 

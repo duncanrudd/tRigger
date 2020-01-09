@@ -3,6 +3,7 @@ from tRigger.core import attribute, transform, dag, mathOps
 import pymel.core as pm
 reload(components)
 reload(transform)
+reload(mathOps)
 
 import pymel.core as pm
 
@@ -101,19 +102,22 @@ class TArmIkFk(components.TBaseComponent):
         startXform = pm.datatypes.Matrix(aimVec, sideVec, upVec, startPos)
         self.result_start = dag.addChild(self.rig, 'group', name=self.getName('result_start_srt'))
         self.result_start.offsetParentMatrix.set(startXform)
-        self.result_startTip = dag.addChild(self.result_start, 'group', name=self.getName('result_startTip_srt'))
-        self.result_startTip.tx.set(mathOps.getDistance(self.fk_start_ctrl, self.fk_mid_ctrl)*offsetMult)
+        tipPos = pm.xform(guide.locs[1], q=1, ws=1, t=1)
+        tipXform = pm.datatypes.Matrix(aimVec, sideVec, upVec, tipPos)
+        self.result_startTip = dag.addChild(self.rig, 'group', name=self.getName('result_startTip_srt'))
+        self.result_startTip.offsetParentMatrix.set(tipXform)
 
         # Build mid matrix
         aimVec = _getVec(guide.locs[3], guide.locs[1], self.invert)
         sideVec = upVec.cross(aimVec).normal()
         upVec = aimVec.cross(sideVec).normal()
-        startPos = pm.xform(guide.locs[1], q=1, ws=1, t=1)
-        midXform = pm.datatypes.Matrix(aimVec, sideVec, upVec, startPos)
-        self.result_mid = dag.addChild(self.result_startTip, 'group', name=self.getName('result_mid_srt'))
-        self.result_mid.offsetParentMatrix.set(midXform*(self.result_startTip.worldInverseMatrix[0].get()))
-        self.result_midTip = dag.addChild(self.result_mid, 'group', name=self.getName('result_midTip_srt'))
-        self.result_midTip.tx.set(mathOps.getDistance(self.fk_mid_ctrl, self.fk_end_ctrl)*offsetMult)
+        midXform = pm.datatypes.Matrix(aimVec, sideVec, upVec, tipPos)
+        self.result_mid = dag.addChild(self.rig, 'group', name=self.getName('result_mid_srt'))
+        self.result_mid.offsetParentMatrix.set(midXform)
+        tipPos = pm.xform(guide.locs[3], q=1, ws=1, t=1)
+        tipXform = pm.datatypes.Matrix(aimVec, sideVec, upVec, tipPos)
+        self.result_midTip = dag.addChild(self.rig, 'group', name=self.getName('result_midTip_srt'))
+        self.result_midTip.offsetParentMatrix.set(tipXform)
 
         # Build end matrix
         aimVec = _getVec(guide.locs[2], guide.locs[3], self.invert)
@@ -122,8 +126,8 @@ class TArmIkFk(components.TBaseComponent):
         upVec = aimVec.cross(sideVec).normal()
         startPos = pm.xform(self.fk_end_ctrl, q=1, ws=1, t=1)
         endXform = pm.datatypes.Matrix(aimVec, sideVec, upVec, startPos)
-        self.result_end = dag.addChild(self.result_midTip, 'group', name=self.getName('result_end_srt'))
-        self.result_end.offsetParentMatrix.set(endXform*(self.result_midTip.worldInverseMatrix[0].get()))
+        self.result_end = dag.addChild(self.rig, 'group', name=self.getName('result_end_srt'))
+        self.result_end.offsetParentMatrix.set(endXform)
 
         # Mid Ctrl
         self.mid_ctrl = self.addCtrl(shape='ball', size=ctrlSize*.075,
@@ -211,7 +215,11 @@ class TArmIkFk(components.TBaseComponent):
         lowerResult = mathOps.blendScalarAttrs(lowerLen.output, endPoleDistScaled.outputX, self.params.pin_to_pole,
                                                name=self.getName('lowerResult_len'))
 
-        tempAngles = pm.createNode('animBlendNodeAdditiveDA')
+        ik_start_angle = pm.createNode('animBlendNodeAdditiveDA', name=self.getName('ik_start_angle'))
+        ik_mid_angle = pm.createNode('animBlendNodeAdditiveDA', name=self.getName('ik_mid_angle'))
+        if self.invert:
+            ik_start_angle.weightA.set(-1)
+            ik_mid_angle.weightA.set(-1)
 
         # Expression
         exprString = 'float $upLen = %s.output;\n' % upperResult.name()
@@ -227,15 +235,87 @@ class TArmIkFk(components.TBaseComponent):
         exprString += '$startAngle = acos(($upSq + $targSq - $lowSq)/(2 * $upLen * $targLen));\n\t'
         exprString += '$startAngle = acos(($upSq + $targSq - $lowSq)/(2 * $upLen * $targLen));\n\t'
         exprString += '$midAngle = acos(($upSq + $lowSq - $targSq)/(2 * $upLen * $lowLen)) - deg_to_rad(180);\n}\n\n'
-        if self.invert:
-            exprString += '%s.inputA = -$startAngle;\n' % tempAngles
-            exprString += '%s.inputB = -$midAngle;' % tempAngles
-        else:
-            exprString += '%s.inputA = $startAngle;\n' % tempAngles
-            exprString += '%s.inputB = $midAngle;' % tempAngles
+        exprString += '%s.inputA = $startAngle;\n' % ik_start_angle.name()
+        exprString += '%s.inputA = $midAngle;' % ik_mid_angle.name()
 
         expr = pm.expression(s=exprString, name=self.getName('ik_expr'), alwaysEvaluate=0, unitConversion='none')
 
+        # --------------------------------
+        # RESULT
+        # --------------------------------
+        # FK Matrices
+        fkAttrs = [self.fk_start_ctrl.worldMatrix[0], self.fk_mid_ctrl.worldMatrix[0], self.fk_end_ctrl.worldMatrix[0]]
+        if self.invert:
+            def _offsetMtx(source, dest, name, index):
+                offset = dest.worldMatrix[0].get() * source.worldInverseMatrix[0].get()
+                offset_mtx = mathOps.vectors2Mtx44(offset[0], offset[1], offset[2], offset[3],
+                                                   name=self.getName('fk_%s_offset_mtx' % name))
+                mtx = mathOps.multiplyMatrices([offset_mtx.output, source.worldMatrix[0]],
+                                               name=self.getName('fk_%s_mtx') % name)
+                fkAttrs[index] = mtx.matrixSum
+
+            _offsetMtx(self.fk_start_ctrl, self.result_start, 'start', 0)
+            _offsetMtx(self.fk_mid_ctrl, self.result_mid, 'mid', 1)
+            _offsetMtx(self.fk_end_ctrl, self.result_end, 'end', 2)
+
+        # IK Matrices
+        # -- Start
+        ik_start_rotate_mtx = pm.createNode('composeMatrix', name=self.getName('ik_start_rotate_mtx'))
+        ik_start_angle.output.connect(ik_start_rotate_mtx.inputRotateY)
+        ik_start_mtx = mathOps.multiplyMatrices([ik_start_rotate_mtx.outputMatrix, ik_basis_mtx.outputMatrix],
+                                                name=self.getName('ik_start_mtx'))
+        # -- Mid
+        ik_mid_rotate_mtx = pm.createNode('composeMatrix', name=self.getName('ik_mid_rotate_mtx'))
+        ik_mid_angle.output.connect(ik_mid_rotate_mtx.inputRotateY)
+        if self.invert:
+            inv = mathOps.multiply(upperResult.output, -1, name=self.getName('ik_upperLen_invert'))
+            inv.output.connect(ik_mid_rotate_mtx.inputTranslateX)
+        else:
+            upperResult.output.connect(ik_mid_rotate_mtx.inputTranslateX)
+        ik_mid_mtx = mathOps.multiplyMatrices([ik_mid_rotate_mtx.outputMatrix, ik_start_mtx.matrixSum],
+                                              name=self.getName('ik_mid_mtx'))
+
+        # -- End
+        offset = self.result_end.worldMatrix[0].get() * self.ik_displaced.worldInverseMatrix[0].get()
+        ik_end_rotate_mtx = mathOps.vectors2Mtx44(offset[0], offset[1], offset[2],
+                                                  name=self.getName('ik_end_rotate_mtx'))
+        ik_end_translate_mtx = pm.createNode('composeMatrix', name=self.getName('ik_end_translate_mtx'))
+        if self.invert:
+            inv = mathOps.multiply(lowerResult.output, -1, name=self.getName('ik_lowerLen_invert'))
+            inv.output.connect(ik_end_translate_mtx.inputTranslateX)
+        else:
+            lowerResult.output.connect(ik_end_translate_mtx.inputTranslateX)
+        ik_end_base_mtx = mathOps.multiplyMatrices([ik_end_rotate_mtx.output,
+                                                    self.ik_displaced.worldMatrix[0]],
+                                                   name=self.getName('ik_end_base_mtx'))
+        ik_end_place_mtx = mathOps.multiplyMatrices([ik_end_translate_mtx.outputMatrix,
+                                                    ik_mid_mtx.matrixSum],
+                                                    name=self.getName('ik_end_place_mtx'))
+        ik_end_mtx = pm.createNode('blendMatrix', name=self.getName('ik_end_mtx'))
+        ik_end_base_mtx.matrixSum.connect(ik_end_mtx.inputMatrix)
+        ik_end_place_mtx.matrixSum.connect(ik_end_mtx.target[0].targetMatrix)
+        ik_end_mtx.target[0].useRotate.set(0)
+        ik_end_mtx.target[0].useShear.set(0)
+        ik_end_mtx.target[0].weight.set(1)
+
+        # Blend Matrices
+        result_start_mtx = pm.createNode('blendMatrix', name=self.getName('result_start_mtx'))
+        ik_start_mtx.matrixSum.connect(result_start_mtx.inputMatrix)
+        fkAttrs[0].connect(result_start_mtx.target[0].targetMatrix)
+        self.params.ikfk_blend.connect(result_start_mtx.target[0].weight)
+        result_start_mtx.outputMatrix.connect(self.result_start.offsetParentMatrix)
+        
+        result_mid_mtx = pm.createNode('blendMatrix', name=self.getName('result_mid_mtx'))
+        ik_mid_mtx.matrixSum.connect(result_mid_mtx.inputMatrix)
+        fkAttrs[1].connect(result_mid_mtx.target[0].targetMatrix)
+        self.params.ikfk_blend.connect(result_mid_mtx.target[0].weight)
+        result_mid_mtx.outputMatrix.connect(self.result_mid.offsetParentMatrix)
+        
+        result_end_mtx = pm.createNode('blendMatrix', name=self.getName('result_end_mtx'))
+        ik_end_mtx.outputMatrix.connect(result_end_mtx.inputMatrix)
+        fkAttrs[2].connect(result_end_mtx.target[0].targetMatrix)
+        self.params.ikfk_blend.connect(result_end_mtx.target[0].weight)
+        result_end_mtx.outputMatrix.connect(self.result_end.offsetParentMatrix)
 
 
 
