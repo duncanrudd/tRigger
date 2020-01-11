@@ -86,6 +86,17 @@ def removeAttributeCallback(mob, callback):
     except:
         print 'no callback found at ID: %s' % callback
 
+def proxyAttribute(sourceAttr, node):
+    '''
+    Creates a proxy of sourceAttr on node
+    Args:
+        sourceAttr: (pm.general.Attribute) Attribute to proxy
+        node: (pm.PyNode) node for the proxy attribute to live on
+    Returns:
+        (pm.general.Attribute) The proxied attribute
+    '''
+    attrName=str(sourceAttr).split('.')[1]
+    pm.addAttr(node, ln=attrName, proxy=sourceAttr)
 
 
 

@@ -130,17 +130,23 @@ class TArmIkFk(components.TBaseComponent):
         self.result_end.offsetParentMatrix.set(endXform)
 
         # Mid Ctrl
+        m = transform.getBlendedMatrix([self.fk_start_ctrl, self.fk_mid_ctrl])
+        midCtrl_xform = pm.datatypes.Matrix(m[0], m[1], m[2], list(midXform.translate.get()) + [0.0])
         self.mid_ctrl = self.addCtrl(shape='ball', size=ctrlSize*.075,
                                      name=self.getName('mid'),
-                                     xform=self.fk_start_ctrl.getParent().worldMatrix[0].get(),
-                                     parent=self.fk_start_ctrl.getParent())
-        ori = pm.orientConstraint(self.fk_start_ctrl, self.fk_mid_ctrl, self.mid_ctrl, mo=0)
-        sc = pm.scaleConstraint(self.fk_start_ctrl, self.mid_ctrl, mo=0)
-        p = pm.pointConstraint(self.fk_mid_ctrl, self.mid_ctrl, mo=0)
-        pm.delete([ori, sc, p])
-        self.mid_ctrl.setParent(self.controls)
-        transform.bakeSrtToOffsetParentMtx(self.mid_ctrl)
+                                     xform=midCtrl_xform,
+                                     parent=self.controls)
 
+        # Start and end AVG srts
+        self.result_start_avg = dag.addChild(self.rig, 'group', name=self.getName('result_start_avg_srt'))
+        self.result_start_avg.offsetParentMatrix.set(transform.getBlendedMatrix([self.base_srt, self.result_start]))
+
+        self.result_end_avg = dag.addChild(self.rig, 'group', name=self.getName('result_end_avg_srt'))
+        self.result_end_avg.offsetParentMatrix.set(transform.getBlendedMatrix([self.result_midTip, self.result_end]))
+
+        # MAP TO GUIDE LOCS
+        self.mapToGuideLocs(self.pole_ctrl, guide.locs[4])
+        self.mapToGuideLocs(self.ik_ctrl, guide.locs[3])
 
         # Call overloaded method of parent class
         components.TBaseComponent.addObjects(self, guide)
@@ -162,22 +168,25 @@ class TArmIkFk(components.TBaseComponent):
         # --------------------------------
         # Non roll base - starting point for basis and stable parent space for pole ctrl
         axis = 'x'
+        angle=(1, 0, 0)
         if self.invert:
             axis = '-x'
-        base_nonRoll_mtx = transform.createNonRollMatrix(self.base_srt, self.ik_displaced, axis=axis,
-                                                         name=[self.getName('base_nonRoll_orbit_mtx'),
-                                                               self.getName('base_nonRoll_aim_mtx')])[1]
-
-        # IK Basis
-        ik_basis_mtx = transform.createAimMatrix(base_nonRoll_mtx.outputMatrix, self.pole_ctrl,
-                                                 name=self.getName('ik_basis_mtx'))
+            angle=(-1, 0, 0)
+        d = mathOps.decomposeMatrix(self.ik_displaced.worldMatrix[0])
+        targToBaseVec = mathOps.createTransformedPoint(d.outputTranslate, self.base_srt.worldInverseMatrix[0],
+                                                       name=self.getName('ik_targ_to_base_vec'))
+        base_angle = mathOps.angleBetween(angle, targToBaseVec.output, name=self.getName('ik_base_angle'))
+        base_angle_mtx = mathOps.createComposeMatrix(inputRotate=base_angle.euler,
+                                                     name=self.getName('ik_base_angle_mtx'))
+        base_mtx = mathOps.multiplyMatrices([base_angle_mtx.outputMatrix, self.base_srt.worldMatrix[0]],
+                                            name=self.getName('ik_base_mtx'))
+        ik_basis_mtx = pm.createNode('aimMatrix', name=self.getName('base_nonRoll_aim_mtx'))
+        base_mtx.matrixSum.connect(ik_basis_mtx.inputMatrix)
         ik_basis_mtx.primaryMode.set(0)
         ik_basis_mtx.primaryInputAxis.set((1, 0, 0))
         ik_basis_mtx.secondaryMode.set(1)
         ik_basis_mtx.secondaryInputAxis.set((0, 0, -1))
-        conn = pm.listConnections(ik_basis_mtx.primaryTargetMatrix, p=1, d=0)[0]
-        conn.connect(ik_basis_mtx.secondaryTargetMatrix)
-        conn.disconnect(ik_basis_mtx.primaryTargetMatrix)
+        self.pole_ctrl.worldMatrix[0].connect(ik_basis_mtx.secondaryTargetMatrix)
 
         # --IK SOLVER--
         #   Get main distances and ratios
@@ -190,9 +199,43 @@ class TArmIkFk(components.TBaseComponent):
                                       mathOps.getDistance(self.fk_mid_ctrl, self.fk_end_ctrl)],
                                      name=self.getName('ik_chain_len'))
         extendLen = mathOps.multiply(chainLen.output1D, self.params.extend, name=self.getName('ik_extend_len'))
-        stretchLen = mathOps.clamp(targetDistScaled.outputX, extendLen.output, 1000000,
-                                   name=self.getName('stretch_len'))
-        stretchBlend = mathOps.blendScalarAttrs(extendLen.output, stretchLen.outputR, self.params.stretch,
+
+        softLen = mathOps.multiply(extendLen.output, self.params.softness, name=self.getName('softLen'))
+
+        softStartLen = mathOps.subtractScalar([extendLen.output, softLen.output], name=self.getName('soft_start_len'))
+
+        softDist = mathOps.subtractScalar([targetDistScaled.outputX, softStartLen.output1D],
+                                          name=self.getName('soft_dist'))
+
+        softDistInvert = mathOps.multiply(softDist.output1D, -1, name=self.getName('soft_dist_invert'))
+
+        isSoftZero = pm.createNode('condition', name=self.getName('is_soft_zero'))
+        self.params.softness.connect(isSoftZero.firstTerm)
+        isSoftZero.colorIfTrueR.set(1)
+        isSoftZero.colorIfFalseR.set(2)
+
+        softOverSoftLen = mathOps.divide(softDistInvert.output, softLen.output,
+                                         name=self.getName('softDistInvert_over_softLen'))
+        isSoftZero.outColorR.connect(softOverSoftLen.operation)
+
+        baseLogPow = mathOps.power(2.718, softOverSoftLen.outputX, name=self.getName('base_log_pow'))
+
+        softLenByPow = mathOps.multiply(baseLogPow.outputX, softLen.output, name=self.getName('baseLogPow_by_softLen'))
+
+        subFromExtendLen = mathOps.subtractScalar([extendLen.output, softLenByPow.output],
+                                                  name=self.getName('subtract_from_extendLen'))
+
+        isSoft = pm.createNode('condition', name=self.getName('is_soft'))
+        isSoft.operation.set(2)
+        softStartLen.output1D.connect(isSoft.firstTerm)
+        targetDistScaled.outputX.connect(isSoft.secondTerm)
+        subFromExtendLen.output1D.connect(isSoft.colorIfFalseR)
+        targetDistScaled.outputX.connect(isSoft.colorIfTrueR)
+
+        softToTargDist = mathOps.subtractScalar([targetDistScaled.outputX, isSoft.outColorR],
+                                                name=self.getName('soft_to_targ_dist'))
+
+        stretchBlend = mathOps.blendScalarAttrs(isSoft.outColorR, targetDistScaled.outputX, self.params.stretch,
                                                 name=self.getName('stretch_blend'))
         startPoleDist = mathOps.distance(self.base_srt, self.pole_ctrl, name=self.getName('ik_start2Pole_dist'))
         startPoleDistScaled = mathOps.divide(startPoleDist.distance, d.outputScaleX,
@@ -203,17 +246,38 @@ class TArmIkFk(components.TBaseComponent):
 
         upperRatio = mathOps.addScalar([mathOps.getDistance(self.fk_start_ctrl,self.fk_mid_ctrl)/chainLen.output1D.get(),
                                         self.params.mid_slide], name=self.getName('upper_ratio'))
-        upperRatioClamp = mathOps.clamp(upperRatio.output1D, 0, 1, name=self.getName('upper_ratio_clamp'))
+        upperRatioClamp = mathOps.clamp(upperRatio.output1D, 0.01, 0.99, name=self.getName('upper_ratio_clamp'))
         lowerRatio = mathOps.subtractScalar([1.0, upperRatioClamp.outputR], name=self.getName('lower_ratio'))
 
+        upperSoftLen = mathOps.multiply(softToTargDist.output1D, upperRatioClamp.outputR,
+                                        name=self.getName('upper_soft_len'))
+        lowerSoftLen = mathOps.multiply(softToTargDist.output1D, lowerRatio.output1D,
+                                        name=self.getName('lower_soft_len'))
 
-        upperLen = mathOps.multiply(stretchBlend.output, upperRatioClamp.outputR, name=self.getName('upper_len'))
-        upperResult = mathOps.blendScalarAttrs(upperLen.output, startPoleDistScaled.outputX, self.params.pin_to_pole,
-                                               name=self.getName('upperResult_len'))
+        upper_softStretchy_len = pm.createNode('animBlendNodeAdditive', name=self.getName('upper_softStretchy_len'))
+        upperSoftLen.output.connect(upper_softStretchy_len.inputA)
+        extendLen.output.connect(upper_softStretchy_len.inputB)
+        self.params.stretch.connect(upper_softStretchy_len.weightA)
+        upperRatioClamp.outputR.connect(upper_softStretchy_len.weightB)
+        
+        lower_softStretchy_len = pm.createNode('animBlendNodeAdditive', name=self.getName('lower_softStretchy_len'))
+        lowerSoftLen.output.connect(lower_softStretchy_len.inputA)
+        extendLen.output.connect(lower_softStretchy_len.inputB)
+        self.params.stretch.connect(lower_softStretchy_len.weightA)
+        lowerRatio.output1D.connect(lower_softStretchy_len.weightB)
 
-        lowerLen = mathOps.multiply(stretchBlend.output, lowerRatio.output1D, name=self.getName('lower_len'))
-        lowerResult = mathOps.blendScalarAttrs(lowerLen.output, endPoleDistScaled.outputX, self.params.pin_to_pole,
-                                               name=self.getName('lowerResult_len'))
+        lowerPinStretchBlend = mathOps.blendScalarAttrs(stretchBlend.output, targetDistScaled.outputX,
+                                                        self.params.pin_to_pole,
+                                                        name=self.getName('lower_pin_stretch_blend'))
+
+        upperResult = mathOps.blendScalarAttrs(upper_softStretchy_len.output, startPoleDistScaled.outputX,
+                                               self.params.pin_to_pole, name=self.getName('upper_result_len'))
+
+        lowerSolverLen = mathOps.blendScalarAttrs(lower_softStretchy_len.output, endPoleDistScaled.outputX,
+                                                  self.params.pin_to_pole, name=self.getName('lower_solver_len'))
+
+        lowerResult = mathOps.blendScalarAttrs(lower_softStretchy_len.output, lowerSolverLen.output,
+                                               self.params.stretch, name=self.getName('lower_result_len'))
 
         ik_start_angle = pm.createNode('animBlendNodeAdditiveDA', name=self.getName('ik_start_angle'))
         ik_mid_angle = pm.createNode('animBlendNodeAdditiveDA', name=self.getName('ik_mid_angle'))
@@ -223,9 +287,9 @@ class TArmIkFk(components.TBaseComponent):
 
         # Expression
         exprString = 'float $upLen = %s.output;\n' % upperResult.name()
-        exprString += 'float $lowLen = %s.output;\n' % lowerResult.name()
+        exprString += 'float $lowLen = %s.output;\n' % lowerSolverLen.name()
         exprString += 'float $restLen = $upLen+$lowLen;\n'
-        exprString += 'float $targLen = %s.outputX;\n\n' % targetDistScaled.name()
+        exprString += 'float $targLen = %s.output;\n\n' % lowerPinStretchBlend.name()
         exprString += 'float $upSq = $upLen*$upLen;\n'
         exprString += 'float $lowSq = $lowLen*$lowLen;\n'
         exprString += 'float $targSq = $targLen*$targLen;\n\n'
@@ -303,7 +367,6 @@ class TArmIkFk(components.TBaseComponent):
         ik_start_mtx.matrixSum.connect(result_start_mtx.inputMatrix)
         fkAttrs[0].connect(result_start_mtx.target[0].targetMatrix)
         self.params.ikfk_blend.connect(result_start_mtx.target[0].weight)
-        result_start_mtx.outputMatrix.connect(self.result_start.offsetParentMatrix)
         
         result_mid_mtx = pm.createNode('blendMatrix', name=self.getName('result_mid_mtx'))
         ik_mid_mtx.matrixSum.connect(result_mid_mtx.inputMatrix)
@@ -317,7 +380,81 @@ class TArmIkFk(components.TBaseComponent):
         self.params.ikfk_blend.connect(result_end_mtx.target[0].weight)
         result_end_mtx.outputMatrix.connect(self.result_end.offsetParentMatrix)
 
+        # Additional matrices - (non-rolls, averages)
+        axis = 'x'
+        angle = (1, 0, 0)
+        if self.invert:
+            axis = '-x'
+            angle = (-1, 0, 0)
+            
+        startLocalMtx = mathOps.multiplyMatrices([result_start_mtx.outputMatrix, self.base_srt.worldInverseMatrix[0]],
+                                                 name=self.getName('startMtx_to_baseMtx'))
 
+        startVec = mathOps.createMatrixAxisVector(startLocalMtx.matrixSum, (1, 0, 0),
+                                                  name=self.getName('result_start_vec'))
+
+        start_angle = mathOps.angleBetween(angle, startVec.output, name=self.getName('start_angle'))
+        start_angle_mtx = mathOps.createComposeMatrix(inputRotate=start_angle.euler,
+                                                      name=self.getName('start_angle_mtx'))
+        start_nonRoll_mtx = mathOps.multiplyMatrices([start_angle_mtx.outputMatrix, self.base_srt.worldMatrix[0]],
+                                            name=self.getName('start_nonRoll_mtx'))
+        start_nonRoll_mtx.matrixSum.connect(self.result_start.offsetParentMatrix)
+
+        startTip_mtx = transform.blend_T_R_matrices(result_mid_mtx.outputMatrix, result_start_mtx.outputMatrix,
+                                                    name=self.getName('result_startTip_mtx'))
+        startTip_mtx.outputMatrix.connect(self.result_startTip.offsetParentMatrix)
+        
+        startTipInverse = mathOps.inverseMatrix(startTip_mtx.outputMatrix, name=self.getName('startTipMtx_inverse'))
+        midLocalMtx = mathOps.multiplyMatrices([self.result_mid.worldMatrix[0], startTipInverse.outputMatrix],
+                                               name=self.getName('midMtx_to_startMtx'))
+        d = mathOps.decomposeMatrix(midLocalMtx.matrixSum, name=self.getName('mid_local_mtx2Srt'))
+        rotX = mathOps.isolateRotationOnAxis(d.outputRotate, 'x', name=self.getName('mid'))
+        rotX[1].outputRotateX.connect(self.result_startTip.rx)
+
+        midTip_mtx = transform.blend_T_R_matrices(result_end_mtx.outputMatrix, result_mid_mtx.outputMatrix,
+                                                  name=self.getName('result_midTip_mtx'))
+        midTip_mtx.outputMatrix.connect(self.result_midTip.offsetParentMatrix)
+        midTipInverse = mathOps.inverseMatrix(midTip_mtx.outputMatrix, name=self.getName('midTipMtx_inverse'))
+        endLocalMtx = mathOps.multiplyMatrices([self.result_end.worldMatrix[0], midTipInverse.outputMatrix],
+                                               name=self.getName('endMtx_to_midMtx'))
+        d = mathOps.decomposeMatrix(endLocalMtx.matrixSum, name=self.getName('end_local_mtx2Srt'))
+        rotX = mathOps.isolateRotationOnAxis(d.outputRotate, 'x', name=self.getName('end'))
+        rotX[1].outputRotateX.connect(self.result_midTip.rx)
+
+        startAvgMtx = transform.blendMatrices(self.base_srt.worldMatrix[0], self.result_start.worldMatrix[0],
+                                            name=self.getName('result_start_avg_mtx'))
+        startAvgMtx.outputMatrix.connect(self.result_start_avg.offsetParentMatrix)
+
+        midAvgMtx = transform.blendMatrices(self.result_startTip.worldMatrix[0], result_mid_mtx.outputMatrix,
+                                            name=self.getName('result_mid_avg_mtx'))
+        midAvgMtx.outputMatrix.connect(self.mid_ctrl.offsetParentMatrix)
+
+        endAvgMtx = transform.blendMatrices(self.result_midTip.worldMatrix[0], result_end_mtx.outputMatrix,
+                                            name=self.getName('result_end_avg_mtx'))
+        endAvgMtx.outputMatrix.connect(self.result_end_avg.offsetParentMatrix)
+
+        # ---------------------------------
+        # Internal spaces switching setup
+        # ---------------------------------
+        self.spaces['%s' % (self.pole_ctrl.name())] = 'limb_average: %s.matrixSum' % base_mtx.name()
+
+    def finish(self):
+        #--------------------------------------------------
+        # Proxy animation attrs on to relevant controls
+        #--------------------------------------------------
+        attrList = [self.params.ikfk_blend, self.params.mid_slide, self.params.pin_to_pole, self.params.softness,
+                    self.params.stretch]
+        for attr in attrList:
+            attribute.proxyAttribute(attr, self.ik_ctrl)
+        spaceAttrs = [attr for attr in ['ik_ctrl_parent_space', 'ik_ctrl_translate_space', 'ik_ctrl_rotate_space']
+                      if pm.hasAttr(self.params, attr)]
+        for attr in spaceAttrs:
+            attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.ik_ctrl)
+
+        spaceAttrs = [attr for attr in ['pole_ctrl_parent_space', 'pole_ctrl_translate_space', 'pole_ctrl_rotate_space']
+                      if pm.hasAttr(self.params, attr)]
+        for attr in spaceAttrs:
+            attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.pole_ctrl)
 
 
 

@@ -229,6 +229,9 @@ def multiplyVector(input1, input2, name=None, operation=1):
 def divide(input1, input2, name=None):
     return multiplyVector(input1, input2, name, operation=2)
 
+def power(input1, input2, name=None):
+    return multiplyVector(input1, input2, name, operation=3)
+
 def multiplyRotationByScalar(input1, factor, name=None):
     node = pm.createNode('animBlendNodeAdditiveRotation')
     if name:

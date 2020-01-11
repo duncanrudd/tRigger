@@ -34,6 +34,7 @@ class TBaseComponent(object):
         self.guideToJointMapping = {}
         self.inputs = []
         self.outputs = []
+        self.spaces = {} # Internal space switching options
         self.createGroups()
         attribute.addStringAttr(self.root, 'comp_type', 'root')
         attribute.addStringAttr(self.root, 'comp_name', name)
@@ -82,10 +83,10 @@ class TBaseComponent(object):
             size: (float) Size of the newly created icon
             name: (string) Nmae of the new control
             xform: (pymel.Datatypes.matrix) 4x4 Matrix describing the placement of the control
-            parent: (pyNode) DAG transform under which to parent the control
+            parent: (PyNode) DAG transform under which to parent the control
             buffer: (bool) if true, creates an extra transform above the control and below parent
 
-        Returns: (pyNode) The new control object
+        Returns: (PyNode) The new control object
 
         '''
         ctrl = eval('icon.%sIcon(%s, "%s")' % (shape, size, '%s_ctrl' % name))
@@ -117,7 +118,7 @@ class TBaseComponent(object):
         Exposes the worldMatrix of a node within the component for use by another component. A matrix attr is added
         to the component's 'output' group
         Args:
-            node: (pyNode) the node whose matrix needs to be exposed
+            node: (PyNode) the node whose matrix needs to be exposed
 
         Returns: (pyMel.Attribute) the newly created matrix attribute
 
@@ -136,7 +137,7 @@ class TBaseComponent(object):
         this is piped into multmatrix before being connected.
         Args:
             input: (pyMel.Attribute) Matrix attribute on the component's 'input' group to which node should be connected
-            node: (pyNode) Node that should be driven by the input matrix
+            node: (PyNode) Node that should be driven by the input matrix
 
         Returns: None
 
@@ -154,95 +155,127 @@ class TBaseComponent(object):
         node.t.set((0, 0, 0))
         node.r.set((0, 0, 0))
 
-    def connectToMultiInputs(self, inputs, enumNames, node):
+    def connectToMultiInputs(self, inputs, enumNames, node, add=0):
         '''
-        Implements space switching on a node.
+        Implements space switching on a node. Creates the space switch if add=0. Adds targets if add=1
         Args:
             inputs: ([pymel.Datatypes.matrix]) matrix attributes to pick from
             enumNames: ([string]) Names to expose to the UI to pick from
             node: node whose space will be switched.
+            add: (bool) whether or not to add to an existing switch or create a new one
 
         Returns: None
 
         '''
-        name = '_'.join(node.name().split('_')[2:])
-        switch = pm.createNode('choice', name=self.getName('%s_spaceSwitch' % name))
-        for i, input in enumerate(inputs):
+        def _getOffset(input):
             suffix = input.name().split('.')[1].replace('_mtx', '')
-            targMtx = node.worldMatrix[0].get()
             offsetMtx = targMtx * input.get().inverse()
             offset = transform.pmMtx2fourFourMtx(offsetMtx,
                                                  name=self.getName('%s_%s_offsetMtx' % (suffix, name)))
             multMtx = transform.multiplyMatrices([offset.output, input],
                                                  name=self.getName('%s_%s_mtx' % (suffix, name)))
-            multMtx.matrixSum.connect(switch.input[i])
-        switchAttr = attribute.addEnumAttr(self.params, 'parent_space', [enum for enum in enumNames])
-        switchAttr.connect(switch.selector)
-        switch.output.connect(node.offsetParentMatrix)
-        node.t.set((0, 0, 0))
-        node.r.set((0, 0, 0))
-        node.inheritsTransform.set(0)
+            return multMtx
 
-    def connectToMultiInputsSplit(self, inputs, enumNames, node):
+        targMtx = node.worldMatrix[0].get()
+        name = '_'.join(node.name().split('_')[2:])
+        indexOffset = 0
+        if add:
+            switch = pm.PyNode('%s_spaceSwitch' % node.name())
+            attr = pm.Attribute('%s.%s_parent_space' % (self.params.name(), name))
+            existingNames = pm.attributeQuery('%s_parent_space' % name, node=self.params, listEnum=1)[0]
+            newEnumNames = '%s:%s' % (existingNames, ':'.join(enumNames))
+            pm.addAttr(attr, enumName=newEnumNames, e=1)
+            indexOffset = len(existingNames.split(':'))
+        else:
+            switch = pm.createNode('choice', name=self.getName('%s_spaceSwitch' % name))
+            switchAttr = attribute.addEnumAttr(self.params, '%s_parent_space' % name, [enum for enum in enumNames])
+
+            switchAttr.connect(switch.selector)
+            switch.output.connect(node.offsetParentMatrix)
+            node.t.set((0, 0, 0))
+            node.r.set((0, 0, 0))
+            node.inheritsTransform.set(0)
+        for i, input in enumerate(inputs):
+            multMtx = _getOffset(input)
+            multMtx.matrixSum.connect(switch.input[i + indexOffset])
+
+    def connectToMultiInputsSplit(self, inputs, enumNames, node, add=0):
         '''
         Implements space switching on a node with separate choices for translate and rotate.
         Scale is coupled with translate.
         Args:
-            translateInputs: ([pymel.Datatypes.matrix]) matrix attributes to pick from for translate
-            rotateInputs: ([pymel.Datatypes.matrix]) matrix attributes to pick from for rotate
-            translateEnumNames: ([string]) Names to expose to the UI to pick from for translate
-            rotateEnumNames: ([string]) Names to expose to the UI to pick from for rotate
+            inputs: ([pymel.Datatypes.matrix]) matrix attributes to pick from
+            enumNames: ([string]) Names to expose to the UI to pick from
             node: node whose space will be switched.
+            add: (bool) whether or not to add to an existing switch or create a new one
 
         Returns: None
 
         '''
         name = '_'.join(node.name().split('_')[2:])
-        translateSwitch = pm.createNode('choice', name=self.getName('%s_translateSpaceSwitch' % name))
-        rotateSwitch = pm.createNode('choice', name=self.getName('%s_rotateSpaceSwitch' % name))
-        translatePick = pm.createNode('pickMatrix', name=self.getName('%s_translate_mtx' % name))
-        rotatePick = pm.createNode('pickMatrix', name=self.getName('%s_rotate_mtx' % name))
-        blend = pm.createNode('blendMatrix', name=self.getName('%s_result_mtx' % name))
+        targMtx = node.worldMatrix[0].get()
+        indexOffset=0
 
-        translateSwitch.output.connect(translatePick.inputMatrix)
-        translatePick.useRotate.set(0)
-        translatePick.useShear.set(0)
-
-        rotateSwitch.output.connect(rotatePick.inputMatrix)
-        rotatePick.useTranslate.set(0)
-        rotatePick.useScale.set(0)
-
-        translatePick.outputMatrix.connect(blend.inputMatrix)
-        rotatePick.outputMatrix.connect(blend.target[0].targetMatrix)
-        blend.target[0].useTranslate.set(0)
-        blend.target[0].useScale.set(0)
-
-        for i, input in enumerate(inputs):
+        def _getOffset(input):
             suffix = input.name().split('.')[1].replace('_mtx', '')
-            targMtx = node.worldMatrix[0].get()
             offsetMtx = targMtx * input.get().inverse()
             offset = transform.pmMtx2fourFourMtx(offsetMtx,
                                                  name=self.getName('%s_%s_offsetMtx' % (suffix, name)))
             multMtx = transform.multiplyMatrices([offset.output, input],
                                                  name=self.getName('%s_%s_mtx' % (suffix, name)))
-            multMtx.matrixSum.connect(translateSwitch.input[i])
-            multMtx.matrixSum.connect(rotateSwitch.input[i])
-        switchAttr = attribute.addEnumAttr(self.params, 'translate_space', [enum for enum in enumNames])
-        switchAttr.connect(translateSwitch.selector)
-        switchAttr = attribute.addEnumAttr(self.params, 'rotate_space', [enum for enum in enumNames])
-        switchAttr.connect(rotateSwitch.selector)
-        blend.outputMatrix.connect(node.offsetParentMatrix)
-        node.t.set((0, 0, 0))
-        node.r.set((0, 0, 0))
-        node.inheritsTransform.set(0)
+            return multMtx
+
+        if add:
+            translateSwitch = pm.PyNode('%s_translateSpaceSwitch' % node.name())
+            rotateSwitch = pm.PyNode('%s_rotateSpaceSwitch' % node.name())
+            tAttr = pm.Attribute('%s.%s_translate_space' % (self.params.name(), name))
+            rAttr = pm.Attribute('%s.%s_rotate_space' % (self.params.name(), name))
+            existingNames = pm.attributeQuery('%s_translate_space' % name, node=self.params, listEnum=1)[0]
+            newEnumNames = '%s:%s' % (existingNames, ':'.join(enumNames))
+            pm.addAttr(tAttr, enumName=newEnumNames, e=1)
+            pm.addAttr(rAttr, enumName=newEnumNames, e=1)
+            indexOffset = len(existingNames.split(':'))
+        else:
+            translateSwitch = pm.createNode('choice', name=self.getName('%s_translateSpaceSwitch' % name))
+            rotateSwitch = pm.createNode('choice', name=self.getName('%s_rotateSpaceSwitch' % name))
+            translatePick = pm.createNode('pickMatrix', name=self.getName('%s_translate_mtx' % name))
+            rotatePick = pm.createNode('pickMatrix', name=self.getName('%s_rotate_mtx' % name))
+            blend = pm.createNode('blendMatrix', name=self.getName('%s_result_mtx' % name))
+
+            translateSwitch.output.connect(translatePick.inputMatrix)
+            translatePick.useRotate.set(0)
+            translatePick.useShear.set(0)
+
+            rotateSwitch.output.connect(rotatePick.inputMatrix)
+            rotatePick.useTranslate.set(0)
+            rotatePick.useScale.set(0)
+
+            translatePick.outputMatrix.connect(blend.inputMatrix)
+            rotatePick.outputMatrix.connect(blend.target[0].targetMatrix)
+            blend.target[0].useTranslate.set(0)
+            blend.target[0].useScale.set(0)
+
+            switchAttr = attribute.addEnumAttr(self.params, '%s_translate_space' % name, [enum for enum in enumNames])
+            switchAttr.connect(translateSwitch.selector)
+            switchAttr = attribute.addEnumAttr(self.params, '%s_rotate_space' % name, [enum for enum in enumNames])
+            switchAttr.connect(rotateSwitch.selector)
+            blend.outputMatrix.connect(node.offsetParentMatrix)
+            node.t.set((0, 0, 0))
+            node.r.set((0, 0, 0))
+            node.inheritsTransform.set(0)
+
+        for i, input in enumerate(inputs):
+            multMtx = _getOffset(input)
+            multMtx.matrixSum.connect(translateSwitch.input[i + indexOffset])
+            multMtx.matrixSum.connect(rotateSwitch.input[i + indexOffset])
 
     def mapToGuideLocs(self, rigNode, guideNode):
         '''
         Creates a binding between a rig node and a guide node. This is used when other components want to connect to
         nodes within the current one via guide parenting
         Args:
-            rigNode: (pyNode) the rig node
-            guideNode: (pyNode) the guide node
+            rigNode: (PyNode) the rig node
+            guideNode: (PyNode) the guide node
 
         Returns: None
 
@@ -251,13 +284,26 @@ class TBaseComponent(object):
             rigNode, guideNode = pm.PyNode(rigNode), pm.PyNode(guideNode)
         self.guideToRigMapping[guideNode] = rigNode
 
+    def getGuideLocFromMappedNode(self, node):
+        '''
+        Checks self.guideToRigMapping dict for values matching node. Returns the guide loc node is mapped to if any.
+        Args:
+            node: (PyNode) the node to check for
+        Returns:
+            (PyNode) or (None) Depending on whether a match is found
+        '''
+        for key in self.guideToRigMapping.keys():
+            if self.guideToRigMapping[key] == node:
+                return pm.PyNode(key)
+        return None
+
     def mapJointToGuideLocs(self, jointNode, guideNode):
         '''
         Creates a binding between a rig node and a guide node. This is used when other components want to connect to
         nodes within the current one via guide parenting
         Args:
-            jointNode: (pyNode) the joint node
-            guideNode: (pyNode) the guide node
+            jointNode: (PyNode) the joint node
+            guideNode: (PyNode) the guide node
 
         Returns: None
 
@@ -363,7 +409,6 @@ class TBaseComponent(object):
             input = attribute.addMatrixAttr(self.input, 'parent_in_mtx')
             output.connect(input)
             self.connectToInput(input, self.base_srt)
-            print 'Parent Object: %s' % parentObj.name()
         else:
             print 'No parent found: %s' % self.guide.root.name()
         print 'Added Connections: %s' % self.comp_name
@@ -384,22 +429,47 @@ class TBaseComponent(object):
                             input = pm.Attribute('%s.%s' % (self.input.name(), inputName))
                         except:
                             input = attribute.addMatrixAttr(self.input, inputName)
-                        inputs.append(input)
 
-                        compObj = pm.PyNode('_'.join(spaceTarg.split('_')[:2]) + '_comp')
-                        parentObj = rig[compObj.name()].guideToRigMapping[pm.PyNode(spaceTarg)]
-                        output = rig[compObj.name()].addOutput(parentObj)
-                        output.connect(input)
+                            compObj = pm.PyNode('_'.join(spaceTarg.split('_')[:2]) + '_comp')
+                            parentObj = rig[compObj.name()].guideToRigMapping[pm.PyNode(spaceTarg)]
+                            output = rig[compObj.name()].addOutput(parentObj)
+                            output.connect(input)
+                        inputs.append(input)
                     drivenNode = self.guideToRigMapping[node]
                     if node.hasAttr('is_tGuide_root'):
                         drivenNode = self.controls_list[0]
-                    print 'controls: %s' % self.controls_list
                     if node.splitTranslateAndRotate.get():
                         self.connectToMultiInputsSplit(inputs, enumNames, drivenNode)
                     else:
                         self.connectToMultiInputs(inputs, enumNames, drivenNode)
 
+        # Now check for nodes with internal space switching
+        switchNodes = [pm.PyNode(node) for node in self.spaces.keys()]
+        for node in switchNodes:
+            spaces = [space for space in self.spaces[node.name()].replace(' ', '').split(',')]
+            enumNames = []
+            inputs = []
+            if len(spaces) != 0:
+                if spaces[0]:
+                    for space in spaces:
+                        spaceName, spaceTarg = space.split(':')
+                        enumNames.append(spaceName)
+                        if '.' in spaceTarg:
+                            inputs.append(pm.Attribute(spaceTarg))
+                        else:
+                            inputs.append(pm.PyNode(spaceTarg))
 
+                    add = 0
+                    guideNode = self.getGuideLocFromMappedNode(node)
+                    if guideNode:
+                        if guideNode.splitTranslateAndRotate.get():
+                            if pm.hasAttr(self.params, '%s_translate_space' % '_'.join(node.name().split('_')[2:])):
+                                add = 1
+                            self.connectToMultiInputsSplit(inputs, enumNames, node, add=add)
+                        else:
+                            if pm.hasAttr(self.params, '%s_parent_space' % '_'.join(node.name().split('_')[2:])):
+                                add = 1
+                            self.connectToMultiInputs(inputs, enumNames, node, add=add)
 
     def finish(self):
         # Overload this function in derived component classes to

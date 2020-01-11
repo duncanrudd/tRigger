@@ -181,6 +181,72 @@ def bakeSrtToOffsetParentMtx(node):
     node.r.set((0, 0, 0))
     node.s.set((1, 1, 1))
 
+def blend_T_R_matrices(t_mtx, r_mtx, name=None):
+    '''
+    Creates a blend Matrix node with T and R matrices as inputs. Result is the translate and scale from T_mtx and the
+    rotate and shear from r_mtx
+    Args:
+        t_mtx: (pm.datattypes.Matrix) the input translate matrix
+        r_mtx: (pm.datattypes.Matrix) the input rotate matrix
+        name: (string) name of the new node
+
+    Returns:
+        (pyNode) the newly create blend matrix node
+    '''
+    node = pm.createNode('blendMatrix')
+    if name:
+        node.rename(name)
+    t_mtx.connect(node.inputMatrix)
+    r_mtx.connect(node.target[0].targetMatrix)
+    node.target[0].weight.set(1)
+    node.target[0].useTranslate.set(0)
+    node.target[0].useScale.set(0)
+
+    return node
+
+def blendMatrices(mtx1, mtx2, name=None, weight=0.5):
+    '''
+    Creates a blend Matrix node with mtx1 and mtx2 matrices as inputs.
+    Blends between them based on weight value
+    Args:
+        mtx1: (pm.datattypes.Matrix) the 1st input matrix
+        mtx2: (pm.datattypes.Matrix) the 2nd input matrix
+        name: (string) name of the new node
+
+    Returns:
+        (pyNode) the newly create blend matrix node
+    '''
+    node = pm.createNode('blendMatrix')
+    if name:
+        node.rename(name)
+    mtx1.connect(node.inputMatrix)
+    mtx2.connect(node.target[0].targetMatrix)
+    node.target[0].weight.set(weight)
+
+    return node
+
+def getBlendedMatrix(targetList):
+    '''
+    Returns average of transforms in targetList
+    Args:
+        targetList: ([pyNode]) or ([pymel.datatype.Matrix]) List of transforms to align to
+    '''
+    blend = pm.createNode('blendMatrix')
+    for index, targ in enumerate(targetList):
+        if pm.nodetypes.Transform in type(targ).__mro__:
+            targ = targ.worldMatrix[0].get()
+        elif type(targ) == pm.general.Attribute:
+            targ = targ.get()
+        if index == 0:
+            blend.inputMatrix.set(targ)
+        else:
+            blend.target[index].targetMatrix.set(targ)
+            blend.target[index].weight.set(1.0 / (index + 1))
+    mtx = blend.outputMatrix.get()
+    pm.delete(blend)
+    return mtx
+
+
 
 
 
