@@ -1,5 +1,6 @@
 import pymel.core as pm
-from tRigger.core import transform
+from tRigger.core import transform, mathOps
+reload(mathOps)
 
 def curveThroughPoints(name, positions=None, degree=3, bezier=0, rebuild=1):
     if not positions:
@@ -13,10 +14,29 @@ def curveThroughPoints(name, positions=None, degree=3, bezier=0, rebuild=1):
     # create the curve
     knots = range(len(positions) + degree - 1)
 
-    crv = pm.curve(p=positions, k=knots, d=degree, name=name)
+    crv = pm.curve(p=positions, k=knots, d=degree)
+    if name:
+        crv.rename(name)
     if rebuild:
         pm.rebuildCurve(crv, ch=0, rpo=1, kr=0, kcp=1, d=degree)
     return crv
+
+def curveBetweenPoints(start, end, numPoints=4, name=None, degree=3, rebuild=1):
+    '''
+    Creates a nurbs curve containing CVs between start and end
+    Args:
+        start: (PyNode) or (float3) start node or position
+        end: (PyNode) or (float3) end node or position
+        numPoints: (int) number of cvs on curve
+        name: (string) name of the curve
+        degree: degree of the curve
+
+    Returns:
+        the newly created curve node
+    '''
+    points = mathOps.getPointsAlongVector(start, end, numPoints)
+    return curveThroughPoints(name, points, degree=degree, rebuild=rebuild)
+
 
 def driveCurve(crv, drivers):
     for i in range(len(drivers)):
@@ -57,8 +77,14 @@ def createCurveInfo(crv, name=None):
     crv.worldSpace[0].connect(node.inputCurve)
     return node
 
-def getCurveLength(crv):
+def createCurveLength(crv, name=None):
     node = createCurveInfo(crv)
+    if name:
+        node.rename(name)
+    return node
+
+def getCurveLength(crv):
+    node = createCurveLength(crv)
     crvLength = node.arcLength.get()
     pm.delete(node)
     return crvLength
@@ -77,3 +103,28 @@ def sampleCurvePosition(crv, uValue, fractionMode=1):
     pos = mp.allCoordinates.get()
     pm.delete(mp)
     return pos
+
+def nodesAlongCurve(start, end, divs, crv, name, frontAxis='x', upAxis='y', upVec=(0, 1, 0), wut=2):
+    '''
+    Creates motionPath nodes along a curve. Up vectors are blended between start and end matrices
+    Args:
+        start: (pm.datatypes.Matrix) start matrix for up vectoring
+        end: (pm.datatypes.Matrix) end matrix for up vectoring
+        crv: (nurbsCurve) the curve along which to place nodes
+        divs: (int) number of motionPath nodes to create
+        name: (string) base name for newly created nodes
+        frontAxis: (string) axis along which to aim
+        upAxis: (string) axis to align to upVector
+        upVec: (float3) matrix axis to use as upVector
+    Returns:
+        [motionPath] list of newly created motionPath nodes
+    '''
+    mps = []
+    for i in range(divs):
+        num = str(i+1).zfill(2)
+        param = (1.0 / (divs-1))*i
+        mp = createMotionPathNode(crv, param, frontAxis, upAxis, name='%s_%s_mp' % (name, num), wu=upVec, wut=wut)
+        blend = transform.blendMatrices(start, end, name='%s_%s_up_mtx' % (name, num), weight=param)
+        blend.outputMatrix.connect(mp.worldUpMatrix)
+        mps.append(mp)
+    return mps

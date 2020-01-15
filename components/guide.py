@@ -13,6 +13,9 @@ class TGuide(object):
         self.root = pm.createNode('transform', name='guide')
         self.controllers = dag.addChild(self.root, 'group', name='controllers')
         attribute.addBoolAttr(self.root, 'is_tGuide')
+        attribute.addColourAttr(self.root, 'centre_colour')
+        attribute.addColourAttr(self.root, 'left_colour')
+        attribute.addColourAttr(self.root, 'right_colour')
 
 class TGuideBaseComponent(object):
     def __init__(self, name, guideType, side='C', index='0', fromDagNode=0):

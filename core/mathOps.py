@@ -286,6 +286,20 @@ def invertHandedness(mtx):
     '''
     return pm.datatypes.Matrix((-1, 0, 0), (0, 1, 0), (0, 0, 1), (0, 0, 0)) * mtx
 
+def createInverseHandedMatrix(mtx, composeMtx=None, name=None):
+    '''
+    Composes a matrix with scale -1, 1, 1 and multiplies it by the input matrix
+    Args:
+        mtx: (pm.general.Attribute) the matrix to invert
+        composeMtx: (pm.PyNode(composeMatrix)) If supplied, will use it instead of creating a new composeMatrix node
+    Returns:
+        (pm.Pynode(multMatrix)) the newly created multMatrix node
+    '''
+    if not composeMtx:
+        composeMtx = createComposeMatrix(inputScale=(-1, 1, 1), name='%s_negScale_mtx' % name)
+    multMtx = multiplyMatrices([composeMtx.outputMatrix, mtx], name='%s_inverseHanded_mtx' % name)
+    return multMtx
+
 
 def getMatrixAxisAsVector(mtx, axis):
     '''
@@ -391,7 +405,6 @@ def vectors2Mtx44(vec1, vec2, vec3, vec4=[0, 0, 0], name=''):
     if name:
         node.rename(name)
 
-    print vec1
     if type(vec1) == pm.general.Attribute:
         vec1[0].connect(node.in00)
         vec1[1].connect(node.in01)
@@ -447,7 +460,7 @@ def connectSrt(src, dest, s=1, r=1, t=1):
 
 def getStartAndEnd(start=None, end=None):
     '''
-    Takes either two pynodes, two vectors or two selected nodes and returns their positions
+    Takes either two pynodes, two vectors, two matrix attrs or two selected nodes and returns their positions
     '''
     startPos, endPos = None, None
     if not start or not end:
@@ -455,12 +468,23 @@ def getStartAndEnd(start=None, end=None):
             startPos = pm.xform(pm.selected()[0], translation=True, query=True, ws=True)
             endPos = pm.xform(pm.selected()[1], translation=True, query=True, ws=True)
     else:
-        if pm.nodetypes.Transform in type(start).__mro__:
+        if type(start) == pm.general.Attribute:
+            print 'START - ATTRIBUTE'
+            if type(start.get()) == pm.datatypes.Matrix:
+                startPos = start.get().translate.get()
+            else:
+                startPos = start.get()
+        elif pm.nodetypes.Transform in type(start).__mro__:
             startPos = pm.xform(start, translation=True, query=True, ws=True)
         else:
             startPos = start
 
-        if pm.nodetypes.Transform in type(end).__mro__:
+        if type(end) == pm.general.Attribute:
+            if type(end.get()) == pm.datatypes.Matrix:
+                endPos = end.get().translate.get()
+            else:
+                endPos = end.get()
+        elif pm.nodetypes.Transform in type(end).__mro__:
             endPos = pm.xform(end, translation=True, query=True, ws=True)
         else:
             endPos = end
@@ -524,6 +548,27 @@ def subtractTerms(vec1, vec2):
 
 def multiplyTerms(vec1, vec2):
     return tuple([vec1[i] * vec2[i] for i in range(len(vec1))])
+
+def getPointsAlongVector(start, end, divs):
+    '''
+    Returns a list of points between start and end of length divs
+    Args:
+        start: (PyNode) or (float3) start node or position
+        end: (PyNode) or (float3) end node or position
+        divs: (int) number of points to return
+
+    Returns:
+        ([float3]) list of points
+    '''
+    start, end = getStartAndEnd(start, end)
+    startVec, endVec = pm.datatypes.Vector(start), pm.datatypes.Vector(end)
+    masterVec = endVec-startVec
+    segVec = masterVec / (divs-1)
+    points = []
+    for i in range(divs):
+        points.append((segVec*i)+startVec)
+    return points
+
 
 # -----------------------------------------------------------------------
 # MISC

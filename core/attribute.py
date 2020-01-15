@@ -34,14 +34,22 @@ def addFloatAttr(node, name, value=0, k=1, h=0, minValue=None, maxValue=None):
     pm.addAttr(node, ln=name, at='float', k=k, h=h)
     attr = pm.Attribute('%s.%s' % (node.name(), name))
     attr.set(value)
-    if minValue:
+    if minValue is not None:
         pm.addAttr(attr, e=1, minValue=minValue, hasMinValue=1)
-    if maxValue:
+    if maxValue is not None:
         pm.addAttr(attr, e=1, maxValue=maxValue, hasMaxValue=1)
     return attr
 
 def addEnumAttr(node, name, enumNames, k=1, h=0):
     pm.addAttr(node, ln=name, at='enum', enumName=':'.join(enumNames), k=k, h=h)
+    attr = pm.Attribute('%s.%s' % (node.name(), name))
+    return attr
+
+def addColourAttr(node, name):
+    pm.addAttr(node, ln=name, at='float3', uac=1)
+    pm.addAttr(node, ln='%sR' % name, at='float', p='%s' % name)
+    pm.addAttr(node, ln='%sG' % name, at='float', p='%s' % name)
+    pm.addAttr(node, ln='%sB' % name, at='float', p='%s' % name)
     attr = pm.Attribute('%s.%s' % (node.name(), name))
     return attr
 
@@ -97,6 +105,21 @@ def proxyAttribute(sourceAttr, node):
     '''
     attrName=str(sourceAttr).split('.')[1]
     pm.addAttr(node, ln=attrName, proxy=sourceAttr)
+
+def channelControl(lock=True, keyable=False, channelBox=False, nodeList=[], attrList=[]):
+    '''
+    Takes a list of nodes and sets locks/unlocks shows/hides attributes in attrList
+    '''
+    if nodeList:
+        for node in nodeList:
+            if attrList:
+                for a in attrList:
+                    if node.hasAttr(a):
+                        pm.setAttr('%s.%s' % (node, a), lock=lock, keyable=keyable, channelBox=channelBox)
+            else:
+                return 'attrCtrl: No nodes supplied for attribute control'
+    else:
+        return 'attrCtrl: No nodes supplied for attribute control'
 
 
 

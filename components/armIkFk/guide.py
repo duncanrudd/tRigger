@@ -4,12 +4,13 @@ from tRigger.components import guide, attribute, transform
 reload(guide)
 
 class TArmIkFkGuide(guide.TGuideBaseComponent):
-    def __init__(self, name, side='C', index=0, addJoint=1, fromDagNode=0):
-        guide.TGuideBaseComponent.__init__(self, name, 'armIkFk', side, index,  fromDagNode=fromDagNode)
-
+    def __init__(self, name, side='C', index=0, divisions=5, addJoint=1, fromDagNode=0):
+        guide.TGuideBaseComponent.__init__(self, name, 'armIkFk', side, index, fromDagNode=fromDagNode)
+        self.num_divisions = divisions
         if not fromDagNode:
             attribute.addBoolAttr(self.root, 'add_joint')
             attribute.addBoolAttr(self.root, 'world_aligned_ik_ctrl')
+            attribute.addIntAttr(self.root, 'num_divisions', divisions)
             self.addLocs()
         else:
             self.locs = self.getGuideLocs(fromDagNode)
@@ -54,5 +55,6 @@ def instantiateFromDagNode(dagNode):
     return TArmIkFkGuide(dagNode.guide_name.get(),
                          dagNode.guide_side.get(),
                          dagNode.guide_index.get(),
+                         dagNode.num_divisions.get(),
                          addJoint=dagNode.add_joint.get(),
                          fromDagNode=dagNode)

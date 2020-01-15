@@ -1,5 +1,5 @@
 from tRigger import components
-from tRigger.core import attribute, transform, dag
+from tRigger.core import attribute, transform, dag, icon
 import pymel.core as pm
 reload(components)
 reload(transform)
@@ -28,6 +28,16 @@ class TControl(components.TBaseComponent):
             self.joints_list.append({'joint': j, 'driver': self.controls_list[-1]})
             self.mapJointToGuideLocs(j, guide.locs[-1])
         components.TBaseComponent.addObjects(self, guide)
+
+    def finish(self):
+        colour = pm.Attribute('guide.centre_colour').get()
+        if self.comp_side == 'R':
+            colour = pm.Attribute('guide.right_colour').get()
+        elif self.comp_side == 'L':
+            colour = pm.Attribute('guide.left_colour').get()
+
+        for node in self.controls_list:
+            icon.setColourRGB(node, colour)
 
 def build(guide):
     '''

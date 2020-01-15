@@ -89,7 +89,19 @@ class TBaseComponent(object):
         Returns: (PyNode) The new control object
 
         '''
-        ctrl = eval('icon.%sIcon(%s, "%s")' % (shape, size, '%s_ctrl' % name))
+        stored = None
+        try:
+            stored = pm.PyNode('%s_stored' % name)
+        except:
+            pass
+        if stored:
+            ctrl = pm.createNode('transform', name='%s_ctrl' % name)
+            temp = pm.duplicate(stored)
+            for index, shape in enumerate(icon.getShapes(temp)):
+                pm.parent(shape, ctrl, s=1, r=1)
+                shape.rename('%sShape%s' % (ctrl.name(), str(index+1)))
+        else:
+            ctrl = eval('icon.%sIcon(%s, "%s")' % (shape, size, '%s_ctrl' % name))
         if parent:
             ctrl.setParent(parent)
         else:

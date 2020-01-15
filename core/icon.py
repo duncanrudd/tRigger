@@ -33,6 +33,15 @@ def setColour(node, colour=None):
     node.overrideEnabled.set(1)
     node.overrideColor.set(colour)
 
+def setColourRGB(node, colour):
+    rgb = ("R", "G", "B")
+
+    node.overrideEnabled.set(1)
+    node.overrideRGBColors.set(1)
+
+    for channel, value in zip(rgb, colour):
+        pm.Attribute('%s.overrideColor%s' % (node.name(), channel)).set(value)
+
 def getShape(node):
     '''
     returns the first shape under the given transform
