@@ -1,6 +1,8 @@
 import pymel.core as pm
 import os
 import tRigger.components as tComponents
+from tRigger.core import transform, attribute
+reload(attribute)
 reload(tComponents)
 
 def validateGuideRoot(guideRoot):
@@ -42,8 +44,9 @@ def findComponentRoots(guideRoot=None):
     guideRoot = validateGuideRoot(guideRoot)
     if not guideRoot:
         return 'Please supply a valid TGuide root node'
-
-    compRoots = [node for node in pm.listRelatives(guideRoot, c=1, ad=1, s=0) if node.hasAttr('guide_type')]
+    nodes = [guideRoot]
+    nodes = nodes + pm.listRelatives(guideRoot, c=1, ad=1, s=0)
+    compRoots = [node for node in nodes if node.hasAttr('guide_type')]
     return compRoots
 
 def findModuleFromCompType(comp_type):
@@ -53,6 +56,45 @@ def findModuleFromCompType(comp_type):
         return modulePath
     else:
         return 'Unable to find the python module for component type: %s' % comp_type
+
+def findOppositeGuide(guideRoot):
+    '''
+    Finds the corresponding guide component on the opposite side of the guide
+    Args:
+        guideRoot: (pm.PyNode) Root node of the guide whose opposite we're interested in.
+
+    Returns:
+        (instance) instance of the opposite sided component guide or None if it doesn't exist.
+    '''
+    guideRoot = validateGuideRoot(guideRoot)
+    if not guideRoot:
+        return 'Please supply a valid TGuide root node'
+    guideTop = None
+    parent = guideRoot
+    while not guideTop:
+        if parent.hasAttr('is_tGuide') or not parent.getParent():
+            guideTop = parent
+        else:
+            parent = parent.getParent()
+    if not guideTop:
+        return None
+    guide = compileGuide(guideTop)
+    sourceGuide = guide[guideRoot.name()]
+    sourceSide = sourceGuide['pObj'].guide_side
+    sourceIndex = sourceGuide['pObj'].guide_index
+    destGuide = None
+    if sourceSide == 'L':
+        try:
+            return guide[guideRoot.name().replace('_L%s_' % sourceIndex, '_R%s_' % sourceIndex)]
+        except:
+            return None
+    elif sourceSide == 'R':
+        try:
+            return guide[guideRoot.name().replace('_R%s_' % sourceIndex, '_L%s_' % sourceIndex)]
+        except:
+            return None
+
+
     
 def buildFromGuide(guideRoot=None, buildLevel='objects'):
     '''
@@ -98,3 +140,59 @@ def buildFromGuide(guideRoot=None, buildLevel='objects'):
         if buildDict[buildLevel] >= 5:
             returnDict[cmpnt].finish()
     return returnDict
+
+def duplicateGuide(guideRoot, includeChildGuides=0):
+    '''
+    Creates a duplicate of the specified guide.
+    Args:
+        guideRoot: (pm.PyNode) Root node of the guide to be duplicated.
+        includeChildGuides: (bool) Whether or not to also duplicate child guides
+
+    Returns:
+        (instance) instance of the newly created guide.
+    '''
+    guideDict = compileGuide(guideRoot)
+
+    for root in guideDict.keys():
+        rootNode = pm.PyNode(root)
+        compType = rootNode.guide_type.get()
+        exec("import tRigger.components.%s.guide as mod" % compType)
+        reload(mod)
+
+        params = {}
+        for param in guideDict[root]['pObj'].params:
+            params[param] = pm.getAttr('%s.%s' % (guideRoot.name(), param))
+        if params['guide_side'] == 'L':
+            params['guide_side'] = 'R'
+        elif params['guide_side'] == 'R':
+            params['guide_side'] = 'L'
+        guide = mod.buildGuide(**params)
+        guide.root.setParent(rootNode.getParent())
+
+        for loc, refLoc in zip(guide.locs, guideDict[root]['pObj'].locs):
+            attribute.copyAttrValues(refLoc, loc, ['t', 'r', 's'])
+            if loc.hasAttr('spaces'):
+                attribute.copyAttrValues(refLoc, loc, ['spaces', 'splitTranslateAndRotate'])
+
+def mirrorGuide(guideRoot, includeChildren=0):
+    '''
+    If a matching opposite guide is found function will copy positions and params from guideRoot's component to it.
+    If not. A duplicate will be made and mirrored.
+    Args:
+        guideRoot: (pm.PyNode) Root node of the guide to be duplicated.
+        includeChildGuides: (bool) Whether or not to also duplicate child guides
+
+    Returns:
+        (instance) instance of the opposite sided component guide or the newly created mirrored component guide.
+    '''
+    oppositeSide = 'L'
+    if guideRoot.guide_side.get() == 'L':
+        oppositeSide = 'R'
+    oppositeGuide = findOppositeGuide(guideRoot)
+    if not oppositeGuide:
+        oppositeGuide = duplicateGuide(guideRoot, includeChildren=includeChildren)
+        oppositeGuide['pObj'].root.guide_side.set('R')
+        oppositeGuide['pObj'].root.guide_index.set(guideRoot.guide_index.get)
+
+
+

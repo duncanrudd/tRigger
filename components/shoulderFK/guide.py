@@ -7,15 +7,15 @@ class TShoulderFKGuide(guide.TGuideBaseComponent):
     '''
     A simple fk shoulder controller with an offsetable orbit control
     '''
-    def __init__(self, name, side='C', index=0, axis='x', upAxis='y', addJoint=1, fromDagNode=0):
-        guide.TGuideBaseComponent.__init__(self, name, 'shoulderFK', side, index,  fromDagNode=fromDagNode)
+    def __init__(self, guide_name, guide_side='C', guide_index=0, axis='x', up_axis='y', add_joint=1, fromDagNode=0):
+        guide.TGuideBaseComponent.__init__(self, guide_name, 'shoulderFK', guide_side, guide_index, fromDagNode=fromDagNode)
         self.axis = axis
-        self.up_axis = upAxis
-        for param in []:
+        self.up_axis = up_axis
+        for param in ['axis', 'up_axis', 'add_joint']:
             self.params.append(param)
         if not fromDagNode:
             attribute.addStringAttr(self.root, 'axis', axis)
-            attribute.addStringAttr(self.root, 'up_axis', upAxis)
+            attribute.addStringAttr(self.root, 'up_axis', up_axis)
             attribute.addBoolAttr(self.root, 'add_joint')
             self.addLocs()
         else:
@@ -38,5 +38,8 @@ def instantiateFromDagNode(dagNode):
                             dagNode.guide_index.get(),
                             dagNode.axis.get(),
                             dagNode.up_axis.get(),
-                            addJoint=dagNode.add_joint.get(),
+                            add_joint=dagNode.add_joint.get(),
                             fromDagNode=dagNode)
+
+def buildGuide(**kwargs):
+    return TShoulderFKGuide(**kwargs)

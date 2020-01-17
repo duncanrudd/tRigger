@@ -22,7 +22,7 @@ class TGuideBaseComponent(object):
         self.guide_name = name
         self.guide_type = guideType
         self.guide_side = side
-        self.params = ['guide_type', 'guide_name', 'guide_side', 'guide_index']
+        self.params = ['guide_name', 'guide_side', 'guide_index']
         if not fromDagNode:
             self.guide_index = self.requestIndex(index)
             self.root = self.addGuideRoot(self.requestGuideParent())

@@ -121,6 +121,25 @@ def channelControl(lock=True, keyable=False, channelBox=False, nodeList=[], attr
     else:
         return 'attrCtrl: No nodes supplied for attribute control'
 
+def copyAttrValues(sourceNode, destNode, attrList):
+    '''
+    Copies the values of attributes from sourceNode to destNode
+    Args:
+        sourceNode: (pm.PyNode) node to copy values from
+        destNode: (pm.PyNode) node to copy values to
+        attrList: ([string]) names of attributes to copy
+    Returns:
+        None
+    '''
+    for attr in attrList:
+        sourceAttr = pm.Attribute('%s.%s' % (sourceNode.name(), attr))
+        destAttr = pm.Attribute('%s.%s' % (destNode.name(), attr))
+        if pm.getAttr(destAttr, settable=1):
+            destAttr.set(sourceAttr.get())
+        else:
+            print 'Skipping %s as it is either locked or has an incoming connection' % destAttr
+
+
 
 
 

@@ -246,6 +246,28 @@ def getBlendedMatrix(targetList):
     pm.delete(blend)
     return mtx
 
+def getOppositeMatrix(mtx):
+    '''
+    Calculates a matrix mirrored on the x axis such that handedness remains unchanged
+    Args:
+        mtx: (pm.datatypes.Matrix) the matrix to mirror
+
+    Returns:
+        (pm.datatypes.Matrix) the mirrored matrix
+    '''
+    # invert x position
+    mtx.a30 *= -1
+
+    # invert z and y components of x axis
+    mtx.a01 *= -1
+    mtx.a02 *= -1
+
+    # invert x component of y and z axes
+    mtx.a10 *= -1
+    mtx.a20 *= -1
+
+    return mtx
+
 
 
 

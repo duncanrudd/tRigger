@@ -12,20 +12,21 @@ axisDict = {'x': pm.datatypes.Vector(10, 0, 0),
             }
 
 class TSpine01Guide(guide.TGuideBaseComponent):
-    def __init__(self, name, side='C', index=0, divisions=4, axis='y', upAxis='z', fromDagNode=0):
-        guide.TGuideBaseComponent.__init__(self, name, 'spine01', side, index, fromDagNode=fromDagNode)
+    def __init__(self, guide_name='', guide_side='C', guide_index=0, num_divisions=4, axis='y', up_axis='z',
+                 mid_point=0.5, fromDagNode=0):
+        guide.TGuideBaseComponent.__init__(self, guide_name, 'spine01', guide_side, guide_index, fromDagNode=fromDagNode)
         self.axis = axis
-        self.up_axis = upAxis
-        self.num_divisions = divisions
-        self.mid_point = 0.5
+        self.up_axis = up_axis
+        self.num_divisions = num_divisions
+        self.mid_point = mid_point
         self.divisionLocs = []
         for param in ['num_divisions', 'axis', 'up_axis', 'mid_point']:
             self.params.append(param)
         if not fromDagNode:
-            attribute.addIntAttr(self.root, 'num_divisions', divisions)
-            midAttr = attribute.addFloatAttr(self.root, 'mid_point', 0.5, minValue=0.0, maxValue=1.0)
+            attribute.addIntAttr(self.root, 'num_divisions', num_divisions)
+            midAttr = attribute.addFloatAttr(self.root, 'mid_point', mid_point, minValue=0.0, maxValue=1.0)
             attribute.addStringAttr(self.root, 'axis', axis)
-            attribute.addStringAttr(self.root, 'up_axis', upAxis)
+            attribute.addStringAttr(self.root, 'up_axis', up_axis)
             self.addLocs()
             attribute.addBoolAttr(self.root, 'add_joint')
         else:
@@ -66,6 +67,8 @@ class TSpine01Guide(guide.TGuideBaseComponent):
         midPoint = mathOps.createTransformedPoint(midBlendPoint.outTranslate, self.root.worldInverseMatrix[0],
                                                   name=self.getName('mid_point'))
         midPoint.output.connect(self.locs[2].t)
+
+        self.locs = self.getGuideLocs(self.root)
 
 
     def installCallbacks(self):
@@ -127,3 +130,7 @@ def instantiateFromDagNode(dagNode):
                          dagNode.axis.get(),
                          dagNode.up_axis.get(),
                          fromDagNode=dagNode)
+
+def buildGuide(**kwargs):
+    return TSpine01Guide(**kwargs)
+
