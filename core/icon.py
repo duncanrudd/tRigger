@@ -189,3 +189,19 @@ def circlePointIcon(size=20.0, name='', colour=None):
         setColour(icon, colour)
 
     return icon
+
+def pringleIcon(size=20.0, name='', colour=None):
+    radius = size*0.5
+    icon = pm.circle(radius=radius, name=name, r=radius, ch=0, o=1, s=8, nr=(0, 1, 0))[0]
+    pm.select([icon.cv[i] for i in [3, 7]])
+    pm.move((0, size*.6, 0), r=1)
+    pm.select([icon.cv[i] for i in [0, 2, 4, 6]])
+    pm.move((0, size*0.4, 0), r=1)
+    pm.select([icon.cv[i] for i in [5, 1]])
+    pm.move((0, size*0.2, 0), r=1)
+
+    if colour:
+        setColour(icon, colour)
+
+    return icon
+

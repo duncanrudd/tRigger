@@ -268,6 +268,18 @@ def getOppositeMatrix(mtx):
 
     return mtx
 
+def list2Mtx(list):
+    '''
+    Takes a list (e.g.the return value of pm.xform() command and converts it into a pm.datatypes.Matrix
+    Args:
+        list: ([float]) the list which should be converted
+
+    Returns:
+        (pm.datatypes.Matrix) the matrix resulting from the conversion
+    '''
+    return pm.datatypes.Matrix((list[0], list[1], list[2]), (list[4], list[5], list[6]),
+                               (list[8], list[9], list[10]), (list[12], list[13], list[14]))
+
 
 
 

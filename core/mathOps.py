@@ -300,6 +300,18 @@ def createInverseHandedMatrix(mtx, composeMtx=None, name=None):
     multMtx = multiplyMatrices([composeMtx.outputMatrix, mtx], name='%s_inverseHanded_mtx' % name)
     return multMtx
 
+def getInverseHandedMatrix(mtx):
+    '''
+    returns a negatively scaled version of mtx on the x axis
+    Args:
+        mtx: (pm.datatypes.MAtrix) the matrix to negatively scale
+
+    Returns:
+        (pm.datatypes.Matrix) the inversely scaled matrix
+    '''
+    negMtx = pm.datatypes.Matrix((-1, 0, 0), (0, 1, 0), (0, 0, 1), (0, 0, 0))
+    return negMtx * mtx
+
 
 def getMatrixAxisAsVector(mtx, axis):
     '''
@@ -536,6 +548,17 @@ def createCrossProduct(vec1, vec2, normalize=1, name=''):
     vec1.connect(node.input1)
     vec2.connect(node.input2)
     node.operation.set(2)
+    node.normalizeOutput.set(normalize)
+
+    return node
+
+def createDotProduct(vec1, vec2, normalize=1, name=''):
+    node = pm.createNode('vectorProduct')
+    if name:
+        node.rename(name)
+    vec1.connect(node.input1)
+    vec2.connect(node.input2)
+    node.operation.set(1)
     node.normalizeOutput.set(normalize)
 
     return node

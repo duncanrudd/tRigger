@@ -7,7 +7,7 @@ class TShoulderFKGuide(guide.TGuideBaseComponent):
     '''
     A simple fk shoulder controller with an offsetable orbit control
     '''
-    def __init__(self, guide_name, guide_side='C', guide_index=0, axis='x', up_axis='y', add_joint=1, fromDagNode=0):
+    def __init__(self, guide_name='', guide_side='C', guide_index=0, axis='x', up_axis='y', add_joint=1, fromDagNode=0):
         guide.TGuideBaseComponent.__init__(self, guide_name, 'shoulderFK', guide_side, guide_index, fromDagNode=fromDagNode)
         self.axis = axis
         self.up_axis = up_axis

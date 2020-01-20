@@ -33,7 +33,7 @@ class TSpine01Guide(guide.TGuideBaseComponent):
             self.locs = self.getGuideLocs(fromDagNode)
             self.divisionLocs = self.getGuideLocs(fromDagNode, locType='div')
             self.crv = pm.PyNode(self.getName('crv'))
-        self.installCallbacks()
+        self.installComponentCallbacks()
         self.addDivisions()
 
     def addLocs(self):
@@ -71,14 +71,13 @@ class TSpine01Guide(guide.TGuideBaseComponent):
         self.locs = self.getGuideLocs(self.root)
 
 
-    def installCallbacks(self):
+    def installComponentCallbacks(self):
         try:
             attribute.removeAttributeCallback(self.root, self.num_divisions_CB)
             self.num_divisions_CB = None
         except:
             pass
         self.num_divisions_CB = attribute.addCallbackToAttr(self.root, 'num_divisions', self.num_divisions_callback)
-        guide.TGuideBaseComponent.installCallbacks(self)
 
     def num_divisions_callback(self, msg, plug1, plug2, payload):
         if msg == 2056:

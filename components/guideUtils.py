@@ -162,19 +162,16 @@ def duplicateGuide(guideRoot, includeChildGuides=0):
         params = {}
         for param in guideDict[root]['pObj'].params:
             params[param] = pm.getAttr('%s.%s' % (guideRoot.name(), param))
-        if params['guide_side'] == 'L':
-            params['guide_side'] = 'R'
-        elif params['guide_side'] == 'R':
-            params['guide_side'] = 'L'
         guide = mod.buildGuide(**params)
         guide.root.setParent(rootNode.getParent())
 
         for loc, refLoc in zip(guide.locs, guideDict[root]['pObj'].locs):
-            attribute.copyAttrValues(refLoc, loc, ['t', 'r', 's'])
+            attribute.copyAttrValues(refLoc, loc, ['t', 'r', 's', 'offsetParentMatrix'])
             if loc.hasAttr('spaces'):
                 attribute.copyAttrValues(refLoc, loc, ['spaces', 'splitTranslateAndRotate'])
+        return guide
 
-def mirrorGuide(guideRoot, includeChildren=0):
+def mirrorGuide(guideRoot, includeChildGuides=0):
     '''
     If a matching opposite guide is found function will copy positions and params from guideRoot's component to it.
     If not. A duplicate will be made and mirrored.
@@ -185,14 +182,49 @@ def mirrorGuide(guideRoot, includeChildren=0):
     Returns:
         (instance) instance of the opposite sided component guide or the newly created mirrored component guide.
     '''
+    if guideRoot.guide_side.get() == 'C':
+        return "Can't mirror a centre guide"
     oppositeSide = 'L'
     if guideRoot.guide_side.get() == 'L':
         oppositeSide = 'R'
     oppositeGuide = findOppositeGuide(guideRoot)
     if not oppositeGuide:
-        oppositeGuide = duplicateGuide(guideRoot, includeChildren=includeChildren)
-        oppositeGuide['pObj'].root.guide_side.set('R')
-        oppositeGuide['pObj'].root.guide_index.set(guideRoot.guide_index.get)
+        oppositeGuide = duplicateGuide(guideRoot, includeChildGuides=includeChildGuides)
+        oppositeGuide.root.guide_side.set(oppositeSide)
+        oppositeGuide.root.guide_index.set(guideRoot.guide_index.get())
+        try:
+            if oppositeSide == 'L':
+                oppositeGuide.root.setParent(pm.PyNode(guideRoot.getParent().name().replace('R', 'L')))
+            else:
+                oppositeGuide.root.setParent(pm.PyNode(guideRoot.getParent().name().replace('L', 'R')))
+        except:
+            pass
+    else:
+        oppositeGuide = oppositeGuide['pObj']
 
+    sourceGuide = instantiateGuide(guideRoot)
+
+    for sourceLoc, destLoc in zip(sourceGuide.locs, oppositeGuide.locs):
+        sourceMtx = transform.list2Mtx(pm.xform(sourceLoc, q=1, m=1))
+        mirrorMtx = transform.getOppositeMatrix(sourceMtx)
+        pm.xform(destLoc, m=mirrorMtx)
+
+def instantiateGuide(guideRoot):
+    '''
+    Creates an instance of the specified guide's class
+    Args:
+        guideRoot: (pm.PyNode) the node from which to instatiate
+    Returns:
+        (class instance) the python object representing the class instance
+    '''
+    guideRoot = validateGuideRoot(guideRoot)
+    if not guideRoot:
+        return 'Please supply a valid TGuide root node'
+
+    compType = guideRoot.guide_type.get()
+    exec("import tRigger.components.%s.guide as mod" % compType)
+    reload(mod)
+
+    return mod.instantiateFromDagNode(guideRoot)
 
 
