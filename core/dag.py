@@ -60,3 +60,11 @@ def setDisplayType(node, displayType):
     displayDict = {'normal': 0, 'template': 1, 'reference': 2}
     node.overrideEnabled.set(1)
     node.overrideDisplayType.set(displayDict[displayType])
+
+def setOutlinerColour(node, colour):
+    rgb = ("R", "G", "B")
+
+    node.useOutlinerColor.set(1)
+
+    for channel, value in zip(rgb, colour):
+        pm.Attribute('%s.outlinerColor%s' % (node.name(), channel)).set(value)

@@ -405,6 +405,23 @@ def createComposeMatrix(inputTranslate=(0,0,0), inputRotate=(0,0,0), inputScale=
         node.inputScale.set(inputScale)
     return node
 
+def composeMatrixFromMatrix(mtx, name=None):
+    '''
+    decomposes mtx by creating a temp decomposeMatrixNode then deleting it
+    Args:
+        mtx: (pm.datatypes.Matrix) the input matrix
+        name: (string) the name for the new composeMatrix node
+
+    Returns:
+        (pm.PyNode(composeMatrix)) the newly created composeMatrix node
+    '''
+    d = decomposeMatrix(mtx)
+    t = tuple(d.outputTranslate.get())
+    r = tuple(d.outputRotate.get())
+    s = tuple(d.outputScale.get())
+    pm.delete(d)
+    return createComposeMatrix(t, r, s, name=name)
+
 def inverseMatrix(matrix, name=None):
     node = pm.createNode('inverseMatrix')
     if name:

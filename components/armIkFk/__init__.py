@@ -31,7 +31,11 @@ class TArmIkFk(components.TBaseComponent):
         self.invert = (self.comp_side == 'R')
         aimVec = _getVec(guide.locs[1], guide.locs[5], self.invert)
         upVecTemp = _getVec(guide.locs[4], guide.locs[1])
-        sideVec = aimVec.cross(upVecTemp).normal()
+        self.reversePole = (upVecTemp[2] > 0)
+        if self.reversePole:
+            sideVec = upVecTemp.cross(aimVec).normal()
+        else:
+            sideVec = aimVec.cross(upVecTemp).normal()
         upVec = aimVec.cross(sideVec).normal()
         startPos = pm.xform(guide.locs[5], q=1, ws=1, t=1)
 
@@ -86,7 +90,7 @@ class TArmIkFk(components.TBaseComponent):
         self.ik_ctrl.worldMatrix[0].connect(self.ik_displaced.offsetParentMatrix)
 
         # Pole Vector ctrl
-        pole_ctrl_mtx = ik_ctrl_mtx = transform.getMatrixFromPos(pm.xform(guide.locs[4], q=1, ws=1, t=1))
+        pole_ctrl_mtx = transform.getMatrixFromPos(pm.xform(guide.locs[4], q=1, ws=1, t=1))
         self.pole_ctrl = self.addCtrl(shape='ball', size=ctrlSize*.05,
                                       name=self.getName('ik_pole'), xform=pole_ctrl_mtx, parent=self.controls)
 
@@ -100,7 +104,10 @@ class TArmIkFk(components.TBaseComponent):
         # Start
         aimVec = _getVec(guide.locs[1], guide.locs[5], self.invert)
         upVecTemp = _getVec(guide.locs[4], guide.locs[1])
-        sideVec = aimVec.cross(upVecTemp).normal()
+        if self.reversePole:
+            sideVec = upVecTemp.cross(aimVec).normal()
+        else:
+            sideVec = aimVec.cross(upVecTemp).normal()
         upVec = aimVec.cross(sideVec).normal()
         startPos = pm.xform(guide.locs[5], q=1, ws=1, t=1)
         startXform = pm.datatypes.Matrix(aimVec, sideVec, upVec, startPos)
@@ -275,7 +282,10 @@ class TArmIkFk(components.TBaseComponent):
         ik_basis_mtx.primaryMode.set(0)
         ik_basis_mtx.primaryInputAxis.set((1, 0, 0))
         ik_basis_mtx.secondaryMode.set(1)
-        ik_basis_mtx.secondaryInputAxis.set((0, 0, -1))
+        if self.reversePole:
+            ik_basis_mtx.secondaryInputAxis.set((0, 0, 1))
+        else:
+            ik_basis_mtx.secondaryInputAxis.set((0, 0, -1))
         self.pole_ctrl.worldMatrix[0].connect(ik_basis_mtx.secondaryTargetMatrix)
 
         # --IK SOLVER--
@@ -374,6 +384,9 @@ class TArmIkFk(components.TBaseComponent):
         if self.invert:
             ik_start_angle.weightA.set(-1)
             ik_mid_angle.weightA.set(-1)
+        if self.reversePole:
+            ik_start_angle.weightA.set(ik_start_angle.weightA.get()*-1)
+            ik_mid_angle.weightA.set(ik_mid_angle.weightA.get()*-1)
 
         # Expression
         exprString = 'float $upLen = %s.output;\n' % upperResult.name()
@@ -741,14 +754,7 @@ class TArmIkFk(components.TBaseComponent):
         attrList = ['ry', 'rz']
         attribute.channelControl(nodeList=nodeList, attrList=attrList)
 
-        colour = pm.Attribute('guide.centre_colour').get()
-        if self.comp_side == 'R':
-            colour = pm.Attribute('guide.right_colour').get()
-        elif self.comp_side == 'L':
-            colour = pm.Attribute('guide.left_colour').get()
-
-        for node in self.controls_list:
-            icon.setColourRGB(node, colour)
+        self.setColours(self.guide)
 
 def build(guide):
     '''

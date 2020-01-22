@@ -33,13 +33,17 @@ def setColour(node, colour=None):
     node.overrideEnabled.set(1)
     node.overrideColor.set(colour)
 
-def setColourRGB(node, colour):
+
+def setColourRGB(node, colour, offsets={'_fk_': .3, '_ik_': -.3}):
     rgb = ("R", "G", "B")
 
     node.overrideEnabled.set(1)
     node.overrideRGBColors.set(1)
 
     for channel, value in zip(rgb, colour):
+        for key in offsets.keys():
+            if key in node.name():
+                value += offsets[key]
         pm.Attribute('%s.overrideColor%s' % (node.name(), channel)).set(value)
 
 def getShape(node):

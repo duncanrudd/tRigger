@@ -10,7 +10,7 @@ import pymel.core as pm
 class TShoulderFK(components.TBaseComponent):
     def __init__(self, guide):
         self.guide = guide
-        components.TBaseComponent.__init__(self, guide.guide_name, guide.guide_side, guide.guide_index, 'control')
+        components.TBaseComponent.__init__(self, guide.guide_name, guide.guide_side, guide.guide_index, 'shoulderFK')
         print 'Created ShoulderFK Component: %s' % self.comp_name
 
     def addObjects(self, guide):

@@ -19,6 +19,10 @@ class TRig(object):
         self.geo = dag.addChild(self.root, 'group', 'geo')
         self.rig_name = name
         attribute.addStringAttr(self.root, 'rig_name', name)
+        attribute.addBoolAttr(self.root, 'hide_controls_on_playback', value=1)
+        attribute.addBoolAttr(self.root, 'show_joints', value=1)
+        attribute.addBoolAttr(self.root, 'show_controls', value=1)
+        attribute.addBoolAttr(self.root, 'lock_geo', value=1)
         print 'New TRig instance created: %s' % name
 
 class TBaseComponent(object):
@@ -163,7 +167,7 @@ class TBaseComponent(object):
             multMtx = transform.multiplyMatrices([offset.output, input], name=self.getName('%s_mtx' % suffix))
             mtxAttr = multMtx.matrixSum
 
-        mtxAttr.connect(node.offsetParentMatrix)
+        mtxAttr.connect(node.offsetParentMatrix, f=1)
         node.t.set((0, 0, 0))
         node.r.set((0, 0, 0))
 
@@ -324,6 +328,23 @@ class TBaseComponent(object):
             jointNode, guideNode = pm.PyNode(jointNode), pm.PyNode(guideNode)
         self.guideToJointMapping[guideNode] = jointNode
 
+    def setColours(self, guide):
+        '''
+        Sets the drawing override settings on controls and the outliner colour for the component root
+        Returns:
+            None
+        '''
+        colour = pm.Attribute('guide.centre_colour').get()
+        if self.comp_side == 'R':
+            colour = pm.Attribute('guide.right_colour').get()
+        elif self.comp_side == 'L':
+            colour = pm.Attribute('guide.left_colour').get()
+
+        for node in self.controls_list:
+            icon.setColourRGB(node, colour)
+
+        dag.setOutlinerColour(self.root, colour)
+
     #----------------------------------------------------------------
     # BUILD ROUTINES
     #----------------------------------------------------------------
@@ -450,7 +471,10 @@ class TBaseComponent(object):
                     drivenNode = self.guideToRigMapping[node]
                     if node.hasAttr('is_tGuide_root'):
                         drivenNode = self.controls_list[0]
-                    if node.splitTranslateAndRotate.get():
+                    # If only one space is specified, do a simple connection
+                    if len(inputs) == 1:
+                        self.connectToInput(inputs[0], drivenNode)
+                    elif node.splitTranslateAndRotate.get():
                         self.connectToMultiInputsSplit(inputs, enumNames, drivenNode)
                     else:
                         self.connectToMultiInputs(inputs, enumNames, drivenNode)

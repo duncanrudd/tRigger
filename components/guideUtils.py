@@ -139,6 +139,12 @@ def buildFromGuide(guideRoot=None, buildLevel='objects'):
     for cmpnt in returnDict.keys():
         if buildDict[buildLevel] >= 5:
             returnDict[cmpnt].finish()
+            rObj.root.hide_controls_on_playback.connect(returnDict[cmpnt].controls.hideOnPlayback)
+            rObj.root.show_controls.connect(returnDict[cmpnt].controls.visibility)
+            returnDict[cmpnt].rig.visibility.set(0)
+    rObj.root.show_joints.connect(rObj.joints.visibility)
+    rObj.geo.overrideDisplayType.set(2)
+    rObj.root.lock_geo.connect(rObj.geo.overrideEnabled)
     return returnDict
 
 def duplicateGuide(guideRoot, includeChildGuides=0):
@@ -209,6 +215,13 @@ def mirrorGuide(guideRoot, includeChildGuides=0):
         mirrorMtx = transform.getOppositeMatrix(sourceMtx)
         pm.xform(destLoc, m=mirrorMtx)
 
+    for loc in oppositeGuide.locs:
+        if loc.hasAttr('spaces'):
+            if oppositeSide == 'L':
+                loc.spaces.set(loc.spaces.get().replace('_R', '_L'))
+            else:
+                loc.spaces.set(loc.spaces.get().replace('_L', '_R'))
+
 def instantiateGuide(guideRoot):
     '''
     Creates an instance of the specified guide's class
@@ -227,4 +240,25 @@ def instantiateGuide(guideRoot):
 
     return mod.instantiateFromDagNode(guideRoot)
 
+def addConnection(rig, source, dest):
+    '''
+    Creates required input / output matrix attrs on source and dest input groups respectively.
+    Connects dest.offsetParentMatrix to input and source.worldMatrix[0] to output.
+    Requires a tRig python object.
+
+    Example usage:
+        After rig build finishes, connect reverse foot to ik ankle
+    Args:
+        rig: (TRig) the dictionary describing the rig to act upon.
+        source: (pm.PyNode) the driving node
+        dest: (pm.PyNode) the driven node
+    Returns:
+        None
+    '''
+    sourceComp = rig['_'.join(source.name().split('_')[:2]) + '_comp']
+    destComp = rig['_'.join(dest.name().split('_')[:2]) + '_comp']
+    output = sourceComp.addOutput(source)
+    input = attribute.addMatrixAttr(destComp.input, '%s_inMtx' % dest.name())
+    output.connect(input)
+    destComp.connectToInput(output, dest)
 

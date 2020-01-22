@@ -15,7 +15,6 @@ class TFkHand(components.TBaseComponent):
 
     def addObjects(self, guide):
         transform.align(self.base_srt, guide.root)
-        self.srts = []
         self.fingerDict = {}
         # fingers
         for i in range(guide.num_digits):
@@ -69,6 +68,15 @@ class TFkHand(components.TBaseComponent):
                     # add srt for tip of segment
                     srt = dag.addChild(self.rig, 'group', name=self.getName('thumb_%s_tip_srt' % (segNum)))
                     self.fingerDict['thumb']['srts'].append(srt)
+
+        if guide.root.add_joint.get():
+            for key in self.fingerDict.keys():
+                for srt in self.fingerDict[key]['srts']:
+                    j = pm.createNode('joint', name=srt.name().replace('srt', 'jnt'))
+                    self.joints_list.append({'joint': j, 'driver': srt})
+
+    def addAttributes(self):
+        attribute.addFloatAttr(self.params, 'bulge', minValue=0, maxValue=1)
 
     def addSystems(self):
         aimAxis = (1, 0, 0)
@@ -125,17 +133,24 @@ class TFkHand(components.TBaseComponent):
                 outShear = mathOps.multiply(angleUC.output, -1, name=aim.name().replace('aim_vec', 'out_shear'))
                 outShear.output.connect(outSrt.shearXY)
 
+                bulgeClamp = mathOps.clamp(angleUC.output, 0, 100000, name=aim.name().replace('aim_vec', 'bulge_clamp'))
+                bulgeMult = mathOps.multiply(angleUC.output, self.params.bulge,
+                                             name=aim.name().replace('aim_vec', 'bulge_mult'))
+                bulgeSum = mathOps.addScalar([1.0, bulgeMult.output], name=aim.name().replace('aim_vec', 'bulge_sum'))
+                bulgeSum.output1D.connect(inSrt.sz)
+                bulgeSum.output1D.connect(outSrt.sz)
+
 
 
     def finish(self):
-        colour = pm.Attribute('guide.centre_colour').get()
-        if self.comp_side == 'R':
-            colour = pm.Attribute('guide.right_colour').get()
-        elif self.comp_side == 'L':
-            colour = pm.Attribute('guide.left_colour').get()
+        self.setColours(self.guide)
 
-        for node in self.controls_list:
-            icon.setColourRGB(node, colour)
+        # --------------------------------------------------
+        # Set lock / hide properties on controls attrs
+        # --------------------------------------------------
+        nodeList = self.controls_list
+        attrList = ['visibility']
+        attribute.channelControl(nodeList=nodeList, attrList=attrList)
 
 def build(guide):
     '''
