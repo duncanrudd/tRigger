@@ -14,23 +14,188 @@ class TNeck01(components.TBaseComponent):
         print 'Created Neck01 Component: %s' % self.comp_name
 
     def addObjects(self, guide):
-        # FK controls - base, lower, mid, upper
-        xform = pm.PyNode(guide.root).worldMatrix[0].get()
-        self.base_ctrl = self.addCtrl(shape='circlePoint', size=20.0,
-                                      name=self.getName('base'), xform=xform, parent=self.base_srt, buffer=0)
-        self.fk_base_ctrl = self.addCtrl(shape='circlePoint', size=15.0,
-                                         name=self.getName('fk_base'), xform=xform, parent=self.base_ctrl, buffer=0)
-        xform = pm.PyNode(guide.locs[1]).worldMatrix[0].get()
-        self.fk_lower_ctrl = self.addCtrl(shape='circlePoint', size=15.0,
-                                          name=self.getName('fk_lower'), xform=xform, parent=self.fk_base_ctrl, buffer=0)
-        xform = pm.PyNode(guide.locs[5]).worldMatrix[0].get()
-        self.fk_mid_ctrl = self.addCtrl(shape='circlePoint', size=15.0,
-                                        name=self.getName('fk_mid'), xform=xform, parent=self.fk_lower_ctrl, buffer=0)
-        xform = pm.PyNode(guide.locs[3]).worldMatrix[0].get()
-        self.fk_upper_ctrl = self.addCtrl(shape='circlePoint', size=15.0,
-                                          name=self.getName('fk_upper'), xform=xform, parent=self.fk_mid_ctrl, buffer=0)
+        ctrlSize = mathOps.getDistance(guide.locs[-1], guide.root)*.3
 
-        self.divs = []
+        def _getVec(start, end, invert=0):
+            start, end = mathOps.getStartAndEnd(start, end)
+            if invert:
+                return (pm.datatypes.Vector(end) - pm.datatypes.Vector(start)).normal()
+            else:
+                return (pm.datatypes.Vector(start) - pm.datatypes.Vector(end)).normal()
+
+        # FK controls
+        self.fk_ctrls = []
+        for index in range(guide.num_ctrls-1):
+            num = str(index+1).zfill(2)
+            loc = guide.ctrlLocs[index]
+            if index > 0:
+                upVecTemp = mathOps.getMatrixAxisAsVector(self.controls_list[-1].worldMatrix[0], 'z')
+                aimVec = _getVec(guide.ctrlLocs[index+1], loc)
+                sideVec = aimVec.cross(upVecTemp).normal()
+                upVec = sideVec.cross(aimVec).normal()
+                startPos = pm.xform(loc, q=1, ws=1, t=1)
+                xform = pm.datatypes.Matrix(sideVec, aimVec, upVec, startPos)
+                parent = self.controls_list[-1]
+            else:
+                xform = self.base_srt.worldMatrix[0].get()
+                parent = self.base_srt
+            ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize,
+                                name=self.getName('fk_%s' % num), xform=xform, parent=parent)
+            self.fk_ctrls.append(ctrl)
+
+        # FK tip
+        self.fk_tip = dag.addChild(self.rig, 'group', self.getName('fk_tip'))
+        self.fk_ctrls[-1].worldMatrix[0].connect(self.fk_tip.offsetParentMatrix)
+        self.fk_tip.ty.set(mathOps.getDistance(self.fk_ctrls[-1], guide.locs[3]))
+
+        # IK control
+        self.ik_end_ctrl = self.addCtrl(shape='box', size=ctrlSize,
+                                        name=self.getName('ik_end'), xform=guide.locs[3].worldMatrix[0].get(),
+                                        parent=self.controls)
+
+        # mid_ctrl
+        self.ik_mid_ctrl = self.addCtrl(shape='squarePoint', size=ctrlSize*1.25,
+                                        name=self.getName('ik_mid'), xform=self.root.worldMatrix[0].get(),
+                                        parent=self.controls)
+        # mid twist srt
+        self.mid_twist_srt = dag.addChild(self.rig, 'group', name=self.getName('mid_twist_srt'))
+        self.ik_mid_ctrl.worldMatrix[0].connect(self.mid_twist_srt.offsetParentMatrix)
+
+        # mid position mtx
+        d = mathOps.decomposeMatrix(self.ik_end_ctrl.worldMatrix[0], name=self.getName('ik_end_mtx2Srt'))
+        baseMtx = self.fk_ctrls[len(self.fk_ctrls)/2].worldMatrix[0]
+        if len(self.fk_ctrls) % 2:
+            blend = transform.blendMatrices(baseMtx, self.fk_ctrls[(len(self.fk_ctrls)/2)+1].worldMatrix[0],
+                                            name=self.getName('ik_mid_pos_blend_mtx'))
+            baseMtx = blend.outputMatrix
+        tipMtx2Srt = mathOps.decomposeMatrix(self.fk_tip.worldMatrix[0])
+        tipOffset = mathOps.subtractVector([d.outputTranslate, tipMtx2Srt.outputTranslate],
+                                           name=self.getName('tip_offset_vec'))
+        tipOffsetMult = mathOps.multiplyVector(tipOffset.output3D, (.5, .5, .5),
+                                               name=self.getName('ik_mid_tip_offset_mult'))
+        baseMtx2Srt = mathOps.decomposeMatrix(baseMtx, name=self.getName('ik_mid_base_pos_mtx2Srt'))
+        ik_mid_pos_sum = mathOps.addVector([baseMtx2Srt.outputTranslate, tipOffsetMult.output],
+                                           name=self.getName('ik_mid_pos_sum'))
+        ikMidPosMtx = mathOps.createComposeMatrix(inputTranslate=ik_mid_pos_sum.output3D,
+                                                  name=self.getName('ik_mid_pos_mtx'))
+
+        # mid rotate mtx
+        endLocalPos = mathOps.createTransformedPoint(d.outputTranslate, self.fk_ctrls[0].worldInverseMatrix[0],
+                                                     name=self.getName('ik_end_2_base_space_pos'))
+        ikAimAngle = mathOps.angleBetween((0, 1, 0), endLocalPos.output, name=self.getName('ik_aim_angle'))
+        ikAngleMtx = mathOps.createComposeMatrix(inputRotate=ikAimAngle.euler, name=self.getName('ik_angle_mtx'))
+        ikAimMtx = mathOps.multiplyMatrices([ikAngleMtx.outputMatrix, self.fk_ctrls[0].worldMatrix[0]],
+                                            name=self.getName('ik_aim_mtx'))
+
+        blend = transform.blendMatrices(ikMidPosMtx.outputMatrix, ikAimMtx.matrixSum, name=self.getName('ik_mid_mtx'))
+        blend.target[0].weight.set(1)
+        blend.target[0].useTranslate.set(0)
+
+        # Mid offset
+        midMtx2Srt = mathOps.decomposeMatrix(self.ik_mid_ctrl.worldMatrix[0], name=self.getName('ik_mid_mtx2Srt'))
+        midBaseMtx2Srt = mathOps.decomposeMatrix(blend.outputMatrix, name=self.getName('ik_mid_base_mtx2Srt'))
+        midOffset = mathOps.subtractVector([midMtx2Srt.outputTranslate, midBaseMtx2Srt.outputTranslate],
+                                           name=self.getName('ik_mid_offset_vec'))
+
+        # curve
+        rootMtx2Srt = mathOps.decomposeMatrix(self.fk_ctrls[0].worldMatrix[0], name=self.getName('fk_01_mtx2Srt'))
+        points = [rootMtx2Srt.outputTranslate]
+        for index, ctrl in enumerate(self.fk_ctrls[1:]):
+            num = str(index+2).zfill(2)
+            mult = (1.0 / len(self.fk_ctrls))*(index+1)
+            dm = mathOps.decomposeMatrix(ctrl.worldMatrix[0], name=self.getName('fk_%s_mtx2Srt' % num))
+            tipOffsetMult = mathOps.multiplyVector(tipOffset.output3D, (mult, mult, mult),
+                                                   name=self.getName('ik_%s_tip_offset_mult' % num))
+            mult = 1.0 - mathOps.getDistance((0, 0, 0), ((mult-0.5), 0, 0))
+            midOffsetMult = mathOps.multiplyVector(midOffset.output3D, (mult, mult, mult),
+                                                   name=self.getName('ik_%s_mid_offset_mult' % num))
+            posSum = mathOps.addVector([dm.outputTranslate, tipOffsetMult.output, midOffsetMult.output],
+                                       name=self.getName('ik_%s_pos_sum' % num))
+            points.append(posSum.output3D)
+        points.append(d.outputTranslate)
+
+        initPoints = [(i, 0, 0) for i in range(guide.num_ctrls)]
+        self.crv = curve.curveThroughPoints(name=self.getName('ik_crv'), positions=initPoints, degree=2)
+        self.crv.setParent(self.rig)
+        for index, point in enumerate(points):
+            point.connect(self.crv.controlPoints[index])
+
+        startTangent = pm.createNode('pointOnCurveInfo', name=self.getName('start_crv_tangent'))
+        self.crv.worldSpace[0].connect(startTangent.inputCurve)
+        startTangent.parameter.set(.01)
+        endTangent = pm.createNode('pointOnCurveInfo', name=self.getName('end_crv_tangent'))
+        self.crv.worldSpace[0].connect(endTangent.inputCurve)
+        endTangent.parameter.set(.99)
+
+        baseSideVec = mathOps.createMatrixAxisVector(self.fk_ctrls[0].worldMatrix[0], (-1, 0, 0),
+                                                     name=self.getName('start_rail_side_vec'))
+        baseOffsetVec = mathOps.createCrossProduct(startTangent.result.normalizedTangent, baseSideVec.output,
+                                                   name=self.getName('start_rail_offset_vec'))
+        midOffsetVec = mathOps.createMatrixAxisVector(self.mid_twist_srt.worldMatrix[0], (0, 0, 1),
+                                                      name=self.getName('mid_rail_offset_vec'))
+        endSideVec = mathOps.createMatrixAxisVector(self.ik_end_ctrl.worldMatrix[0], (-1, 0, 0),
+                                                    name=self.getName('end_rail_side_vec'))
+        endOffsetVec = mathOps.createCrossProduct(endTangent.result.normalizedTangent, endSideVec.output,
+                                                  name=self.getName('start_rail_offset_vec'))
+
+        # Mid twist
+        endCrvNormal = mathOps.createCrossProduct(endTangent.result.normalizedTangent, endOffsetVec.output,
+                                                  name=self.getName('end_crv_normal_vec'))
+        endCrvMtx = mathOps.vectors2Mtx44(endCrvNormal.output,
+                                          endTangent.result.normalizedTangent,
+                                          endOffsetVec.output,
+                                          d.outputTranslate,
+                                          name=self.getName('end_crv_mtx'))
+
+        blendInverse = mathOps.inverseMatrix(blend.outputMatrix, name=self.getName('ik_mid_baseInverse_mtx'))
+        midTwistRefMtx = mathOps.multiplyMatrices([endCrvMtx.output, blendInverse.outputMatrix],
+                                                  name=self.getName('mid_twist_ref_mtx'))
+        midTwistMtx2Srt = mathOps.decomposeMatrix(midTwistRefMtx.matrixSum, name=self.getName('mid_twist_mtx2Srt'))
+        midTwist = mathOps.isolateRotationOnAxis(midTwistMtx2Srt.outputRotate, 'y', name=self.getName('mid_twist'))
+
+        twistInvert = mathOps.multiplyAngleByScalar(midTwist[1].outputRotateY, .5,
+                                                    name=self.getName('ik_mid_twist_invert'))
+        twistInvert.output.connect(self.mid_twist_srt.ry)
+
+        blend.outputMatrix.connect(self.ik_mid_ctrl.offsetParentMatrix)
+
+        # Rail
+        railPoints = []
+        for index in range(guide.num_ctrls):
+            num = str(index+1).zfill(2)
+            mult = (1.0 / len(self.fk_ctrls))*index
+            mult = 1.0 - (mathOps.getDistance((0, 0, 0), ((mult-0.5), 0, 0))*2)
+            targ = baseOffsetVec.output
+            if index >= guide.num_ctrls / 2:
+                targ = endOffsetVec.output
+            offsetVec = mathOps.pairBlend(translateA=targ, translateB=midOffsetVec.output, weight=mult,
+                                          name=self.getName('rail_%s_offset_vec' % num))
+            railPoint = mathOps.addVector([points[index], offsetVec.outTranslate],
+                                          name=self.getName('rail_%s_pos' % num))
+            railPoints.append(railPoint.output3D)
+
+        self.railCrv = curve.curveThroughPoints(name=self.getName('ik_rail_crv'), positions=initPoints, degree=2)
+        self.railCrv.setParent(self.rig)
+        for index, point in enumerate(railPoints):
+            point.connect(self.railCrv.controlPoints[index])
+
+        # MAP TO GUIDE LOCS
+        mappingPairs = [[self.ik_end_ctrl, guide.locs[3]]]
+        for pair in mappingPairs:
+            self.mapToGuideLocs(pair[0], pair[1])
+
+    def addSystems(self):
+        # ---------------------------------
+        # Internal spaces switching setup
+        # ---------------------------------
+        self.spaces['%s' % (self.ik_end_ctrl.name())] = 'neck_base: %s.worldMatrix[0], neck_tip: %s.worldMatrix[0]' % (self.fk_ctrls[0].name(), self.fk_tip.name())
+
+
+
+
+
+        '''
+               self.divs = []
         for i, div in enumerate(guide.divisionLocs):
             num = str(i+1).zfill(2)
             mtx = pm.xform(div, q=1, ws=1, m=1)
@@ -50,19 +215,6 @@ class TNeck01(components.TBaseComponent):
                     pass
                     # j.setParent(self.joints_list[0]['joint'])
 
-        # IK controls - lower, mid, upper
-        xform = self.base_ctrl.worldMatrix[0].get()
-        self.ik_lower_ctrl = self.addCtrl(shape='squarePoint', size=10.0,
-                                          name=self.getName('ik_lower'), xform=xform, parent=self.base_ctrl, buffer=0)
-        self.mapToGuideLocs(self.ik_lower_ctrl, guide.locs[0])
-        xform = pm.PyNode(guide.divisionLocs[guide.num_divisions-1]).worldMatrix[0].get()
-        self.ik_mid_ctrl = self.addCtrl(shape='squarePoint', size=8.0,
-                                        name=self.getName('ik_mid'), xform=xform, parent=self.controls, buffer=1)
-        xform = pm.PyNode(guide.locs[4]).worldMatrix[0].get()
-        self.ik_upper_ctrl = self.addCtrl(shape='squarePoint', size=10.0,
-                                          name=self.getName('ik_upper'), xform=xform, parent=self.fk_upper_ctrl, buffer=0)
-        self.mapToGuideLocs(self.ik_upper_ctrl, guide.locs[4])
-
         # Default length
         dm = mathOps.decomposeMatrix(self.base_ctrl.worldMatrix[0], name=self.getName('base_ctrl_mtx2Srt'))
         l1 = mathOps.getDistance(self.ik_lower_ctrl, self.ik_mid_ctrl)
@@ -76,150 +228,6 @@ class TNeck01(components.TBaseComponent):
         stretchFactor = mathOps.divide((1, 1, 1), (1, 1, 1), name=self.getName('ik_stretch_factor'))
         stretchLen.output1D.connect(stretchFactor.input1X)
         defaultLen.output.connect(stretchFactor.input2X)
-
-        # Drive ik mid buffer
-        lowerTangentVec = mathOps.multiplyTerms(guide.locs[1].t.get(), (1.5, 1.5, 1.5))
-        lowerTangentScaledVec = mathOps.multiplyVector(guide.locs[1].t.get(), stretchFactor.output,
-                                                 name=self.getName('ik_lower_scaled_tangent_point'))
-        stretchFactor.outputX.connect(lowerTangentScaledVec.input2Y)
-        stretchFactor.outputX.connect(lowerTangentScaledVec.input2Z)
-        lowerTangentPos = mathOps.createTransformedPoint(lowerTangentScaledVec.output, self.ik_lower_ctrl.worldMatrix[0],
-                                                         name=self.getName('ik_lower_tangent_point'))
-        lowerMidPos = mathOps.createTransformedPoint(lowerTangentVec, self.ik_lower_ctrl.worldMatrix[0],
-                                                         name=self.getName('ik_lower_mid_point'))
-        upperTangentVec = mathOps.multiplyTerms(guide.locs[3].t.get(), (1.5, 1.5, 1.5))
-        upperTangentScaledVec = mathOps.multiplyVector(guide.locs[3].t.get(), stretchFactor.output,
-                                                 name=self.getName('ik_upper_scaled_tangent_point'))
-        stretchFactor.outputX.connect(upperTangentScaledVec.input2Y)
-        stretchFactor.outputX.connect(upperTangentScaledVec.input2Z)
-        upperTangentPos = mathOps.createTransformedPoint(upperTangentScaledVec.output, self.ik_upper_ctrl.worldMatrix[0],
-                                                         name=self.getName('ik_upper_tangent_point'))
-        upperMidPos = mathOps.createTransformedPoint(upperTangentVec, self.ik_upper_ctrl.worldMatrix[0],
-                                                         name=self.getName('ik_upper_mid_point'))
-
-        lowerAimPos = mathOps.createTransformedPoint((0, 0, 0), self.ik_lower_ctrl.worldMatrix[0],
-                                                     name=self.getName('ik_lower_aim_point'))
-        upperAimPos = mathOps.createTransformedPoint((0, 0, 0), self.ik_upper_ctrl.worldMatrix[0],
-                                                     name=self.getName('ik_upper_aim_point'))
-
-        pb = mathOps.pairBlend(translateA=lowerMidPos.output, translateB=upperMidPos.output,
-                               name=self.getName('mid_blend_point'))
-
-        ikAimVec = mathOps.subtractVector([upperAimPos.output, lowerAimPos.output],
-                                          name=self.getName('ik_mid_aimVec'))
-
-        ikAimNode1 = pm.createNode('aimMatrix', name=self.getName('ik_mid_01_aimMtx'))
-        self.base_ctrl.worldMatrix[0].connect(ikAimNode1.inputMatrix)
-        ikAimVec.output3D.connect(ikAimNode1.secondary.secondaryTargetVector)
-        ikAimNode1.primaryMode.set(0)
-        ikAimNode1.primaryInputAxis.set((1, 0, 0))
-        ikAimNode1.secondaryMode.set(2)
-        ikAimNode1.secondaryInputAxis.set((0, 1, 0))
-
-        ikAimNode2 = pm.createNode('aimMatrix', name=self.getName('ik_mid_02_aimMtx'))
-        ikAimNode1.outputMatrix.connect(ikAimNode2.inputMatrix)
-        ikAimVec.output3D.connect(ikAimNode2.secondary.secondaryTargetVector)
-        ikAimNode2.primaryMode.set(0)
-        ikAimNode2.primaryInputAxis.set((0, 0, 1))
-        ikAimNode2.secondaryMode.set(2)
-        ikAimNode2.secondaryInputAxis.set((0, 1, 0))
-
-        translateMtx = pm.createNode('composeMatrix', name=self.getName('ik_mid_translate_mtx'))
-        pb.outTranslate.connect(translateMtx.inputTranslate)
-
-        blend = pm.createNode('blendMatrix', name=self.getName('ik_mid_mtx'))
-        translateMtx.outputMatrix.connect(blend.inputMatrix)
-        ikAimNode2.outputMatrix.connect(blend.target[0].targetMatrix)
-        blend.target[0].useTranslate.set(0)
-        blend.target[0].useScale.set(0)
-
-        blend.outputMatrix.connect(self.ik_mid_ctrl.getParent().offsetParentMatrix)
-        self.base_ctrl.s.connect(self.ik_mid_ctrl.getParent().s)
-        self.ik_mid_ctrl.getParent().t.set(0, 0, 0)
-        self.ik_mid_ctrl.getParent().r.set(0, 0, 0)
-
-        # Drive mid IK twist
-        ikUpper_midSpace_mtx = mathOps.multiplyMatrices([self.ik_upper_ctrl.worldMatrix[0],
-                                                         self.ik_mid_ctrl.getParent().worldInverseMatrix[0]],
-                                                        name=self.getName('ikUpper_midSpace_mtx'))
-        dm = transform.decomposeMatrix(ikUpper_midSpace_mtx.matrixSum, name=self.getName('ikUpper_midSpace_mtx2Srt'))
-        upperTwist = mathOps.isolateRotationOnAxis(dm.outputRotate, axis='y', name=self.getName('ikUpper_twist'))
-        upperTwistMult = mathOps.multiplyAngleByScalar(upperTwist[1].outputRotateY, self.guide.root.mid_point.get(),
-                                                       name=self.getName('ikUpper_twist_mult'))
-
-        ikLower_midSpace_mtx = mathOps.multiplyMatrices([self.ik_lower_ctrl.worldMatrix[0],
-                                                         self.ik_mid_ctrl.getParent().worldInverseMatrix[0]],
-                                                        name=self.getName('ikLower_midSpace_mtx'))
-        dm = transform.decomposeMatrix(ikLower_midSpace_mtx.matrixSum, name=self.getName('ikLower_midSpace_mtx2Srt'))
-        lowerTwist = mathOps.isolateRotationOnAxis(dm.outputRotate, axis='y', name=self.getName('ikLower_twist'))
-        lowerTwistMult = mathOps.multiplyAngleByScalar(lowerTwist[1].outputRotateY, 1 - self.guide.root.mid_point.get(),
-                                                       name=self.getName('ikLower_twist_mult'))
-        twistSum = mathOps.addAngles(upperTwistMult.output, lowerTwistMult.output, name=self.getName('ik_twist_sum'))
-        twistSrt = dag.addParent(self.ik_mid_ctrl, 'group', name=self.getName('ik_mid_twist_srt'))
-        twistSum.output.connect(twistSrt.ry)
-
-        #P1
-        p1 = mathOps.decomposeMatrix(self.ik_lower_ctrl.worldMatrix[0], name=self.getName('ik_lower_ctrl_mtx2Srt'))
-
-        #P3
-        p3 = mathOps.decomposeMatrix(self.ik_mid_ctrl.worldMatrix[0], name=self.getName('ik_mid_ctrl_mtx2Srt'))
-
-        #P5
-        p5 = mathOps.decomposeMatrix(self.ik_upper_ctrl.worldMatrix[0], name=self.getName('ik_upper_ctrl_mtx2Srt'))
-
-        # IK Curve and rail curves
-
-        points = [(p, 0, 0) for p in range(5)]
-
-        self.crv = curve.curveThroughPoints(name=self.getName('ik_crv'), positions=points, degree=3)
-        self.crv.setParent(self.rig)
-
-        p1.outputTranslate.connect(self.crv.controlPoints[0])
-        lowerTangentPos.output.connect(self.crv.controlPoints[1])
-        p3.outputTranslate.connect(self.crv.controlPoints[2])
-        upperTangentPos.output.connect(self.crv.controlPoints[3])
-        p5.outputTranslate.connect(self.crv.controlPoints[4])
-
-        offsetLower = mathOps.createMatrixAxisVector(self.ik_lower_ctrl.worldMatrix[0], (0, 0, 1),
-                                                     name=self.getName('ik_railLower_offset_vec'))
-
-        offsetMid = mathOps.createMatrixAxisVector(self.ik_mid_ctrl.worldMatrix[0], (0, 0, 1),
-                                                   name=self.getName('ik_railMid_offset_vec'))
-
-        offsetLowerTangent = mathOps.pairBlend(translateA=offsetLower.output, translateB=offsetMid.output,
-                                               name=self.getName('ik_railLowerTangent_offset_vec'))
-
-        offsetUpper = mathOps.createMatrixAxisVector(self.ik_upper_ctrl.worldMatrix[0], (0, 0, 1),
-                                                     name=self.getName('ik_railUpper_offset_vec'))
-
-        offsetUpperTangent = mathOps.pairBlend(translateA=offsetUpper.output, translateB=offsetMid.output,
-                                               name=self.getName('ik_railUpperTangent_offset_vec'))
-
-        #u1
-        u1 = mathOps.addVector([offsetLower.output, p1.outputTranslate], name=self.getName('ik_lower_rail_point'))
-        #u2
-        u2 = mathOps.addVector([offsetLowerTangent.outTranslate, lowerTangentPos.output],
-                               name=self.getName('ik_lowerTangent_rail_point'))
-
-        #u3
-        u3 = mathOps.addVector([offsetMid.output, p3.outputTranslate], name=self.getName('ik_mid_rail_point'))
-
-        #u4
-        u4 = mathOps.addVector([offsetUpperTangent.outTranslate, upperTangentPos.output],
-                               name=self.getName('ik_upperTangent_rail_point'))
-
-        u5 = mathOps.addVector([offsetUpper.output, p5.outputTranslate], name=self.getName('ik_upper_rail_point'))
-
-        self.rail = curve.curveThroughPoints(name=self.getName('ik_rail'), positions=points, degree=3)
-        self.rail.setParent(self.rig)
-
-        u1.output3D.connect(self.rail.controlPoints[0])
-        u2.output3D.connect(self.rail.controlPoints[1])
-        u3.output3D.connect(self.rail.controlPoints[2])
-        u4.output3D.connect(self.rail.controlPoints[3])
-        u5.output3D.connect(self.rail.controlPoints[4])
-
-        components.TBaseComponent.addObjects(self, guide)
 
     def addAttributes(self):
         attribute.addFloatAttr(self.params, 'bulge_amount')
@@ -269,6 +277,7 @@ class TNeck01(components.TBaseComponent):
 
     def finish(self):
         self.setColours(self.guide)
+    '''
 
 
 
@@ -282,3 +291,10 @@ def build(guide):
     :return: The newly created component instance
     '''
     return TNeck01(guide)
+
+TODO:
+Head aim
+Joints
+Volume preservation
+shearing
+Finishing (attrs, colours, etc)
