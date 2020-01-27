@@ -104,6 +104,7 @@ class TBaseComponent(object):
             for index, shape in enumerate(icon.getShapes(temp)):
                 pm.parent(shape, ctrl, s=1, r=1)
                 shape.rename('%sShape%s' % (ctrl.name(), str(index+1)))
+            pm.delete(temp)
         else:
             ctrl = eval('icon.%sIcon(%s, "%s")' % (shape, size, '%s_ctrl' % name))
         if parent:
@@ -184,7 +185,10 @@ class TBaseComponent(object):
 
         '''
         def _getOffset(input):
-            suffix = input.name().split('.')[1].replace('_mtx', '')
+            if input.name().endswith('_mtx'):
+                suffix = input.name().split('.')[1].replace('_mtx', '')
+            else:
+                suffix = '_'.join(input.name().split('_')[2:]).split('.')[0]
             offsetMtx = targMtx * input.get().inverse()
             offset = transform.pmMtx2fourFourMtx(offsetMtx,
                                                  name=self.getName('%s_%s_offsetMtx' % (suffix, name)))
@@ -233,7 +237,10 @@ class TBaseComponent(object):
         indexOffset=0
 
         def _getOffset(input):
-            suffix = input.name().split('.')[1].replace('_mtx', '')
+            if input.name().endswith('_mtx'):
+                suffix = input.name().split('.')[1].replace('_mtx', '')
+            else:
+                suffix = '_'.join(input.name().split('_')[2:]).split('.')[0]
             offsetMtx = targMtx * input.get().inverse()
             offset = transform.pmMtx2fourFourMtx(offsetMtx,
                                                  name=self.getName('%s_%s_offsetMtx' % (suffix, name)))
@@ -472,7 +479,7 @@ class TBaseComponent(object):
                     if node.hasAttr('is_tGuide_root'):
                         drivenNode = self.controls_list[0]
                     # If only one space is specified, do a simple connection
-                    if len(inputs) == 1:
+                    if len(inputs) == 1 and drivenNode.name() not in self.spaces.keys():
                         self.connectToInput(inputs[0], drivenNode)
                     elif node.splitTranslateAndRotate.get():
                         self.connectToMultiInputsSplit(inputs, enumNames, drivenNode)

@@ -161,21 +161,22 @@ def duplicateGuide(guideRoot, includeChildGuides=0):
 
     for root in guideDict.keys():
         rootNode = pm.PyNode(root)
-        compType = rootNode.guide_type.get()
-        exec("import tRigger.components.%s.guide as mod" % compType)
-        reload(mod)
+        if rootNode == guideRoot:
+            compType = rootNode.guide_type.get()
+            exec("import tRigger.components.%s.guide as mod" % compType)
+            reload(mod)
 
-        params = {}
-        for param in guideDict[root]['pObj'].params:
-            params[param] = pm.getAttr('%s.%s' % (guideRoot.name(), param))
-        guide = mod.buildGuide(**params)
-        guide.root.setParent(rootNode.getParent())
+            params = {}
+            for param in guideDict[root]['pObj'].params:
+                params[param] = pm.getAttr('%s.%s' % (guideRoot.name(), param))
+            guide = mod.buildGuide(**params)
+            guide.root.setParent(rootNode.getParent())
 
-        for loc, refLoc in zip(guide.locs, guideDict[root]['pObj'].locs):
-            attribute.copyAttrValues(refLoc, loc, ['t', 'r', 's', 'offsetParentMatrix'])
-            if loc.hasAttr('spaces'):
-                attribute.copyAttrValues(refLoc, loc, ['spaces', 'splitTranslateAndRotate'])
-        return guide
+            for loc, refLoc in zip(guide.locs, guideDict[root]['pObj'].locs):
+                attribute.copyAttrValues(refLoc, loc, ['t', 'r', 's', 'offsetParentMatrix'])
+                if loc.hasAttr('spaces'):
+                    attribute.copyAttrValues(refLoc, loc, ['spaces', 'splitTranslateAndRotate'])
+            return guide
 
 def mirrorGuide(guideRoot, includeChildGuides=0):
     '''
@@ -222,6 +223,14 @@ def mirrorGuide(guideRoot, includeChildGuides=0):
             else:
                 loc.spaces.set(loc.spaces.get().replace('_L', '_R'))
 
+    params = [param for param in sourceGuide.params if param not in
+              ['guide_name', 'guide_side', 'guide_index']]
+
+    attribute.copyAttrValues(guideRoot, oppositeGuide.root, params)
+
+
+
+
 def instantiateGuide(guideRoot):
     '''
     Creates an instance of the specified guide's class
@@ -261,4 +270,29 @@ def addConnection(rig, source, dest):
     input = attribute.addMatrixAttr(destComp.input, '%s_inMtx' % dest.name())
     output.connect(input)
     destComp.connectToInput(output, dest)
+
+def extractControls(controls):
+    '''
+    Stores a copy of the supplied control objects in the guide
+    Args:
+        controls: (list) the controls whose shapes are to be stored
+    Returns:
+        None
+    '''
+    try:
+        parent = pm.PyNode('guide|controllers')
+    except:
+        return 'No guide controllers group found'
+    for control in controls:
+        newName = control.name() + '_stored'
+        try:
+            pm.delete(pm.PyNode(newName))
+        except:
+            pass
+        transform = pm.createNode('transform', name=control.name() + '_stored')
+        transform.setParent(parent)
+        shapes = control.getShapes()
+        newShapes = pm.duplicate(*shapes, addShape=1)
+        for shape in newShapes:
+            pm.parent(shape, transform, s=1, r=1)
 

@@ -1,5 +1,5 @@
 from tRigger import components
-from tRigger.core import attribute, transform, dag, icon
+from tRigger.core import attribute, transform, dag, icon, mathOps
 import pymel.core as pm
 reload(components)
 reload(transform)
@@ -13,19 +13,33 @@ class TControl(components.TBaseComponent):
         print 'Created Control Component: %s' % self.comp_name
 
     def addObjects(self, guide):
+        self.invert = (self.guide.guide_side == 'R')
+        xform = pm.PyNode(guide.root).worldMatrix[0].get()
+        if self.invert:
+            xform = mathOps.invertHandedness(xform)
         for i in range(guide.num_ctrls):
-            xform = pm.PyNode(guide.root).worldMatrix[0].get()
             parent = self.base_srt
             if i > 0:
                 parent = self.controls_list[-1]
             num = str(i+1).zfill(2)
             self.addCtrl(shape='squarePoint', size=20.0-(i*3),
                          name=self.getName(num), xform=xform, parent=parent)
-        self.mapToGuideLocs(self.controls_list[-1], guide.locs[-1])
+
+        driver = self.controls_list[-1]
+
+        if self.invert:
+            xform = mathOps.createInverseHandedMatrix(self.controls_list[-1].worldMatrix[0],
+                                                      name=self.getName('out'))
+            self.out_srt = dag.addChild(self.rig, 'group', name=self.getName('out_srt'))
+            xform.matrixSum.connect(self.out_srt.offsetParentMatrix)
+            self.mapToGuideLocs(self.out_srt, guide.locs[-1])
+            driver = self.out_srt
+        else:
+            self.mapToGuideLocs(self.controls_list[-1], guide.locs[-1])
 
         if guide.root.add_joint.get():
             j = pm.createNode('joint', name=self.getName('jnt'))
-            self.joints_list.append({'joint': j, 'driver': self.controls_list[-1]})
+            self.joints_list.append({'joint': j, 'driver': driver})
             self.mapJointToGuideLocs(j, guide.locs[-1])
         components.TBaseComponent.addObjects(self, guide)
 

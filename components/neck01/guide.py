@@ -47,7 +47,13 @@ class TNeck01Guide(guide.TGuideBaseComponent):
         self.rebuildCrv.degree.set(2)
         self.rebuildCrv.keepControlPoints.set(1)
         self.crv.worldSpace[0].connect(self.rebuildCrv.inputCurve)
+        # Aim loc
+        xform = transform.getMatrixFromPos((0, 15, 10))
+        self.addGuideLoc(self.getName('aim'), xform, self.root)
+        self.aimCrv = self.addGuideCurve([self.locs[-1], self.locs[-2]], name='aim_crv', degree=1)
+
         self.locs = self.getGuideLocs(self.root)
+        self.addSpaceSwitchAttr(self.locs[4])
         self.crv.visibility.set(0)
         self.addSpaceSwitchAttr(self.locs[3])
 

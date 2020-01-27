@@ -11,9 +11,6 @@ class TFkHandGuide(guide.TGuideBaseComponent):
         guide.TGuideBaseComponent.__init__(self, guide_name, 'fkHand', guide_side, guide_index, fromDagNode=fromDagNode)
         for param in ['num_segments', 'num_digits', 'thumb']:
             self.params.append(param)
-        self.num_segments = self.root.num_segments.get()
-        self.num_digits = self.root.num_digits.get()
-        self.thumb = self.root.thumb.get()
         if not fromDagNode:
             attribute.addIntAttr(self.root, 'num_digits', num_digits)
             attribute.addIntAttr(self.root, 'num_segments', num_segments)
@@ -22,6 +19,9 @@ class TFkHandGuide(guide.TGuideBaseComponent):
             self.addLocs()
         else:
             self.locs = self.getGuideLocs(fromDagNode)
+            self.num_segments = self.root.num_segments.get()
+            self.num_digits = self.root.num_digits.get()
+            self.thumb = self.root.thumb.get()
         self.installComponentCallbacks()
 
     def installComponentCallbacks(self):
@@ -48,6 +48,9 @@ class TFkHandGuide(guide.TGuideBaseComponent):
                 print('callback fired')
 
     def addLocs(self):
+        self.num_segments = self.root.num_segments.get()
+        self.num_digits = self.root.num_digits.get()
+        self.thumb = self.root.thumb.get()
         locs = self.locs
         locs.remove(self.root)
         locsDict = {}

@@ -241,6 +241,9 @@ class TArmIkFk(components.TBaseComponent):
 
     def addAttributes(self):
         attribute.addFloatAttr(self.params, 'ikfk_blend', minValue=0, maxValue=1)
+        attribute.addFloatAttr(self.params, 'joint_shear', minValue=0, maxValue=1)
+        attribute.addFloatAttr(self.params, 'twist_upper', minValue=0, maxValue=1, value=1)
+        attribute.addFloatAttr(self.params, 'twist_lower', minValue=0, maxValue=1, value=1)
         attribute.addFloatAttr(self.params, 'mid_slide', minValue=-1, maxValue=1)
         attribute.addFloatAttr(self.params, 'stretch', minValue=0, maxValue=1)
         attribute.addFloatAttr(self.params, 'pin_to_pole', minValue=0, maxValue=1)
@@ -458,44 +461,22 @@ class TArmIkFk(components.TBaseComponent):
         ik_end_place_mtx = mathOps.multiplyMatrices([ik_end_translate_mtx.outputMatrix,
                                                     ik_mid_mtx.matrixSum],
                                                     name=self.getName('ik_end_place_mtx'))
-        ik_end_mtx = pm.createNode('blendMatrix', name=self.getName('ik_end_mtx'))
-        ik_end_base_mtx.matrixSum.connect(ik_end_mtx.inputMatrix)
-        ik_end_place_mtx.matrixSum.connect(ik_end_mtx.target[0].targetMatrix)
-        ik_end_mtx.target[0].useRotate.set(0)
-        ik_end_mtx.target[0].useShear.set(0)
-        ik_end_mtx.target[0].weight.set(1)
+        ik_end_mtx = transform.blend_T_R_matrices(ik_end_place_mtx.matrixSum, ik_end_base_mtx.matrixSum,
+                                                  name=self.getName('ik_end_mtx'))
 
         # Blend Matrices
+        angle = (1, 0, 0)
+
+        # START
         result_start_mtx = pm.createNode('blendMatrix', name=self.getName('result_start_mtx'))
         ik_start_mtx.matrixSum.connect(result_start_mtx.inputMatrix)
         fkAttrs[0].connect(result_start_mtx.target[0].targetMatrix)
         self.params.ikfk_blend.connect(result_start_mtx.target[0].weight)
-        
-        result_mid_mtx = pm.createNode('blendMatrix', name=self.getName('result_mid_mtx'))
-        ik_mid_mtx.matrixSum.connect(result_mid_mtx.inputMatrix)
-        fkAttrs[1].connect(result_mid_mtx.target[0].targetMatrix)
-        self.params.ikfk_blend.connect(result_mid_mtx.target[0].weight)
-        result_mid_mtx.outputMatrix.connect(self.result_mid.offsetParentMatrix)
-        
-        result_end_mtx = pm.createNode('blendMatrix', name=self.getName('result_end_mtx'))
-        ik_end_mtx.outputMatrix.connect(result_end_mtx.inputMatrix)
-        fkAttrs[2].connect(result_end_mtx.target[0].targetMatrix)
-        self.params.ikfk_blend.connect(result_end_mtx.target[0].weight)
-        result_end_mtx.outputMatrix.connect(self.result_end.offsetParentMatrix)
 
-        # Additional matrices - (non-rolls, averages)
-        axis = 'x'
-        angle = (1, 0, 0)
-        if self.invert:
-            axis = '-x'
-            #angle = (-1, 0, 0)
-            
         startLocalMtx = mathOps.multiplyMatrices([result_start_mtx.outputMatrix, self.base_srt.worldInverseMatrix[0]],
                                                  name=self.getName('startMtx_to_baseMtx'))
-
         startVec = mathOps.createMatrixAxisVector(startLocalMtx.matrixSum, (1, 0, 0),
                                                   name=self.getName('result_start_vec'))
-
         start_angle = mathOps.angleBetween(angle, startVec.output, name=self.getName('start_angle'))
         start_angle_mtx = mathOps.createComposeMatrix(inputRotate=start_angle.euler,
                                                       name=self.getName('start_angle_mtx'))
@@ -503,16 +484,43 @@ class TArmIkFk(components.TBaseComponent):
                                                      name=self.getName('start_nonRoll_mtx'))
         start_nonRoll_mtx.matrixSum.connect(self.result_start.offsetParentMatrix)
 
-        startTip_mtx = transform.blend_T_R_matrices(result_mid_mtx.outputMatrix, result_start_mtx.outputMatrix,
-                                                    name=self.getName('result_startTip_mtx'))
-        startTip_mtx.outputMatrix.connect(self.result_startTip.offsetParentMatrix)
-        
-        startTipInverse = mathOps.inverseMatrix(startTip_mtx.outputMatrix, name=self.getName('startTipMtx_inverse'))
-        midLocalMtx = mathOps.multiplyMatrices([self.result_mid.worldMatrix[0], startTipInverse.outputMatrix],
+        # MID
+        result_mid_mtx = transform.blendMatrices(ik_mid_mtx.matrixSum, fkAttrs[1],
+                                                 name=self.getName('result_mid_mtx'))
+        self.params.ikfk_blend.connect(result_mid_mtx.target[0].weight)
+
+        midLocalMtx = mathOps.multiplyMatrices([result_mid_mtx.outputMatrix, self.result_start.worldInverseMatrix[0]],
                                                name=self.getName('midMtx_to_startMtx'))
-        d = mathOps.decomposeMatrix(midLocalMtx.matrixSum, name=self.getName('mid_local_mtx2Srt'))
-        rotX = mathOps.isolateRotationOnAxis(d.outputRotate, 'x', name=self.getName('mid'))
-        rotX[1].outputRotateX.connect(self.result_startTip.rx)
+        midVec = mathOps.createMatrixAxisVector(midLocalMtx.matrixSum, (1, 0, 0),
+                                                name=self.getName('result_mid_vec'))
+        mid_angle = mathOps.angleBetween(angle, midVec.output, name=self.getName('mid_angle'))
+        mid_angle_mtx = mathOps.createComposeMatrix(inputRotate=mid_angle.euler,
+                                                    name=self.getName('mid_angle_mtx'))
+        mid_nonRoll_mtx = mathOps.multiplyMatrices([mid_angle_mtx.outputMatrix, start_nonRoll_mtx.matrixSum],
+                                                   name=self.getName('mid_nonRoll_mtx'))
+        mid_mtx = transform.blendMatrices(mid_nonRoll_mtx.matrixSum, result_mid_mtx.outputMatrix,
+                                          name=self.getName('mid_mtx'))
+        result_mid_mtx.outputMatrix.connect(mid_mtx.target[1].targetMatrix)
+        mid_mtx.target[1].useRotate.set(0)
+        mid_mtx.target[1].useShear.set(0)
+        self.params.twist_upper.connect(mid_mtx.target[0].weight)
+        mid_mtx.outputMatrix.connect(self.result_mid.offsetParentMatrix)
+
+        # END
+        result_end_mtx = transform.blendMatrices(ik_end_mtx.outputMatrix, fkAttrs[2],
+                                                 name=self.getName('result_end_mtx'))
+        self.params.ikfk_blend.connect(result_end_mtx.target[0].weight)
+        result_end_mtx.outputMatrix.connect(self.result_end.offsetParentMatrix)
+
+        # Additional matrices - (non-rolls, averages)
+        axis = 'x'
+        if self.invert:
+            axis = '-x'
+
+        # START TIP
+        startTipMtx = transform.blend_T_R_matrices(result_mid_mtx.outputMatrix, start_nonRoll_mtx.matrixSum,
+                                                   name=self.getName('start_tip_mtx'))
+        startTipMtx.outputMatrix.connect(self.result_startTip.offsetParentMatrix)
 
         midTip_mtx = transform.blend_T_R_matrices(result_end_mtx.outputMatrix, result_mid_mtx.outputMatrix,
                                                   name=self.getName('result_midTip_mtx'))
@@ -522,13 +530,15 @@ class TArmIkFk(components.TBaseComponent):
                                                name=self.getName('endMtx_to_midMtx'))
         d = mathOps.decomposeMatrix(endLocalMtx.matrixSum, name=self.getName('end_local_mtx2Srt'))
         rotX = mathOps.isolateRotationOnAxis(d.outputRotate, 'x', name=self.getName('end'))
-        rotX[1].outputRotateX.connect(self.result_midTip.rx)
+        rotXMult = mathOps.multiplyAngleByScalar(rotX[1].outputRotateX, self.params.twist_lower,
+                                                 name=self.getName('lower_twist_mult'))
+        rotXMult.output.connect(self.result_midTip.rx)
 
         startAvgMtx = transform.blendMatrices(self.base_srt.worldMatrix[0], self.result_start.worldMatrix[0],
                                               name=self.getName('result_start_avg_mtx'))
         startAvgMtx.outputMatrix.connect(self.result_start_avg.offsetParentMatrix)
 
-        midAvgMtx = transform.blendMatrices(self.result_startTip.worldMatrix[0], result_mid_mtx.outputMatrix,
+        midAvgMtx = transform.blendMatrices(self.result_startTip.worldMatrix[0], mid_mtx.outputMatrix,
                                             name=self.getName('result_mid_avg_mtx'))
         chamferMtx = transform.blendMatrices(result_start_mtx.outputMatrix, result_end_mtx.outputMatrix,
                                              name=self.getName('mid_chamfer_mtx'))
@@ -656,14 +666,31 @@ class TArmIkFk(components.TBaseComponent):
             endTargMtx = mathOps.createInverseHandedMatrix(endTargMtx,
                                                            composeMtx=negScaleMtx,
                                                            name=self.getName('end_neg_mtx')).matrixSum
+
         lowerEndAimMtx = transform.createAimMatrix(endTargMtx, self.mid_ctrl.worldMatrix[0],
                                                    name=self.getName('lower_end_aim_mtx'))
         lowerEndAimMtx.primaryInputAxis.set((-1, 0, 0))
         lowerEndBlendMtx = transform.blendMatrices(endTargMtx, lowerEndAimMtx.outputMatrix,
                                                    name=self.getName('lower_end_blend_mtx'))
         self.params.end_follow.connect(lowerEndBlendMtx.target[0].weight)
-        lowerEndTangentMtx = mathOps.multiplyMatrices([lowerEndLocalMtx.outputMatrix, lowerEndBlendMtx.outputMatrix],
+
+        endTwistMtx = mathOps.createComposeMatrix(name=self.getName('end_twist_mtx'))
+        rotXNeg = mathOps.multiplyAngleByScalar(rotX[1].outputRotateX, -1, name=self.getName('end_twist_neg'))
+        rotXMultRev = mathOps.reverse(self.params.twist_lower, name=self.getName('end_twist_lower_reverse'))
+        rotXNegMult = mathOps.multiplyAngleByScalar(rotXNeg.output, rotXMultRev.outputX,
+                                                    name=self.getName('end_twist_lower_mult'))
+        midTwistMtx = mathOps.multiplyMatrices([result_mid_mtx.outputMatrix, self.result_mid.worldInverseMatrix],
+                                               name=self.getName('mid_twist_mtx'))
+        midTwistMtx2Srt = mathOps.decomposeMatrix(midTwistMtx.matrixSum, name=self.getName('mid_twist_mtx2Srt'))
+        rotXSum = mathOps.addAngles(midTwistMtx2Srt.outputRotateX, rotXNegMult.output,
+                                    name=self.getName('end_twist_sum'))
+        rotXSum.weightA.set(-1)
+        rotXSum.output.connect(endTwistMtx.inputRotateX)
+
+        lowerEndTangentMtx = mathOps.multiplyMatrices([endTwistMtx.outputMatrix,
+                                                       lowerEndLocalMtx.outputMatrix, lowerEndBlendMtx.outputMatrix],
                                                       name=self.getName('lower_end_tangent_mtx'))
+
         lowerEndTangentMtx.matrixSum.connect(self.lower_endBend_ctrl.offsetParentMatrix)
         dm = mathOps.decomposeMatrix(self.lower_endBend_ctrl.worldMatrix[0],
                                      name=self.getName('lower_end_tangent_mtx2Srt'))

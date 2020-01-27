@@ -86,7 +86,7 @@ class TGuideBaseComponent(object):
 
     def addSpaceSwitchAttr(self, node):
         attribute.addStringAttr(node, 'spaces', '')
-        attribute.addBoolAttr(node, 'splitTranslateAndRotate')
+        attribute.addBoolAttr(node, 'splitTranslateAndRotate', value=False)
 
     def addGuideUpNode(self, axis='y'):
         loc = self.addGuideLoc(self.getName('upNode'),
