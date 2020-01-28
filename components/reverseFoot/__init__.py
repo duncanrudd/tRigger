@@ -80,8 +80,6 @@ class TReverseFoot(components.TBaseComponent):
 
         # Tarsi controls
         for index, tarsi in enumerate(guide.locs[7:]):
-            print guide.locs[index+6]
-            print guide.locs[index+7]
             aimVec = _getVec(self.controls_list[-1], guide.locs[index+7], self.invert)
             upVecTemp = mathOps.getMatrixAxisAsVector(self.controls_list[-1].worldMatrix[0].get(), 'z')
             sideVec = upVecTemp.cross(aimVec).normal()
@@ -103,7 +101,7 @@ class TReverseFoot(components.TBaseComponent):
         # ----------------------
         # FK controls
         # ----------------------
-        refControls = self.controls_list[3:]
+        refControls = self.controls_list[2:]
         refControls.reverse()
         for index, ik in enumerate(refControls):
             parent = self.base_srt
@@ -112,9 +110,6 @@ class TReverseFoot(components.TBaseComponent):
             if index > 0:
                 parent = self.controls_list[-1]
                 target = refControls[index-1]
-            if self.invert:
-                pass
-                # xform = mathOps.invertHandedness(xform)
             num = str(index+1).zfill(2)
             ctrl = self.addCtrl(shape='pringle', size=ctrlSize*.67,
                                 name=self.getName('fk_%s' % num), xform=xform,
@@ -127,13 +122,13 @@ class TReverseFoot(components.TBaseComponent):
         if guide.root.add_joint.get():
             if self.invert:
                 negMtx = mathOps.createComposeMatrix(inputScale=(-1, 1, 1), name=self.getName('neg_mtx'))
-            for i in range(self.guide.tarsi_segs + 1):
+            for i in range(self.guide.tarsi_segs + 2):
                 num = str(i+1).zfill(2)
                 j = pm.createNode('joint', name=self.getName('%s_jnt' % num))
                 if i == 0:
                     driver = self.base_srt
                 else:
-                    ctrl = self.controls_list[len(self.controls_list) - 1 - self.guide.tarsi_segs + i]
+                    ctrl = self.controls_list[len(self.controls_list) - 2 - self.guide.tarsi_segs + i]
                     driver = ctrl
                 if self.invert and i > 0:
                     out_srt = dag.addChild(self.rig, 'group', self.getName('out_%s_srt' % num))

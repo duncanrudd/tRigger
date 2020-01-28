@@ -4,19 +4,23 @@ from tRigger.components import guide, attribute, transform
 reload(guide)
 
 class TArmIkFkGuide(guide.TGuideBaseComponent):
-    def __init__(self, guide_name='', guide_side='C', guide_index=0, num_divisions=5, add_joint=1, world_aligned_ik_ctrl=0,
-                 fromDagNode=0):
+    def __init__(self, guide_name='', guide_side='C', guide_index=0, num_divisions=5, add_joint=1,
+                 sleeve=0, world_aligned_ik_ctrl=0, fromDagNode=0):
         guide.TGuideBaseComponent.__init__(self, guide_name, 'armIkFk', guide_side, guide_index, fromDagNode=fromDagNode)
-        self.num_divisions = num_divisions
+        for param in ['num_divisions', 'add_joint', 'world_aligned_ik_ctrl', 'sleeve']:
+            self.params.append(param)
         if not fromDagNode:
             attribute.addBoolAttr(self.root, 'add_joint', add_joint)
             attribute.addBoolAttr(self.root, 'world_aligned_ik_ctrl', world_aligned_ik_ctrl)
             attribute.addIntAttr(self.root, 'num_divisions', num_divisions)
+            attribute.addEnumAttr(self.root, 'sleeve', ['none', 'upper', 'full', 'lower', 'split'])
             self.addLocs()
         else:
             self.locs = self.getGuideLocs(fromDagNode)
-        for param in ['add_joint', 'world_aligned_ik_ctrl', 'num_divisions']:
-            self.params.append(param)
+        self.num_divisions = self.root.num_divisions.get()
+        self.add_joint = self.root.add_joint.get()
+        self.world_aligned_ik_ctrl = self.root.world_aligned_ik_ctrl.get()
+        self.sleeve = self.root.sleeve.get()
 
     def addLocs(self):
         points = [(x, 0, 0) for x in [0, 0, 20, 25]]
@@ -62,6 +66,8 @@ def instantiateFromDagNode(dagNode):
                          dagNode.guide_index.get(),
                          dagNode.num_divisions.get(),
                          add_joint=dagNode.add_joint.get(),
+                         world_aligned_ik_ctrl=dagNode.world_aligned_ik_ctrl.get(),
+                         sleeve=dagNode.sleeve.get(),
                          fromDagNode=dagNode)
 
 def buildGuide(**kwargs):
