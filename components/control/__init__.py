@@ -45,6 +45,8 @@ class TControl(components.TBaseComponent):
 
     def finish(self):
         self.setColours(self.guide)
+        attrList = ['visibility']
+        attribute.channelControl(nodeList=self.controls_list, attrList=attrList)
 
 def build(guide):
     '''

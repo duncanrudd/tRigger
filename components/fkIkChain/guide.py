@@ -11,21 +11,19 @@ axisDict = {'x': pm.datatypes.Vector(10, 0, 0),
             'z': pm.datatypes.Vector(0, 0, 10),
             }
 
-class TNeck01Guide(guide.TGuideBaseComponent):
-    def __init__(self, guide_name='', guide_side='C', guide_index=0, num_divisions=4, num_ctrls=3, aimer=1,
-                 fromDagNode=0):
-        guide.TGuideBaseComponent.__init__(self, guide_name, 'neck01', guide_side, guide_index, fromDagNode=fromDagNode)
+class TFkIkChainGuide(guide.TGuideBaseComponent):
+    def __init__(self, guide_name='', guide_side='C', guide_index=0, num_divisions=4, num_ctrls=4, fromDagNode=0):
+        guide.TGuideBaseComponent.__init__(self, guide_name, 'fkIkChain', guide_side, guide_index,
+                                           fromDagNode=fromDagNode)
         self.num_divisions = num_divisions
         self.num_ctrls = num_ctrls
         self.divisionLocs = []
         self.ctrlLocs = []
-        self.aimer=aimer
-        for param in ['num_divisions', 'num_ctrls', 'aimer']:
+        for param in ['num_divisions', 'num_ctrls']:
             self.params.append(param)
         if not fromDagNode:
             attribute.addIntAttr(self.root, 'num_divisions', num_divisions)
-            attribute.addIntAttr(self.root, 'num_ctrls', minValue=3, value=num_ctrls)
-            attribute.addBoolAttr(self.root, 'aimer', aimer)
+            attribute.addIntAttr(self.root, 'num_ctrls', value=num_ctrls, minValue=4)
             self.addLocs()
             attribute.addBoolAttr(self.root, 'add_joint')
         else:
@@ -51,16 +49,10 @@ class TNeck01Guide(guide.TGuideBaseComponent):
         self.rebuildCrv.degree.set(2)
         self.rebuildCrv.keepControlPoints.set(1)
         self.crv.worldSpace[0].connect(self.rebuildCrv.inputCurve)
-        # Aim loc
-        xform = transform.getMatrixFromPos((0, 15, 10))
-        self.addGuideLoc(self.getName('aim'), xform, self.root)
-        self.aimCrv = self.addGuideCurve([self.locs[-1], self.locs[-2]], name='aim_crv', degree=1)
 
         self.locs = self.getGuideLocs(self.root)
-        self.addSpaceSwitchAttr(self.locs[4])
         self.crv.visibility.set(0)
         self.addSpaceSwitchAttr(self.locs[3])
-
 
     def installComponentCallbacks(self):
         try:
@@ -82,7 +74,6 @@ class TNeck01Guide(guide.TGuideBaseComponent):
                 self.addCtrls()
                 pm.select(sel)
                 print('callback fired')
-
 
     # FK CTRL LOCS
     def addCtrls(self):
@@ -158,15 +149,14 @@ class TNeck01Guide(guide.TGuideBaseComponent):
                 print 'Unable to reparent: %s to %s' % (child.name(), key)
 
 def instantiateFromDagNode(dagNode):
-    return TNeck01Guide(dagNode.guide_name.get(),
-                        dagNode.guide_side.get(),
-                        dagNode.guide_index.get(),
-                        dagNode.num_divisions.get(),
-                        dagNode.num_ctrls.get(),
-                        dagNode.aimer.get(),
-                        fromDagNode=dagNode)
+    return TFkIkChainGuide(dagNode.guide_name.get(),
+                           dagNode.guide_side.get(),
+                           dagNode.guide_index.get(),
+                           dagNode.num_divisions.get(),
+                           dagNode.num_ctrls.get(),
+                           fromDagNode=dagNode)
 
 
 def buildGuide(**kwargs):
-    return TNeck01Guide(**kwargs)
+    return TFkIkChainGuide(**kwargs)
 

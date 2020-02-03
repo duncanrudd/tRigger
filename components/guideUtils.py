@@ -284,12 +284,12 @@ def extractControls(controls):
     except:
         return 'No guide controllers group found'
     for control in controls:
-        newName = control.name() + '_stored'
+        newName = control.name().replace('_ctrl', '') + '_stored'
         try:
             pm.delete(pm.PyNode(newName))
         except:
             pass
-        transform = pm.createNode('transform', name=control.name() + '_stored')
+        transform = pm.createNode('transform', name=newName)
         transform.setParent(parent)
         shapes = control.getShapes()
         newShapes = pm.duplicate(*shapes, addShape=1)

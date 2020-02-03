@@ -48,10 +48,11 @@ class TNeck01(components.TBaseComponent):
         self.fk_ctrls[-1].worldMatrix[0].connect(self.fk_tip.offsetParentMatrix)
         self.fk_tip.ty.set(mathOps.getDistance(self.fk_ctrls[-1], guide.locs[3]))
 
-        # Aim ctrl
-        xform = transform.getMatrixFromPos(guide.locs[4].worldMatrix.get().translate.get())
-        self.aim_ctrl = self.addCtrl(shape='cross', size=ctrlSize,
-                                     name=self.getName('aim'), xform=xform, parent=self.controls)
+        if self.guide.aimer:
+            # Aim ctrl
+            xform = transform.getMatrixFromPos(guide.locs[4].worldMatrix.get().translate.get())
+            self.aim_ctrl = self.addCtrl(shape='cross', size=ctrlSize,
+                                         name=self.getName('aim'), xform=xform, parent=self.controls)
 
         # IK control
         self.ik_end_ctrl = self.addCtrl(shape='box', size=ctrlSize,
@@ -76,7 +77,10 @@ class TNeck01(components.TBaseComponent):
         tipMtx2Srt = mathOps.decomposeMatrix(self.fk_tip.worldMatrix[0])
         tipOffset = mathOps.subtractVector([d.outputTranslate, tipMtx2Srt.outputTranslate],
                                            name=self.getName('tip_offset_vec'))
-        tipOffsetMult = mathOps.multiplyVector(tipOffset.output3D, (.5, .5, .5),
+        dist1 = mathOps.getDistance(baseMtx, self.ik_end_ctrl)
+        dist2 = mathOps.getDistance(baseMtx, self.fk_ctrls[0])
+        midRatio = float(dist2)/(dist1+dist2)
+        tipOffsetMult = mathOps.multiplyVector(tipOffset.output3D, (midRatio, midRatio, midRatio),
                                                name=self.getName('ik_mid_tip_offset_mult'))
         baseMtx2Srt = mathOps.decomposeMatrix(baseMtx, name=self.getName('ik_mid_base_pos_mtx2Srt'))
         ik_mid_pos_sum = mathOps.addVector([baseMtx2Srt.outputTranslate, tipOffsetMult.output],
@@ -158,7 +162,7 @@ class TNeck01(components.TBaseComponent):
         midTwistMtx2Srt = mathOps.decomposeMatrix(midTwistRefMtx.matrixSum, name=self.getName('mid_twist_mtx2Srt'))
         midTwist = mathOps.isolateRotationOnAxis(midTwistMtx2Srt.outputRotate, 'y', name=self.getName('mid_twist'))
 
-        twistInvert = mathOps.multiplyAngleByScalar(midTwist[1].outputRotateY, .5,
+        twistInvert = mathOps.multiplyAngleByScalar(midTwist[1].outputRotateY, midRatio,
                                                     name=self.getName('ik_mid_twist_invert'))
         twistInvert.output.connect(self.mid_twist_srt.ry)
 
@@ -185,7 +189,9 @@ class TNeck01(components.TBaseComponent):
             point.connect(self.railCrv.controlPoints[index])
 
         # MAP TO GUIDE LOCS
-        mappingPairs = [[self.ik_end_ctrl.getParent(), guide.locs[3]], [self.aim_ctrl, guide.locs[4]]]
+        mappingPairs = [[self.ik_end_ctrl.getParent(), guide.locs[3]], [self.base_srt, guide.locs[0]]]
+        if self.guide.aimer:
+            mappingPairs.append([self.aim_ctrl, guide.locs[4]])
         for pair in mappingPairs:
             self.mapToGuideLocs(pair[0], pair[1])
 
@@ -223,7 +229,9 @@ class TNeck01(components.TBaseComponent):
 
 
     def addAttributes(self):
-        attribute.addFloatAttr(self.params, 'aim', minValue=0, maxValue=1)
+        attribute.addFloatAttr(self.params, 'shear_amount', minValue=0, maxValue=1)
+        if self.guide.aimer:
+            attribute.addFloatAttr(self.params, 'aim', minValue=0, maxValue=1)
 
     def addSystems(self):
         # Base skew
@@ -235,6 +243,8 @@ class TNeck01(components.TBaseComponent):
                                                            self.base_srt.worldInverseMatrix[0],
                                                            name=self.getName('start_local_tangent'))
         startAngle = mathOps.angleBetween((0, 1, 0), startLocalTangent.output, name=self.getName('start_angle'))
+        startAngleMult = mathOps.multiplyRotationByScalar(startAngle.euler, self.params.shear_amount,
+                                                          name=self.getName('start_angle_mult'))
         
         endTangentSum = mathOps.addVector([self.endTangent.result.normalizedTangent,
                                           self.endTangent.result.position],
@@ -244,12 +254,15 @@ class TNeck01(components.TBaseComponent):
                                                          self.ik_end_ctrl.worldInverseMatrix[0],
                                                          name=self.getName('end_local_tangent'))
         endAngle = mathOps.angleBetween((0, 1, 0), endLocalTangent.output, name=self.getName('end_angle'))
+        endAngleMult = mathOps.multiplyRotationByScalar(endAngle.euler, self.params.shear_amount,
+                                                        name=self.getName('end_angle_mult'))
 
 
         
         # ---------------------------------
         # Motion path stuff
         # ---------------------------------
+        baseMtx2Srt = mathOps.decomposeMatrix(self.base_srt.worldMatrix[0], name=self.getName('base_mtx2Srt'))
         skewXSum = None
         skewZSum = None
         for i, div in enumerate(self.divs):
@@ -265,9 +278,10 @@ class TNeck01(components.TBaseComponent):
 
             mp.allCoordinates.connect(div.t)
             mp.rotate.connect(div.r)
+            baseMtx2Srt.outputScale.connect(div.s)
 
             # Skew
-            skewXSum = mathOps.addAngles(startAngle.euler.eulerX, endAngle.euler.eulerX,
+            skewXSum = mathOps.addAngles(startAngleMult.outputX, endAngleMult.outputX,
                                          name=self.getName('skew_x_sum'))
             skewXSum.weightA.set(1.0-param)
             skewXSum.weightB.set(param)
@@ -276,7 +290,7 @@ class TNeck01(components.TBaseComponent):
                                         name=self.getName('%s_skew_x_mult' % num))
             skewXMult.output.connect(div.shearXZ)
 
-            skewZSum = mathOps.addAngles(startAngle.euler.eulerZ, endAngle.euler.eulerZ,
+            skewZSum = mathOps.addAngles(startAngleMult.outputZ, endAngleMult.outputZ,
                                          name=self.getName('skew_z_sum'))
             skewZSum.weightA.set(1.0-param)
             skewZSum.weightB.set(param)
@@ -296,23 +310,27 @@ class TNeck01(components.TBaseComponent):
         # ---------------------------------
         # Head Aim
         # ---------------------------------
-        headAimMtx = transform.createNonRollMatrix(self.ik_end_ctrl.getParent().worldMatrix[0],
-                                                   self.aim_ctrl.worldMatrix[0], axis='z',
-                                                   name=[self.getName('head_aim_lock_mtx'),
-                                                         self.getName('head_aim_mtx')])
-        headAimBlend = transform.blendMatrices(self.ik_end_ctrl.getParent().worldMatrix[0], headAimMtx[1].outputMatrix,
-                                               name=self.getName('head_aim_blend_mtx'))
-        self.params.aim.connect(headAimBlend.target[0].weight)
-        headAimBlend.outputMatrix.connect(self.ik_end_ctrl.offsetParentMatrix)
-        self.ik_end_ctrl.inheritsTransform.set(0)
+        if self.guide.aimer:
+            headAimMtx = transform.createNonRollMatrix(self.ik_end_ctrl.getParent().worldMatrix[0],
+                                                       self.aim_ctrl.worldMatrix[0], axis='z',
+                                                       name=[self.getName('head_aim_lock_mtx'),
+                                                             self.getName('head_aim_mtx')])
+            headAimBlend = transform.blendMatrices(self.ik_end_ctrl.getParent().worldMatrix[0], headAimMtx[1].outputMatrix,
+                                                   name=self.getName('head_aim_blend_mtx'))
+            self.params.aim.connect(headAimBlend.target[0].weight)
+            headAimBlend.outputMatrix.connect(self.ik_end_ctrl.offsetParentMatrix)
 
-        # ---------------------------------
-        # Internal spaces switching setup
-        # ---------------------------------
-        self.spaces['%s' % (self.ik_end_ctrl.getParent().name())] =\
-            'neck_base: %s.worldMatrix[0], neck_tip: %s.worldMatrix[0]' % (self.fk_ctrls[0].name(), self.fk_tip.name())
+            self.ik_end_ctrl.inheritsTransform.set(0)
 
-        self.spaces['%s' % (self.aim_ctrl.name())] = 'neck_tip: %s.worldMatrix[0]' % self.fk_tip.name()
+            # ---------------------------------
+            # Internal spaces switching setup
+            # ---------------------------------
+            self.spaces['%s' % (self.ik_end_ctrl.getParent().name())] =\
+                'neck_base: %s.worldMatrix[0], neck_tip: %s.worldMatrix[0]' % (self.fk_ctrls[0].name(), self.fk_tip.name())
+
+            self.spaces['%s' % (self.aim_ctrl.name())] = 'neck_tip: %s.worldMatrix[0]' % self.fk_tip.name()
+        else:
+            self.fk_tip.worldMatrix[0].connect(self.ik_end_ctrl.getParent().offsetParentMatrix)
 
     def finish(self):
         self.setColours(self.guide)
@@ -327,6 +345,15 @@ class TNeck01(components.TBaseComponent):
         for attr in spaceAttrs:
             attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.aim_ctrl)
 
+        spaceAttrs = [attr for attr in ['fk_01_ctrl_parent_space', 'fk_01_ctrl_translate_space',
+                                        'fk_01_ctrl_rotate_space'] if pm.hasAttr(self.params, attr)]
+        for attr in spaceAttrs:
+            attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.fk_ctrls[0])
+
+        attrList = [attr for attr in ['shear_amount', 'aim'] if pm.hasAttr(self.params, attr)]
+        for attr in attrList:
+            attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.ik_end_ctrl)
+
         # Lock non-keyable attrs
         nodeList = self.controls_list
         attrList = ['visibility']
@@ -338,70 +365,6 @@ class TNeck01(components.TBaseComponent):
 
         attrList = ['rx', 'rz']
         attribute.channelControl(nodeList=[self.ik_mid_ctrl], attrList=attrList)
-
-        '''
-        # Default length
-        dm = mathOps.decomposeMatrix(self.base_ctrl.worldMatrix[0], name=self.getName('base_ctrl_mtx2Srt'))
-        l1 = mathOps.getDistance(self.ik_lower_ctrl, self.ik_mid_ctrl)
-        l2 = mathOps.getDistance(self.ik_upper_ctrl, self.ik_mid_ctrl)
-        defaultLen = mathOps.multiply((l1 + l2), dm.outputScaleX, name=self.getName('default_len'))
-
-        lowerDist = mathOps.distance(self.ik_lower_ctrl, self.ik_mid_ctrl.getParent(), name=self.getName('ik_lower_dist'))
-        upperDist = mathOps.distance(self.ik_upper_ctrl, self.ik_mid_ctrl.getParent(), name=self.getName('ik_upper_dist'))
-        stretchLen = mathOps.addScalar([lowerDist.distance, upperDist.distance], name=self.getName('ik_stretch_len'))
-
-        stretchFactor = mathOps.divide((1, 1, 1), (1, 1, 1), name=self.getName('ik_stretch_factor'))
-        stretchLen.output1D.connect(stretchFactor.input1X)
-        defaultLen.output.connect(stretchFactor.input2X)
-
-    def addAttributes(self):
-        attribute.addFloatAttr(self.params, 'bulge_amount')
-        attribute.addFloatAttr(self.params, 'bulge_position')
-        attribute.addFloatAttr(self.params, 'bulge_falloff')
-        attribute.addFloatAttr(self.params, 'auto_bulge')
-
-    def addSystems(self):
-        stretchNode = pm.PyNode(self.getName('ik_stretch_factor'))
-        stretchRev = mathOps.reverse(stretchNode.outputX, name=self.getName('stretch_rev'))
-        stretchAuto = mathOps.multiply(stretchRev.outputX, self.params.auto_bulge,
-                                       name=self.getName('bulge_auto_mult'))
-        dm = mathOps.decomposeMatrix(self.base_ctrl.worldMatrix[0], recycle=1)
-        # Motion path nodes
-
-        for i, div in enumerate(self.divs):
-            num = str(i+1).zfill(2)
-            param = pm.listConnections(self.guide.divisionLocs[i], type='motionPath')[0].uValue.get()
-            mp = curve.createMotionPathNode(self.crv, uValue=param, frontAxis='y', upAxis='z',
-                                            name=self.getName('%s_mp' % num))
-            railMp = curve.createMotionPathNode(self.rail, uValue=param, follow=0, name=self.getName('%s_rail_mp' % num))
-            upVec = mathOps.subtractVector([railMp.allCoordinates, mp.allCoordinates],
-                                           name=self.getName('%s_upVec' % num))
-            upVec.output3D.connect(mp.worldUpVector)
-
-            mp.allCoordinates.connect(div.t)
-            mp.rotate.connect(div.r)
-
-            # Squash n Stretch
-            bulgeDist = pm.createNode('distanceBetween', name=self.getName('%s_bulge_dist' % num))
-            self.params.bulge_position.connect(bulgeDist.point1X)
-            bulgeDist.point2X.set(param)
-            bulgeRemap = mathOps.remap(bulgeDist.distance, 0, self.params.bulge_falloff, 1, 0,
-                                       name=self.getName('%s_bulge_remap' % num))
-            bulgeEase = anim.easeCurve(input=bulgeRemap.outValueX,
-                                             name=self.getName('%s_bulgeAmount_easeCrv' % num))
-            bulgeAmount = mathOps.multiply(bulgeEase.output, self.params.bulge_amount,
-                                           name=self.getName('%s_bulge_amount' % num))
-            bulgeAuto = mathOps.multiply(bulgeEase.output, stretchAuto.output,
-                                         name=self.getName('%s_bulge_auto_amount' % num))
-            bulgeSum = mathOps.addScalar([dm.outputScaleX, bulgeAmount.output, bulgeAuto.output],
-                                         name=self.getName('%s_bulge_sum' % num))
-
-            bulgeSum.output1D.connect(div.sx)
-            bulgeSum.output1D.connect(div.sz)
-            dm.outputScaleY.connect(div.sy)
-
-
-    '''
 
 
 
