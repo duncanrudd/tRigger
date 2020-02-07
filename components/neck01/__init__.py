@@ -189,7 +189,8 @@ class TNeck01(components.TBaseComponent):
             point.connect(self.railCrv.controlPoints[index])
 
         # MAP TO GUIDE LOCS
-        mappingPairs = [[self.ik_end_ctrl.getParent(), guide.locs[3]], [self.base_srt, guide.locs[0]]]
+        mappingPairs = [[self.ik_end_ctrl.getParent(), guide.locs[3]], [self.base_srt, guide.locs[0]],
+                        [self.ik_end_ctrl, guide.locs[5]]]
         if self.guide.aimer:
             mappingPairs.append([self.aim_ctrl, guide.locs[4]])
         for pair in mappingPairs:
@@ -225,6 +226,9 @@ class TNeck01(components.TBaseComponent):
         j = pm.createNode('joint', name=self.getName('end_shear_jnt'))
         self.joints_list.append({'joint': j, 'driver': self.end_shear_srt})
 
+        # Head joint
+        j = pm.createNode('joint', name=self.getName('end_jnt'))
+        self.joints_list.append({'joint': j, 'driver': self.ik_end_ctrl})
 
 
 
@@ -336,7 +340,7 @@ class TNeck01(components.TBaseComponent):
         self.setColours(self.guide)
         
         spaceAttrs = [attr for attr in ['ik_end_buffer_srt_parent_space', 'ik_end_buffer_srt_translate_space',
-                                        'ik_end_buffer_srt_rotate_space', 'aim'] if pm.hasAttr(self.params, attr)]
+                                        'ik_end_buffer_srt_rotate_space'] if pm.hasAttr(self.params, attr)]
         for attr in spaceAttrs:
             attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.ik_end_ctrl)
             

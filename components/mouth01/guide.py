@@ -1,4 +1,5 @@
 import pymel.core as pm
+import math
 
 from tRigger.components import guide
 from tRigger.core import transform, attribute, curve, mathOps
@@ -7,7 +8,7 @@ reload(guide)
 reload(mathOps)
 
 class TMouth01Guide(guide.TGuideBaseComponent):
-    def __init__(self, guide_name='', guide_side='C', guide_index=0, num_divisions=4, num_ctrls=1, corner_start=.25,
+    def __init__(self, guide_name='', guide_side='C', guide_index=0, num_divisions=8, num_ctrls=1, corner_start=.25,
                  fromDagNode=0):
         guide.TGuideBaseComponent.__init__(self, guide_name, 'mouth01', guide_side, guide_index,
                                            fromDagNode=fromDagNode)
@@ -16,13 +17,12 @@ class TMouth01Guide(guide.TGuideBaseComponent):
         self.corner_start = corner_start
         self.divisionLocs = []
         self.ctrlLocs = []
-        for param in ['num_divisions', 'num_ctrls', 'corner_start', 'jaw']:
+        for param in ['num_divisions', 'num_ctrls', 'corner_start']:
             self.params.append(param)
         if not fromDagNode:
             attribute.addIntAttr(self.root, 'num_divisions', num_divisions)
             attribute.addIntAttr(self.root, 'num_ctrls', value=num_ctrls, minValue=1)
             attribute.addFloatAttr(self.root, 'corner_start', value=corner_start, minValue=0, maxValue=0.49)
-            attribute.addStringAttr(self.root, 'jaw')
             self.addLocs()
             attribute.addBoolAttr(self.root, 'add_joint')
             self.cornerStartRev = mathOps.reverse(self.root.corner_start, name=self.getName('cornerStart_reverse'))
@@ -36,6 +36,7 @@ class TMouth01Guide(guide.TGuideBaseComponent):
             self.cornerStartRev = pm.PyNode(self.getName('cornerStart_reverse'))
             self.upperRebuildCrv = pm.PyNode(self.getName('upperRebuildCrv'))
             self.lowerRebuildCrv = pm.PyNode(self.getName('lowerRebuildCrv'))
+            self.jawLoc = pm.PyNode(self.getName('jaw'))
         self.installComponentCallbacks()
         if not fromDagNode:
             self.addCtrls()
@@ -57,11 +58,13 @@ class TMouth01Guide(guide.TGuideBaseComponent):
         self.lowerRebuildCrv.degree.set(3)
         self.lowerRebuildCrv.keepControlPoints.set(1)
         self.crv.worldSpace[0].connect(self.lowerRebuildCrv.inputCurve)
-         
+
+        self.jawLoc = self.addGuideLoc(self.getName('jaw'), self.root.worldMatrix[0].get(), self.root, size=2)
 
         self.locs = self.getGuideLocs(self.root)
-        # self.crv.visibility.set(0)
+
         self.addSpaceSwitchAttr(self.locs[3])
+        self.addSpaceSwitchAttr(self.jawLoc)
 
     def installComponentCallbacks(self):
         try:
@@ -96,7 +99,7 @@ class TMouth01Guide(guide.TGuideBaseComponent):
             pm.lockNode(self.cornerStartRev, lock=1)
             self.crv.worldSpace[0].connect(self.upperRebuildCrv.inputCurve, f=1)
             self.crv.worldSpace[0].connect(self.lowerRebuildCrv.inputCurve, f=1)
-            pm.delete([self.upperCrv, self.lowerCrv, self.circleCrv])
+            pm.delete([self.upperCrv, self.lowerCrv])
         except:
             pass
         pm.delete(self.ctrlLocs)
@@ -112,6 +115,10 @@ class TMouth01Guide(guide.TGuideBaseComponent):
         for i in range((totalCtrls/2)+1):
             num = str(i+1).zfill(2)
             param = (1.0 / (totalCtrls/2)) * i
+            if param <= 0.5:
+                param = 0.5*(1.0-(math.cos((math.pi / 2.0)*(param*2))))
+            else:
+                param = (0.5*(math.sin((math.pi / 2.0)*((param-0.5)*2))))+0.5
             paramRemap = mathOps.remap(param, 0, 1, self.root.corner_start, self.cornerStartRev.outputX,
                                        name=self.getName('upper_%s_param' % num))
             mp = curve.createMotionPathNode(self.crv, uValue=paramRemap.outValueX, wut=2, wuo=self.root,
@@ -131,6 +138,10 @@ class TMouth01Guide(guide.TGuideBaseComponent):
         for i in range((totalCtrls/2)-1):
             num = str(i+1).zfill(2)
             param = (1.0 / (totalCtrls/2)) * (i+1)
+            if param <= 0.5:
+                param = 0.5*(1.0-(math.cos((math.pi / 2.0)*(param*2))))
+            else:
+                param = (0.5*(math.sin((math.pi / 2.0)*((param-0.5)*2))))+0.5
             paramRemap = mathOps.remap(param, 0, 1, self.root.corner_start, self.cornerStartRev.outputX,
                                        name=self.getName('lower_%s_param' % num))
             mp = curve.createMotionPathNode(self.crv, uValue=paramRemap.outValueX, wut=2, wuo=self.root,
@@ -160,18 +171,6 @@ class TMouth01Guide(guide.TGuideBaseComponent):
         ctrls = [self.upperLocs[0] for i in range(2)] + self.lowerLocs + [self.upperLocs[-1] for i in range(2)]
         self.lowerCrv = self.addGuideCurve(ctrls, name='lower_ctrlCrv', degree=2)
         self.lowerCrv.worldSpace[0].connect(self.lowerRebuildCrv.inputCurve, f=1)
-
-        points = [(i, 0, 0) for i in range(totalCtrls)]
-        points.append(points[0])
-        points.append(points[1])
-        knots = range(totalCtrls+3)
-        self.circleCrv = pm.curve(per=True, p=points, k=knots, d=2, name=self.getName('circleCrv'))
-        ctrls = self.upperLocs + [self.lowerLocs[len(self.lowerLocs)-(i+1)] for i in range(len(self.lowerLocs))]
-        for index, ctrl in enumerate(ctrls):
-            d = mathOps.decomposeMatrix(ctrl.worldMatrix[0])
-            d.outputTranslate.connect(self.circleCrv.controlPoints[index])
-        self.circleCrv.setParent(self.root)
-        self.circleCrv.inheritsTransform.set(0)
         pm.lockNode(self.cornerStartRev, lock=0)
 
     def num_divisions_callback(self, msg, plug1, plug2, payload):

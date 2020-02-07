@@ -77,6 +77,13 @@ def createCurveInfo(crv, name=None):
     crv.worldSpace[0].connect(node.inputCurve)
     return node
 
+def createPointOnCurve(crv, name=None):
+    node = pm.createNode('pointOnCurveInfo')
+    if name:
+        node.rename(name)
+    crv.worldSpace[0].connect(node.inputCurve)
+    return node
+
 def createCurveLength(crv, name=None):
     node = createCurveInfo(crv)
     if name:
@@ -128,3 +135,23 @@ def nodesAlongCurve(start, end, divs, crv, name, frontAxis='x', upAxis='y', upVe
         blend.outputMatrix.connect(mp.worldUpMatrix)
         mps.append(mp)
     return mps
+
+def createNearestPointOnCurve(crv, point, name=None):
+    '''
+    Creates a nearestPointOnCurve node with the specified curve connected.
+    Args:
+        crv: (pm.PyNode(nurbsCurve)) the curve to get the nearest point on
+        point: (pm.general.Attribute) The position to use as input
+        name: (str) name of the newly created node
+    Returns:
+        (pm.PyNode(nearestPointOnCurve)) The newly created node
+    '''
+    node = pm.createNode('nearestPointOnCurve')
+    if name:
+        node.rename(name)
+    if type(point) == pm.general.Attribute:
+        point.connect(node.inPosition)
+    else:
+        node.inPosition.set(point)
+    crv.worldSpace[0].connect(node.inputCurve)
+    return node

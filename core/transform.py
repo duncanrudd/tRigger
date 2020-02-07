@@ -160,13 +160,7 @@ def createNonRollMatrix(input, target, axis='x', name=None):
     conn.disconnect(node1.primaryTargetMatrix)
 
     node2 = createAimMatrix(node1.outputMatrix, target, name2)
-    node2.primaryMode.set(0)
-    node2.primaryInputAxis.set(lockVec2)
-    node2.secondaryMode.set(1)
-    node2.secondaryInputAxis.set(aimVec)
-    conn = pm.listConnections(node2.primaryTargetMatrix, p=1, d=0)[0]
-    conn.connect(node2.secondaryTargetMatrix)
-    conn.disconnect(node2.primaryTargetMatrix)
+    node2.primaryInputAxis.set(aimVec)
 
     return [node1, node2]
 

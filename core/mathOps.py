@@ -39,6 +39,9 @@ def addVector(inputs, name=None, operation=1):
 def subtractVector(inputs, name=None):
     return addVector(inputs, name, operation=2)
 
+def averageVector(inputs, name=None):
+    return addVector(inputs, name, operation=3)
+
 def reverse(input, name=None):
     node = pm.createNode('reverse')
     if name:
@@ -269,6 +272,20 @@ def distance(start, end, name):
 
     return node
 
+def convert(input, factor, name=None):
+    node = pm.createNode('unitConversion')
+    if name:
+        node.rename(name)
+    if type(input) == pm.general.Attribute:
+        input.connect(node.input)
+    else:
+        node.input.set(input)
+    if type(factor) == pm.general.Attribute:
+        factor.connect(node.conversionFactor)
+    else:
+        node.conversionFactor.set(factor)
+    return node
+
 
 # -----------------------------------------------------------------------
 # MATRIX OPS
@@ -415,7 +432,7 @@ def composeMatrixFromMatrix(mtx, name=None):
     Returns:
         (pm.PyNode(composeMatrix)) the newly created composeMatrix node
     '''
-    d = decomposeMatrix(mtx)
+    d = decomposeMatrix(mtx, recycle=0)
     t = tuple(d.outputTranslate.get())
     r = tuple(d.outputRotate.get())
     s = tuple(d.outputScale.get())
@@ -632,8 +649,14 @@ def blendScalarAttrs(attr1, attr2, blend, name=None):
     node = pm.createNode('blendTwoAttr')
     if name:
         node.rename(name)
-    attr1.connect(node.input[0])
-    attr2.connect(node.input[1])
+    if type(attr1) == pm.general.Attribute:
+        attr1.connect(node.input[0])
+    else:
+        node.input[0].set(attr1)
+    if type(attr2) == pm.general.Attribute:
+        attr2.connect(node.input[1])
+    else:
+        node.input[1].set(attr2)
     if type(blend) == pm.general.Attribute:
         blend.connect(node.attributesBlender)
     else:

@@ -55,6 +55,9 @@ class TNeck01Guide(guide.TGuideBaseComponent):
         xform = transform.getMatrixFromPos((0, 15, 10))
         self.addGuideLoc(self.getName('aim'), xform, self.root)
         self.aimCrv = self.addGuideCurve([self.locs[-1], self.locs[-2]], name='aim_crv', degree=1)
+        # Tip loc
+        xform = transform.getMatrixFromPos((0, 20, 0))
+        self.addGuideLoc(self.getName('tip'), xform, self.root)
 
         self.locs = self.getGuideLocs(self.root)
         self.addSpaceSwitchAttr(self.locs[4])

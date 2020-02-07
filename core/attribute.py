@@ -7,10 +7,14 @@ def addStringAttr(node, name, value=''):
     attr.set(value)
     return attr
 
-def addIntAttr(node, name, value=0):
+def addIntAttr(node, name, value=0, minValue=None, maxValue=None):
     pm.addAttr(node, ln=name, at='long')
     attr = pm.Attribute('%s.%s' % (node.name(), name))
     attr.set(value)
+    if minValue is not None:
+        pm.addAttr(attr, e=1, minValue=minValue, hasMinValue=1)
+    if maxValue is not None:
+        pm.addAttr(attr, e=1, maxValue=maxValue, hasMaxValue=1)
     return attr
 
 def addBoolAttr(node, name, value=True):
@@ -24,10 +28,14 @@ def addMatrixAttr(node, name):
     attr = pm.Attribute('%s.%s' % (node.name(), name))
     return attr
 
-def addAngleAttr(node, name, value=0, k=1, h=0):
+def addAngleAttr(node, name, value=0, k=1, h=0, minValue=None, maxValue=None):
     pm.addAttr(node, ln=name, at='doubleAngle', k=k, h=h)
     attr = pm.Attribute('%s.%s' % (node.name(), name))
     attr.set(value)
+    if minValue is not None:
+        pm.addAttr(attr, e=1, minValue=minValue, hasMinValue=1)
+    if maxValue is not None:
+        pm.addAttr(attr, e=1, maxValue=maxValue, hasMaxValue=1)
     return attr
 
 def addFloatAttr(node, name, value=0, k=1, h=0, minValue=None, maxValue=None):
