@@ -692,10 +692,10 @@ def remap(input, oldMin, oldMax, min, max, name=None):
 def isolateRotationOnAxis(rotationAttr, axis, name=''):
     quatNode = pm.createNode('eulerToQuat')
     if name:
-        quatNode.rename('%s_quat2Euler' % name)
+        quatNode.rename('%s_quat2Eulereuler2Quat' % name)
     eulerNode = pm.createNode('quatToEuler')
     if name:
-        eulerNode.rename('%s_euler2Quat' % name)
+        eulerNode.rename('%s_quat2Euler' % name)
     rotationAttr.connect(quatNode.inputRotate)
     sourceAttr = pm.Attribute('%s.outputQuat%s' % (quatNode.name(), axis.upper()))
     destAttr = pm.Attribute('%s.inputQuat%s' % (eulerNode.name(), axis.upper()))

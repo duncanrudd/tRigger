@@ -196,7 +196,9 @@ def circlePointIcon(size=20.0, name='', colour=None):
 
 def pringleIcon(size=20.0, name='', colour=None):
     radius = size*0.5
-    icon = pm.circle(radius=radius, name=name, r=radius, ch=0, o=1, s=8, nr=(0, 1, 0))[0]
+    icon = pm.circle(radius=radius, r=radius, ch=0, o=1, s=8, nr=(0, 1, 0))[0]
+    if name:
+        icon.rename(name)
     pm.select([icon.cv[i] for i in [3, 7]])
     pm.move((0, size*.6, 0), r=1)
     pm.select([icon.cv[i] for i in [0, 2, 4, 6]])
@@ -207,5 +209,39 @@ def pringleIcon(size=20.0, name='', colour=None):
     if colour:
         setColour(icon, colour)
 
+    return icon
+
+def triNorthIcon(size=20, name='', colour=None):
+    radius = size*0.5
+    points = [(0, radius, 0),
+              (radius, 0, 0),
+              (-radius, 0, 0),
+              (0, radius, 0)]
+    icon = pm.curve(p=points, k=[1, 2, 3, 4], degree=1)
+    if name:
+        icon.rename(name)
+    if colour:
+        setColour(icon, colour)
+    return icon
+
+def triSouthIcon(size=20, name='', colour=None):
+    icon = triNorthIcon(size, name, colour)
+    pm.select('%s.cv[*]' % getShape(icon).name())
+    pm.rotate((0, 0, 180), r=1)
+    pm.select(icon)
+    return icon
+
+def triEastIcon(size=20, name='', colour=None):
+    icon = triNorthIcon(size, name, colour)
+    pm.select('%s.cv[*]' % getShape(icon).name())
+    pm.rotate((0, 0, 90), r=1)
+    pm.select(icon)
+    return icon
+
+def triWestIcon(size=20, name='', colour=None):
+    icon = triNorthIcon(size, name, colour)
+    pm.select('%s.cv[*]' % getShape(icon).name())
+    pm.rotate((0, 0, -90), r=1)
+    pm.select(icon)
     return icon
 

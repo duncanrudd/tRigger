@@ -79,16 +79,20 @@ class TBaseComponent(object):
         else:
             return max(compIndices) + 1
 
-    def addCtrl(self, shape, size, name, xform, parent=None, buffer=0):
+    def addCtrl(self, shape, size, name, xform, parent=None, buffer=0, mirrorType=0, metaParent=None):
         '''
         Creates an icon for use as a control object
         Args:
             shape: (string) What kind of icon to use for the control's nurbs curve
             size: (float) Size of the newly created icon
-            name: (string) Nmae of the new control
+            name: (string) Name of the new control
             xform: (pymel.Datatypes.matrix) 4x4 Matrix describing the placement of the control
             parent: (PyNode) DAG transform under which to parent the control
             buffer: (bool) if true, creates an extra transform above the control and below parent
+            mirrorType: (int) 0 = copy all values from keyable attributes (i.e. for inverse handed controls)
+                              1 = copy non srt values and rotate the transform over (i.e. ik controls)
+            metaParent: (pm.PyNode) the notional parent control of the new control (for pickwalking and rig traversal)
+                                    as opposed to its DAG parent
 
         Returns: (PyNode) The new control object
 
@@ -128,6 +132,14 @@ class TBaseComponent(object):
             ctrl.t.set((0, 0, 0))
             ctrl.r.set((0, 0, 0))
             ctrl.s.set((1, 1, 1))
+
+        attribute.addEnumAttr(ctrl, 'mirror_type', ['copy', 'flip'], k=0)
+        attribute.addBoolAttr(ctrl, 'is_tControl', value=1)
+        attribute.addStringAttr(ctrl, 'defaults')
+        attribute.addMessageAttr(ctrl, 'control_parent')
+        attribute.addMessageAttr(ctrl, 'component_root')
+        attribute.addMultiMessageAttr(ctrl, 'control_children')
+
         return ctrl
 
     def addOutput(self, node):

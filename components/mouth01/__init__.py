@@ -62,7 +62,7 @@ class TMouth01(components.TBaseComponent):
             xform = loc.worldMatrix[0].get()
             if index < len(upperLocs)/2:
                 xform = mathOps.getInverseHandedMatrix(xform)
-            ctrl = self.addCtrl(shape='ball', size=ctrlSize*.25, name=self.getName('upper_%s' % num),
+            ctrl = self.addCtrl(shape='triNorth', size=ctrlSize, name=self.getName('upper_%s' % num),
                                 xform=xform, parent=self.controls, buffer=1)
             self.upper_ctrls.append(ctrl)
 
@@ -71,7 +71,7 @@ class TMouth01(components.TBaseComponent):
             xform = loc.worldMatrix[0].get()
             if index < len(lowerLocs)/2:
                 xform = mathOps.getInverseHandedMatrix(xform)
-            ctrl = self.addCtrl(shape='ball', size=ctrlSize*.25, name=self.getName('lower_%s' % num),
+            ctrl = self.addCtrl(shape='triSouth', size=ctrlSize, name=self.getName('lower_%s' % num),
                                 xform=xform, parent=self.controls, buffer=1)
             self.lower_ctrls.append(ctrl)
 
@@ -253,19 +253,19 @@ class TMouth01(components.TBaseComponent):
                     mult = mathOps.multiply(attr, factor, name=ctrl.name().replace('_ctrl', '_jaw_weight'))
 
                     if prefix == 'upper':
-                        pb = mathOps.pairBlend(translateA=targPos, translateB=jawMp.allCoordinates,
+                        pb = mathOps.pairBlend(translateA=targPos, translateB=jawMp.allCoordinates, quatBlend=1,
                                                rotateA=targRot, rotateB=jawMp.rotate, weight=mult.output,
                                                name=self.getName('%s_%s_jaw_blend' % (prefix, num)))
                     else:
-                        pb = mathOps.pairBlend(translateA=jawMp.allCoordinates, translateB=targPos,
+                        pb = mathOps.pairBlend(translateA=jawMp.allCoordinates, translateB=targPos, quatBlend=1,
                                                rotateA=jawMp.rotate, rotateB=targRot, weight=mult.output,
                                                name=self.getName('%s_%s_jaw_blend' % (prefix, num)))
                 elif index == 0 and prefix == 'upper':
-                    pb = mathOps.pairBlend(translateA=targPos, translateB=jawMp.allCoordinates,
+                    pb = mathOps.pairBlend(translateA=targPos, translateB=jawMp.allCoordinates, quatBlend=1,
                                            rotateA=targRot, rotateB=jawMp.rotate, weight=self.params.start_jaw_follow,
                                            name=self.getName('%s_%s_jaw_blend' % (prefix, num)))
                 elif index == len(self.upper_ctrls)-1 and prefix == 'upper':
-                    pb = mathOps.pairBlend(translateA=targPos, translateB=jawMp.allCoordinates,
+                    pb = mathOps.pairBlend(translateA=targPos, translateB=jawMp.allCoordinates, quatBlend=1,
                                            rotateA=targRot, rotateB=jawMp.rotate, weight=self.params.end_jaw_follow,
                                            name=self.getName('%s_%s_jaw_blend' % (prefix, num)))
                 targPos = pb.outTranslate
@@ -494,7 +494,7 @@ class TMouth01(components.TBaseComponent):
                         attr = endFollowRev.outputX
                     weightMult = mathOps.multiply(attr, weight,
                                                   name=self.getName('%s_div_%s_jaw_weight' % (prefix, num)))
-                pb = mathOps.pairBlend(rotateA=baseMp.rotate, rotateB=jawMp.rotate, weight=weightMult.output,
+                pb = mathOps.pairBlend(rotateA=baseMp.rotate, rotateB=jawMp.rotate, weight=weightMult.output, quatBlend=1,
                                        name=self.getName('%s_div_%s_jaw_blend' % (prefix, num)))
                 targRot = pb.outRotate
             targRot.connect(div.r)
@@ -573,7 +573,7 @@ class TMouth01(components.TBaseComponent):
                     mp.inverseFront.set(1)
 
                 # Roll
-                startRoll = max(0, 1-(param*2))
+                startRoll = max(0, 1-(param*2))*-1
                 endRoll = (max(0, (param-0.5)*2))*-1
                 upperRoll = 0
                 lowerRoll = (1-(math.fabs(param-0.5)*2))*-1
@@ -581,6 +581,7 @@ class TMouth01(components.TBaseComponent):
                     upperRoll = lowerRoll*-1
                     lowerRoll = 0
                     endRoll *= -1
+                    startRoll *= -1
                 endsMult = mathOps.multiplyAngleByScalar(self.params.roll_start, startRoll,
                                                          name=self.getName('%s_%s_ends_roll_mult' % (prefix, num)))
                 self.params.roll_end.connect(endsMult.inputB)
@@ -608,6 +609,37 @@ class TMouth01(components.TBaseComponent):
 
     def finish(self):
         self.setColours(self.guide)
+
+        attrList = ['start_seal', 'seal_height', 'seal_falloff', 'preserve_volume',
+                    'roll_start']
+        aliasList = ['seal', 'seal_height', 'seal_falloff', 'preserve_volume',
+                    'roll']
+        if self.jaw:
+            attrList.append(self.params.start_jaw_follow)
+            aliasList.append('jaw_follow')
+        for attr, alias in zip(attrList, aliasList):
+            attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.upper_ctrls[0], alias)
+
+        attrList = ['end_seal', 'seal_height', 'seal_falloff', 'preserve_volume',
+                    'roll_end']
+        if self.jaw:
+            attrList.append(self.params.end_jaw_follow)
+
+        for attr, alias in zip(attrList, aliasList):
+            attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.upper_ctrls[-1], alias)
+
+        upperMid = self.upper_ctrls[(len(self.upper_ctrls)/2)]
+        lowerMid = self.lower_ctrls[(len(self.lower_ctrls)/2)]
+
+        attribute.proxyAttribute(pm.Attribute(self.params.roll_upper), node=upperMid, alias='roll')
+        attribute.proxyAttribute(pm.Attribute(self.params.anchor_mid), node=upperMid, alias='anchor_mid')
+        attribute.proxyAttribute(pm.Attribute(self.params.roll_upper), node=lowerMid, alias='roll')
+        attribute.proxyAttribute(pm.Attribute(self.params.anchor_mid), node=lowerMid, alias='anchor_mid')
+
+        # Lock non-keyable attrs
+        nodeList = self.controls_list
+        attrList = ['visibility', 'sx', 'sy', 'sz', 'rx', 'ry', 'rz']
+        attribute.channelControl(nodeList=nodeList, attrList=attrList)
 
 def build(guide):
     '''

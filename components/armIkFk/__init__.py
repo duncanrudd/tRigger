@@ -999,6 +999,27 @@ class TArmIkFk(components.TBaseComponent):
 
         self.setColours(self.guide)
 
+        # --------------------------------------------------
+        # Set auto vis switch on ik / fk controls
+        # --------------------------------------------------
+        isIk = pm.createNode('condition', name=self.getName('is_ikfk_1'))
+        self.params.ikfk_blend.connect(isIk.firstTerm)
+        isIk.secondTerm.set(1)
+        isIk.colorIfTrueR.set(0)
+        isIk.colorIfFalseR.set(1)
+        for node in [self.ik_ctrl, self.pole_ctrl]:
+            pm.setAttr(node.visibility, lock=0)
+            isIk.outColorR.connect(node.visibility)
+
+        isFk = pm.createNode('condition', name=self.getName('is_ikfk_0'))
+        isFk.secondTerm.set(0)
+        self.params.ikfk_blend.connect(isFk.firstTerm)
+        isFk.colorIfTrueR.set(0)
+        isFk.colorIfFalseR.set(1)
+        for node in [self.fk_start_ctrl]:
+            pm.setAttr(node.visibility, lock=0)
+            isFk.outColorR.connect(node.visibility)
+
 def build(guide):
     '''
     Called when rig is built from guide. This function should be in every component module.

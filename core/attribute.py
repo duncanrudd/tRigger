@@ -1,6 +1,16 @@
 import pymel.core as pm
 from maya.api import OpenMaya as om2
 
+def addMessageAttr(node, name):
+    pm.addAttr(node, ln=name, at='message')
+    attr = pm.Attribute('%s.%s' % (node.name(), name))
+    return attr
+
+def addMultiMessageAttr(node, name):
+    pm.addAttr(node, ln=name, at='message', multi=1)
+    attr = pm.Attribute('%s.%s' % (node.name(), name))
+    return attr
+
 def addStringAttr(node, name, value=''):
     pm.addAttr(node, ln=name, dt="string")
     attr = pm.Attribute('%s.%s' % (node.name(), name))
@@ -102,7 +112,7 @@ def removeAttributeCallback(mob, callback):
     except:
         print 'no callback found at ID: %s' % callback
 
-def proxyAttribute(sourceAttr, node):
+def proxyAttribute(sourceAttr, node, alias=None):
     '''
     Creates a proxy of sourceAttr on node
     Args:
@@ -111,7 +121,9 @@ def proxyAttribute(sourceAttr, node):
     Returns:
         (pm.general.Attribute) The proxied attribute
     '''
-    attrName=str(sourceAttr).split('.')[1]
+    attrName=alias
+    if attrName is None:
+        attrName=str(sourceAttr).split('.')[1]
     pm.addAttr(node, ln=attrName, proxy=sourceAttr)
 
 def channelControl(lock=True, keyable=False, channelBox=False, nodeList=[], attrList=[]):
