@@ -142,6 +142,11 @@ def buildFromGuide(guideRoot=None, buildLevel='objects'):
             rObj.root.hide_controls_on_playback.connect(returnDict[cmpnt].controls.hideOnPlayback)
             rObj.root.show_controls.connect(returnDict[cmpnt].controls.visibility)
             returnDict[cmpnt].rig.visibility.set(0)
+            returnDict[cmpnt].addCtrlTags()
+            rObj.root.message.connect(returnDict[cmpnt].root.meta_rig_root)
+    for cmpnt in returnDict.keys():
+        if buildDict[buildLevel] >= 5:
+            returnDict[cmpnt].connectCtrlTags()
     rObj.root.show_joints.connect(rObj.joints.visibility)
     rObj.geo.overrideDisplayType.set(2)
     rObj.root.lock_geo.connect(rObj.geo.overrideEnabled)

@@ -17,18 +17,23 @@ class TSpine01(components.TBaseComponent):
         # FK controls - base, lower, mid, upper
         xform = pm.PyNode(guide.root).worldMatrix[0].get()
         self.base_ctrl = self.addCtrl(shape='circlePoint', size=20.0,
-                                      name=self.getName('base'), xform=xform, parent=self.base_srt, buffer=0)
+                                      name=self.getName('base'), xform=xform, parent=self.base_srt,
+                                      metaParent=self.base_srt, buffer=0)
         self.fk_base_ctrl = self.addCtrl(shape='circlePoint', size=15.0,
-                                         name=self.getName('fk_base'), xform=xform, parent=self.base_ctrl, buffer=0)
+                                         name=self.getName('fk_base'), xform=xform, parent=self.base_ctrl,
+                                         metaParent=self.base_ctrl, buffer=0)
         xform = pm.PyNode(guide.locs[1]).worldMatrix[0].get()
         self.fk_lower_ctrl = self.addCtrl(shape='circlePoint', size=15.0,
-                                          name=self.getName('fk_lower'), xform=xform, parent=self.fk_base_ctrl, buffer=0)
+                                          name=self.getName('fk_lower'), xform=xform, parent=self.fk_base_ctrl,
+                                          metaParent=self.fk_base_ctrl, buffer=0)
         xform = pm.PyNode(guide.locs[5]).worldMatrix[0].get()
         self.fk_mid_ctrl = self.addCtrl(shape='circlePoint', size=15.0,
-                                        name=self.getName('fk_mid'), xform=xform, parent=self.fk_lower_ctrl, buffer=0)
+                                        name=self.getName('fk_mid'), xform=xform, parent=self.fk_lower_ctrl,
+                                        metaParent=self.fk_mid_ctrl_ctrl, buffer=0)
         xform = pm.PyNode(guide.locs[3]).worldMatrix[0].get()
         self.fk_upper_ctrl = self.addCtrl(shape='circlePoint', size=15.0,
-                                          name=self.getName('fk_upper'), xform=xform, parent=self.fk_mid_ctrl, buffer=0)
+                                          name=self.getName('fk_upper'), xform=xform, parent=self.fk_mid_ctrl,
+                                          metaParent=self.fk_mid_ctrl, buffer=0)
 
         self.divs = []
         for i, div in enumerate(guide.divisionLocs):
@@ -53,14 +58,17 @@ class TSpine01(components.TBaseComponent):
         # IK controls - lower, mid, upper
         xform = self.base_ctrl.worldMatrix[0].get()
         self.ik_lower_ctrl = self.addCtrl(shape='squarePoint', size=10.0,
-                                          name=self.getName('ik_lower'), xform=xform, parent=self.base_ctrl, buffer=0)
+                                          name=self.getName('ik_lower'), xform=xform, parent=self.base_ctrl,
+                                          metaParent=self.base_ctrl, buffer=0)
         self.mapToGuideLocs(self.ik_lower_ctrl, guide.locs[0])
         xform = pm.PyNode(guide.divisionLocs[guide.num_divisions-1]).worldMatrix[0].get()
         self.ik_mid_ctrl = self.addCtrl(shape='squarePoint', size=8.0,
-                                        name=self.getName('ik_mid'), xform=xform, parent=self.controls, buffer=1)
+                                        name=self.getName('ik_mid'), xform=xform, parent=self.controls,
+                                        metaParent=self.base_ctrl, buffer=1)
         xform = pm.PyNode(guide.locs[4]).worldMatrix[0].get()
         self.ik_upper_ctrl = self.addCtrl(shape='squarePoint', size=10.0,
-                                          name=self.getName('ik_upper'), xform=xform, parent=self.fk_upper_ctrl, buffer=0)
+                                          name=self.getName('ik_upper'), xform=xform, parent=self.fk_upper_ctrl,
+                                          metaParent=self.base_ctrl, buffer=0)
         self.mapToGuideLocs(self.ik_upper_ctrl, guide.locs[4])
 
         # Default length

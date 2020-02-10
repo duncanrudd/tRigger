@@ -159,6 +159,24 @@ def copyAttrValues(sourceNode, destNode, attrList):
         else:
             print 'Skipping %s as it is either locked or has an incoming connection' % destAttr
 
+def getNextAvailableIndex(attr):
+    '''
+    Returns the index of the first available index in a multi attr
+    Args:
+        attr: the multi attribute to query
+
+    Returns:
+        (int) the index of the first available slot
+    '''
+    numElements = attr.evaluateNumElements()
+    if numElements == attr.numConnectedElements():
+        return numElements
+    else:
+        for element in range(numElements):
+            print attr[element].listConnections()
+            if not attr[element].listConnections():
+                return element
+
 
 
 

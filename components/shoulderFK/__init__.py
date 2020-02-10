@@ -38,9 +38,11 @@ class TShoulderFK(components.TBaseComponent):
             self.base_srt.s.set((1, 1, 1))
 
         # Generate controls
+        ctrlSize = mathOps.getDistance(guide.locs[0], guide.locs[2])*.25
         xform = self.base_srt.worldMatrix[0].get()
-        self.fk_ctrl = self.addCtrl(shape='circlePoint', size=20.0,
-                                    name=self.getName('fk'), xform=xform, parent=self.base_srt)
+        self.fk_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize,
+                                    name=self.getName('fk'), xform=xform, parent=self.base_srt,
+                                    metaParent=self.base_srt)
         if self.comp_side == 'R':
             xform = mathOps.invertHandedness(xform)
             self.fk_out = dag.addChild(self.rig, 'group', name=self.getName('fk_out_srt'))
@@ -54,8 +56,9 @@ class TShoulderFK(components.TBaseComponent):
             self.orbit_out = dag.addChild(self.rig, 'group', name=self.getName('orbit_out_srt'))
             self.orbit_out.offsetParentMatrix.set(xform)
             xform = mathOps.invertHandedness(xform)
-        self.orbit_ctrl = self.addCtrl(shape='circlePoint', size=10.0,
-                                       name=self.getName('orbit'), xform=xform, parent=self.controls_list[0])
+        self.orbit_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.5,
+                                       name=self.getName('orbit'), xform=xform, parent=self.controls,
+                                       metaParent=self.controls_list[0])
         if self.comp_side == 'R':
             self.mapToGuideLocs(self.orbit_out, guide.locs[2])
         else:
@@ -72,6 +75,8 @@ class TShoulderFK(components.TBaseComponent):
         components.TBaseComponent.addObjects(self, guide)
 
     def addSystems(self):
+        d = mathOps.decomposeMatrix(self.base_srt.worldMatrix[0], name=self.getName('base_mtx2Srt'))
+        d.outputScale.connect(self.orbit_ctrl.s)
         if self.comp_side == 'R':
             negMtx = mathOps.createComposeMatrix(inputScale=(-1, 1, 1), name=self.getName('invertHandedness_mtx'))
             fk_mtx = mathOps.multiplyMatrices([negMtx.outputMatrix, self.fk_ctrl.worldMatrix[0]],
@@ -81,6 +86,18 @@ class TShoulderFK(components.TBaseComponent):
             orbit_mtx = mathOps.multiplyMatrices([negMtx.outputMatrix, self.orbit_ctrl.worldMatrix[0]],
                                                   name=self.getName('orbit_out_mtx'))
             orbit_mtx.matrixSum.connect(self.orbit_out.offsetParentMatrix)
+
+        # ---------------------------------
+        # Internal spaces switching setup
+        # ---------------------------------
+        self.spaces['%s' % (self.orbit_ctrl.name())] = 'clavicle: %s.matrixSum' % self.fk_ctrl.name()
+
+    def finish(self):
+        self.setColours(self.guide)
+
+        nodeList = self.controls_list
+        attrList = ['visibility']
+        attribute.channelControl(nodeList=nodeList, attrList=attrList)
 
 def build(guide):
     '''

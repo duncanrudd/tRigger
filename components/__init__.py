@@ -1,7 +1,8 @@
 #tRigger
-from tRigger.core import attribute, dag, icon, transform
+from tRigger.core import attribute, dag, icon, transform, metadata
 reload(attribute)
 reload(dag)
+reload(metadata)
 reload(icon)
 reload(transform)
 
@@ -40,7 +41,7 @@ class TBaseComponent(object):
         self.outputs = []
         self.spaces = {} # Internal space switching options
         self.createGroups()
-        attribute.addStringAttr(self.root, 'comp_type', 'root')
+        attribute.addStringAttr(self.root, 'comp_type', compType)
         attribute.addStringAttr(self.root, 'comp_name', name)
         attribute.addStringAttr(self.root, 'comp_side', side)
         attribute.addIntAttr(self.root, 'comp_index', self.comp_index)
@@ -61,6 +62,8 @@ class TBaseComponent(object):
         self.rig = dag.addChild(self.root, 'group', name=self.getName('rig'))
         self.output = dag.addChild(self.root, 'group', name=self.getName('output'))
         self.deform = dag.addChild(self.root, 'group', name=self.getName('deform'))
+
+        attribute.addMessageAttr(self.root, 'meta_rig_root')
 
     def getName(self, name):
         '''
@@ -136,9 +139,12 @@ class TBaseComponent(object):
         attribute.addEnumAttr(ctrl, 'mirror_type', ['copy', 'flip'], k=0)
         attribute.addBoolAttr(ctrl, 'is_tControl', value=1)
         attribute.addStringAttr(ctrl, 'defaults')
-        attribute.addMessageAttr(ctrl, 'control_parent')
-        attribute.addMessageAttr(ctrl, 'component_root')
-        attribute.addMultiMessageAttr(ctrl, 'control_children')
+        attribute.addMessageAttr(ctrl, 'meta_parent')
+        attribute.addMessageAttr(ctrl, 'meta_component_root')
+
+        self.root.message.connect(ctrl.meta_component_root)
+        if metaParent:
+            metadata.parentConnect(metaParent, ctrl)
 
         return ctrl
 
@@ -364,6 +370,34 @@ class TBaseComponent(object):
 
         dag.setOutlinerColour(self.root, colour)
 
+    def addCtrlTags(self):
+        '''
+        Adds controller tags to all controls in the component. Parenting is done in a separate function to allow all
+        rig tags to be created before attempting to make connections
+        Returns:
+            None
+        '''
+        for control in self.controls_list:
+            parent = metadata.getMetaParent(control)
+            tag = pm.controller(control)
+
+    def connectCtrlTags(self):
+        '''
+        If the control's meta_parent attr is connected, the parent control is mapped to the tag
+        Returns:
+            None
+        '''
+        for control in self.controls_list:
+            parent = metadata.getMetaParent(control)
+            if parent:
+                tag, parentTag = pm.controller(control, q=1), pm.controller(parent, q=1)
+                if tag and parentTag:
+                    tag, parentTag = pm.PyNode(tag[0]), pm.PyNode(parentTag[0])
+                    index = attribute.getNextAvailableIndex(parentTag.children)
+                    tag.parent.connect(pm.Attribute('%s.children[%s]' % (parentTag.name(), str(index))))
+
+
+
     #----------------------------------------------------------------
     # BUILD ROUTINES
     #----------------------------------------------------------------
@@ -525,6 +559,20 @@ class TBaseComponent(object):
                             if pm.hasAttr(self.params, '%s_parent_space' % '_'.join(node.name().split('_')[2:])):
                                 add = 1
                             self.connectToMultiInputs(inputs, enumNames, node, add=add)
+
+        # Add cross component meta connections. Will try to connect any control whose meta_parent is self.base_srt
+        # to the node that is mapped to the guide_root's parent.
+        if parent:
+            controls = metadata.getComponentControls(self.root)
+            if controls:
+                eldestControls = [control for control in controls if metadata.getMetaParent(control) == self.base_srt]
+                compObj = pm.PyNode('_'.join(parent.name().split('_')[:2]) + '_comp')
+                parentObj = rig[compObj.name()].guideToRigMapping[parent]
+                for control in eldestControls:
+                    if pm.hasAttr(parentObj, 'is_tControl'):
+                        if parentObj.is_tControl.get():
+                            print 'Eldest control: %s\tParent control: %s' % (control.name(), parentObj.name())
+                            metadata.parentConnect(parentObj, control)
 
     def finish(self):
         # Overload this function in derived component classes to

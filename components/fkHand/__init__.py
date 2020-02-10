@@ -33,7 +33,8 @@ class TFkHand(components.TBaseComponent):
                 if self.invert:
                     xform = mathOps.getInverseHandedMatrix(xform)
                 ctrl = self.addCtrl(shape='pringle', size=ctrlSize*.15,
-                                    name=self.getName('%s_%s' % (num, segNum)), xform=xform, parent=parent)
+                                    name=self.getName('%s_%s' % (num, segNum)),
+                                    xform=xform, parent=parent, metaParent=parent)
                 parent = ctrl
                 self.fingerDict[num]['controls'].append(ctrl)
                 srt = dag.addChild(self.rig, 'group', name=self.getName('%s_%s_base_srt' % (num, segNum)))
@@ -58,7 +59,8 @@ class TFkHand(components.TBaseComponent):
                     xform = mathOps.getInverseHandedMatrix(xform)
 
                 ctrl = self.addCtrl(shape='pringle', size=ctrlSize*.15,
-                                    name=self.getName('thumb_%s' % segNum), xform=xform, parent=parent)
+                                    name=self.getName('thumb_%s' % segNum),
+                                    xform=xform, parent=parent, metaParent=parent)
                 parent = ctrl
                 self.fingerDict['thumb']['controls'].append(ctrl)
 

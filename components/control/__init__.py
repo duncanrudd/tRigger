@@ -23,7 +23,7 @@ class TControl(components.TBaseComponent):
                 parent = self.controls_list[-1]
             num = str(i+1).zfill(2)
             self.addCtrl(shape='squarePoint', size=20.0-(i*3),
-                         name=self.getName(num), xform=xform, parent=parent)
+                         name=self.getName(num), xform=xform, parent=parent, metaParent=parent)
 
         driver = self.controls_list[-1]
 

@@ -48,7 +48,7 @@ class TReverseFoot(components.TBaseComponent):
             ikTipXform = mathOps.invertHandedness(ikTipXform)
         self.ikHeel_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize,
                                         name=self.getName('ik_heel'), xform=ikHeelXform,
-                                        parent=self.ik_base_srt)
+                                        parent=self.ik_base_srt, metaParent=self.base_srt)
 
         self.ikInner_srt = dag.addChild(self.ikHeel_ctrl, 'group', self.getName('ik_inner_srt'))
         transform.align(self.ikInner_srt, guide.locs[6])
@@ -58,11 +58,11 @@ class TReverseFoot(components.TBaseComponent):
         self.ikOuter_srt.s.set(1, 1, 1)
         self.ikBall_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize,
                                         name=self.getName('ik_ball'), xform=ikBallXform,
-                                        parent=self.ikOuter_srt, buffer=1)
+                                        parent=self.ikOuter_srt, metaParent=self.ikHeel_ctrl, buffer=1)
         self.ikBall_ctrl.getParent().s.set(1, 1, 1)
         self.ikTip_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize,
                                        name=self.getName('ik_tip'), xform=ikTipXform,
-                                       parent=self.ikBall_ctrl)
+                                       parent=self.ikBall_ctrl, metaParent=self.ikBall_ctrl)
         # Build toe matrix
         aimVec = _getVec(guide.locs[3], guide.locs[4], self.invert)
         upVecTemp = mathOps.getMatrixAxisAsVector(self.ikTip_ctrl.worldMatrix[0].get(), 'z')
@@ -76,7 +76,7 @@ class TReverseFoot(components.TBaseComponent):
 
         self.ikToe_ctrl = self.addCtrl(shape='pringle', size=ctrlSize,
                                        name=self.getName('ik_toe'), xform=toeXform,
-                                       parent=self.ikTip_ctrl)
+                                       parent=self.ikTip_ctrl, metaParent=self.ikTip_ctrl)
 
         # Tarsi controls
         for index, tarsi in enumerate(guide.locs[7:]):
@@ -92,7 +92,7 @@ class TReverseFoot(components.TBaseComponent):
 
             ctrl = self.addCtrl(shape='pringle', size=ctrlSize,
                                 name=self.getName('ik_tarsi_%s' % (str(index+1).zfill(2))), xform=xform,
-                                parent=self.controls_list[-1])
+                                parent=self.controls_list[-1], metaParent=self.controls_list[-1])
 
         # End srt - this is what will be measured against the root to determine ik ankle displacement
         self.ikEnd_srt = dag.addChild(self.controls_list[-1], 'group', name=self.getName('ik_end_srt'))
@@ -113,7 +113,7 @@ class TReverseFoot(components.TBaseComponent):
             num = str(index+1).zfill(2)
             ctrl = self.addCtrl(shape='pringle', size=ctrlSize*.67,
                                 name=self.getName('fk_%s' % num), xform=xform,
-                                parent=parent)
+                                parent=parent, metaParent=parent)
             if index > 0:
                 mtx = mathOps.multiplyMatrices([ik.worldMatrix[0], target.worldInverseMatrix[0]],
                                                name=self.getName('fk_%s_mtx' % num))

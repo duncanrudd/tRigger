@@ -32,6 +32,8 @@ class TShoulderFKGuide(guide.TGuideBaseComponent):
         self.orbit_crv = self.addGuideCurve([self.root, orbit], name='orbit_crv', degree=1)
         self.upNode = self.addGuideUpNode(self.up_axis)
 
+        self.addSpaceSwitchAttr(orbit)
+
 def instantiateFromDagNode(dagNode):
     return TShoulderFKGuide(dagNode.guide_name.get(),
                             dagNode.guide_side.get(),
