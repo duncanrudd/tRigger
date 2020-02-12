@@ -40,7 +40,7 @@ class TNeck01(components.TBaseComponent):
                 xform = self.base_srt.worldMatrix[0].get()
                 parent = self.base_srt
             ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize,
-                                name=self.getName('fk_%s' % num), xform=xform, parent=parent)
+                                name=self.getName('fk_%s' % num), xform=xform, parent=parent, metaParent=parent)
             self.fk_ctrls.append(ctrl)
 
         # FK tip
@@ -52,17 +52,18 @@ class TNeck01(components.TBaseComponent):
             # Aim ctrl
             xform = transform.getMatrixFromPos(guide.locs[4].worldMatrix.get().translate.get())
             self.aim_ctrl = self.addCtrl(shape='cross', size=ctrlSize,
-                                         name=self.getName('aim'), xform=xform, parent=self.controls)
+                                         name=self.getName('aim'), xform=xform, parent=self.controls,
+                                         metaParent=self.base_srt)
 
         # IK control
         self.ik_end_ctrl = self.addCtrl(shape='box', size=ctrlSize,
                                         name=self.getName('ik_end'), xform=guide.locs[3].worldMatrix[0].get(),
-                                        parent=self.controls, buffer=1)
+                                        parent=self.controls, metaParent=self.base_srt, buffer=1)
 
         # mid_ctrl
         self.ik_mid_ctrl = self.addCtrl(shape='squarePoint', size=ctrlSize*1.25,
                                         name=self.getName('ik_mid'), xform=self.root.worldMatrix[0].get(),
-                                        parent=self.controls)
+                                        parent=self.controls, metaParent=self.base_srt)
         # mid twist srt
         self.mid_twist_srt = dag.addChild(self.rig, 'group', name=self.getName('mid_twist_srt'))
         self.ik_mid_ctrl.worldMatrix[0].connect(self.mid_twist_srt.offsetParentMatrix)

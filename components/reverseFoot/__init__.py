@@ -75,7 +75,7 @@ class TReverseFoot(components.TBaseComponent):
             toeXform = mathOps.invertHandedness(toeXform)
 
         self.ikToe_ctrl = self.addCtrl(shape='pringle', size=ctrlSize,
-                                       name=self.getName('ik_toe'), xform=toeXform,
+                                       name=self.getName('ik_toe'), xform=toeXform, buffer=1,
                                        parent=self.ikTip_ctrl, metaParent=self.ikTip_ctrl)
 
         # Tarsi controls
@@ -91,7 +91,7 @@ class TReverseFoot(components.TBaseComponent):
                 xform = mathOps.invertHandedness(xform)
 
             ctrl = self.addCtrl(shape='pringle', size=ctrlSize,
-                                name=self.getName('ik_tarsi_%s' % (str(index+1).zfill(2))), xform=xform,
+                                name=self.getName('ik_tarsi_%s' % (str(index+1).zfill(2))), xform=xform, buffer=1,
                                 parent=self.controls_list[-1], metaParent=self.controls_list[-1])
 
         # End srt - this is what will be measured against the root to determine ik ankle displacement
@@ -102,22 +102,35 @@ class TReverseFoot(components.TBaseComponent):
         # FK controls
         # ----------------------
         refControls = self.controls_list[2:]
+        refControls.append(self.ikEnd_srt)
         refControls.reverse()
         for index, ik in enumerate(refControls):
-            parent = self.base_srt
-            target = self.ikEnd_srt
-            xform = ik.worldMatrix[0].get()
-            if index > 0:
+            if index == 1:
+                parent = self.base_srt
+                refParent = refControls[index-1]
+            elif index > 1:
                 parent = self.controls_list[-1]
-                target = refControls[index-1]
-            num = str(index+1).zfill(2)
-            ctrl = self.addCtrl(shape='pringle', size=ctrlSize*.67,
-                                name=self.getName('fk_%s' % num), xform=xform,
-                                parent=parent, metaParent=parent)
-            if index > 0:
-                mtx = mathOps.multiplyMatrices([ik.worldMatrix[0], target.worldInverseMatrix[0]],
+                refParent = refControls[index-1].getParent()
+            if 0 < index < len(refControls)-1:
+                print index
+                target = refControls[index+1]
+                xform = ik.worldMatrix[0].get()
+                num = str(index).zfill(2)
+                ctrl = self.addCtrl(shape='pringle', size=ctrlSize*.67,
+                                    name=self.getName('fk_%s' % num), xform=xform,
+                                    parent=parent, metaParent=parent)
+
+                aimMtx = transform.createAimMatrix(ik.worldMatrix[0], target.worldMatrix[0],
+                                                   name=self.getName('fk_%s_aim_mtx' % num))
+                target.worldMatrix[0].connect(aimMtx.secondaryTargetMatrix)
+                aimMtx.secondaryMode.set(2)
+                aimMtx.secondaryInputAxis.set((0, 0, 1))
+                aimMtx.secondaryTargetVector.set((0, 0, 1))
+                ctrlMtx = mathOps.multiplyMatrices([aimMtx.outputMatrix, refParent.worldInverseMatrix[0]],
                                                name=self.getName('fk_%s_mtx' % num))
-                mtx.matrixSum.connect(ctrl.offsetParentMatrix)
+                ctrlMtx.matrixSum.connect(ctrl.offsetParentMatrix)
+
+
 
         if guide.root.add_joint.get():
             if self.invert:
