@@ -8,13 +8,17 @@ class TReverseFootGuide(guide.TGuideBaseComponent):
     '''
     A simple fk shoulder controller with an offsetable orbit control
     '''
-    def __init__(self, guide_name='', guide_side='C', guide_index=0, add_joint=1, tarsi_segs=2, fromDagNode=0):
-        guide.TGuideBaseComponent.__init__(self, guide_name, 'reverseFoot', guide_side, guide_index, fromDagNode=fromDagNode)
-        for param in ['add_joint', 'tarsi_segs']:
+    def __init__(self, guide_name='', guide_side='C', guide_index=0, add_joint=1,
+                 tarsi_segs=2, attr_driven=0, fromDagNode=0):
+        guide.TGuideBaseComponent.__init__(self, guide_name, 'reverseFoot',
+                                           guide_side, guide_index, fromDagNode=fromDagNode)
+        for param in ['add_joint', 'tarsi_segs', 'attr_driven']:
             self.params.append(param)
             self.tarsi_segs = tarsi_segs
+            self.attr_driven = attr_driven
         if not fromDagNode:
             attribute.addBoolAttr(self.root, 'add_joint')
+            attribute.addBoolAttr(self.root, 'attr_driven')
             attribute.addIntAttr(self.root, 'tarsi_segs', tarsi_segs)
             self.addLocs()
         else:
@@ -88,6 +92,7 @@ def instantiateFromDagNode(dagNode):
                             dagNode.guide_index.get(),
                             add_joint=dagNode.add_joint.get(),
                             tarsi_segs=dagNode.tarsi_segs.get(),
+                            attr_driven=dagNode.attr_driven.get(),
                             fromDagNode=dagNode)
 
 def buildGuide(**kwargs):

@@ -358,16 +358,21 @@ def multiplyMatrices(mtxList, name=None):
     return mtx
 
 def decomposeMatrix(mtx, recycle=1, name=None):
-    node = [node for node in pm.listConnections(mtx)
-            if type(node) == pm.nodetypes.DecomposeMatrix
-            and recycle]
-    if node:
-        node = node[0]
+    node = None
+    if type(mtx) == pm.general.Attribute:
+        node = [node for node in pm.listConnections(mtx)
+                if type(node) == pm.nodetypes.DecomposeMatrix
+                and recycle]
+        if node:
+            node = node[0]
     if not node:
         node = pm.createNode('decomposeMatrix')
         if name:
             node.rename(name)
-        mtx.connect(node.inputMatrix)
+        if type(mtx) == pm.general.Attribute:
+            mtx.connect(node.inputMatrix)
+        else:
+            node.inputMatrix.set(mtx)
     return node
 
 def getTransformedPoint(point, matrix):

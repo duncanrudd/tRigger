@@ -213,10 +213,10 @@ def pringleIcon(size=20.0, name='', colour=None):
 
 def triNorthIcon(size=20, name='', colour=None):
     radius = size*0.5
-    points = [(0, radius, 0),
+    points = [(0, radius*1.5, 0),
               (radius, 0, 0),
               (-radius, 0, 0),
-              (0, radius, 0)]
+              (0, radius*1.5, 0)]
     icon = pm.curve(p=points, k=[1, 2, 3, 4], degree=1)
     if name:
         icon.rename(name)
@@ -245,3 +245,24 @@ def triWestIcon(size=20, name='', colour=None):
     pm.select(icon)
     return icon
 
+def gearIcon(size=10, name='', colour=None):
+    radius = size*0.5
+    points = []
+    teeth = 10
+    step = 6.2832 / teeth
+    for i in range(teeth):
+        angle = i * step
+        angle += step * 0.25
+        points.append((math.sin(angle)*radius, math.cos(angle)*radius, 0))
+        points.append((math.sin(angle)*(radius*.8), math.cos(angle)*(radius*.8), 0))
+        angle += step*.5
+        points.append((math.sin(angle)*(radius*.8), math.cos(angle)*(radius*.8), 0))
+        points.append((math.sin(angle)*radius, math.cos(angle)*radius, 0))
+    points.append(points[0])
+
+    icon = pm.curve(p=points, k=range(len(points)), degree=1)
+    if name:
+        icon.rename(name)
+    if colour:
+        setColour(icon, colour)
+    return icon

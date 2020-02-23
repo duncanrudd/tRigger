@@ -396,6 +396,21 @@ class TBaseComponent(object):
                     index = attribute.getNextAvailableIndex(parentTag.children)
                     tag.parent.connect(pm.Attribute('%s.children[%s]' % (parentTag.name(), str(index))))
 
+    def copyGuideMapping(self, source, dest):
+        '''
+        Creates a message connection between two nodes so dest can access the guideNode mapped to source. Used when
+        discovering internal space switching connections on right sided components when the guide node is mapped to a
+        flipped srt instead of the control itself. e.g. shoulders
+        Args:
+            source: (pm.PyNode) the node whose mapping we want to copy
+            dest: (pm.PyNode) the node to copy the mapping to
+
+        Returns:
+            None
+        '''
+        attribute.addMessageAttr(dest, 'mapping_node')
+        source.message.connect(dest.mapping_node)
+
 
 
     #----------------------------------------------------------------
@@ -549,7 +564,12 @@ class TBaseComponent(object):
                             inputs.append(pm.PyNode(spaceTarg))
 
                     add = 0
-                    guideNode = self.getGuideLocFromMappedNode(node)
+                    mappedNode = node
+                    if pm.hasAttr(node, 'mapping_node'):
+                        conns = pm.listConnections(node.mapping_node)
+                        if conns:
+                            mappedNode = conns[0]
+                    guideNode = self.getGuideLocFromMappedNode(mappedNode)
                     if guideNode:
                         if guideNode.splitTranslateAndRotate.get():
                             if pm.hasAttr(self.params, '%s_translate_space' % '_'.join(node.name().split('_')[2:])):

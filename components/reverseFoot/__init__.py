@@ -79,6 +79,7 @@ class TReverseFoot(components.TBaseComponent):
                                        parent=self.ikTip_ctrl, metaParent=self.ikTip_ctrl)
 
         # Tarsi controls
+        self.tarsiCtrls = []
         for index, tarsi in enumerate(guide.locs[7:]):
             aimVec = _getVec(self.controls_list[-1], guide.locs[index+7], self.invert)
             upVecTemp = mathOps.getMatrixAxisAsVector(self.controls_list[-1].worldMatrix[0].get(), 'z')
@@ -93,6 +94,7 @@ class TReverseFoot(components.TBaseComponent):
             ctrl = self.addCtrl(shape='pringle', size=ctrlSize,
                                 name=self.getName('ik_tarsi_%s' % (str(index+1).zfill(2))), xform=xform, buffer=1,
                                 parent=self.controls_list[-1], metaParent=self.controls_list[-1])
+            self.tarsiCtrls.append(ctrl)
 
         # End srt - this is what will be measured against the root to determine ik ankle displacement
         self.ikEnd_srt = dag.addChild(self.controls_list[-1], 'group', name=self.getName('ik_end_srt'))
@@ -104,6 +106,8 @@ class TReverseFoot(components.TBaseComponent):
         refControls = self.controls_list[2:]
         refControls.append(self.ikEnd_srt)
         refControls.reverse()
+        self.blendMtxList = []
+        self.fkCtrls = []
         for index, ik in enumerate(refControls):
             if index == 1:
                 parent = self.base_srt
@@ -112,7 +116,6 @@ class TReverseFoot(components.TBaseComponent):
                 parent = self.controls_list[-1]
                 refParent = refControls[index-1].getParent()
             if 0 < index < len(refControls)-1:
-                print index
                 target = refControls[index+1]
                 xform = ik.worldMatrix[0].get()
                 num = str(index).zfill(2)
@@ -127,22 +130,27 @@ class TReverseFoot(components.TBaseComponent):
                 aimMtx.secondaryInputAxis.set((0, 0, 1))
                 aimMtx.secondaryTargetVector.set((0, 0, 1))
                 ctrlMtx = mathOps.multiplyMatrices([aimMtx.outputMatrix, refParent.worldInverseMatrix[0]],
-                                               name=self.getName('fk_%s_mtx' % num))
-                ctrlMtx.matrixSum.connect(ctrl.offsetParentMatrix)
+                                                   name=self.getName('fk_%s_reverse_mtx' % num))
+                fkMtx = mathOps.composeMatrixFromMatrix(ctrlMtx.matrixSum.get(),
+                                                        name=self.getName('fk_%s_rest_mtx' % num))
+                blendMtx = transform.blendMatrices(ctrlMtx.matrixSum, fkMtx.outputMatrix,
+                                                   name=self.getName('fk_%s_mtx' % num))
+                blendMtx.outputMatrix.connect(ctrl.offsetParentMatrix)
+                self.blendMtxList.append(blendMtx)
+                self.fkCtrls.append(ctrl)
 
 
 
         if guide.root.add_joint.get():
             if self.invert:
                 negMtx = mathOps.createComposeMatrix(inputScale=(-1, 1, 1), name=self.getName('neg_mtx'))
-            for i in range(self.guide.tarsi_segs + 2):
+            for i in range(self.guide.tarsi_segs + 1):
                 num = str(i+1).zfill(2)
                 j = pm.createNode('joint', name=self.getName('%s_jnt' % num))
                 if i == 0:
                     driver = self.base_srt
                 else:
-                    ctrl = self.controls_list[len(self.controls_list) - 2 - self.guide.tarsi_segs + i]
-                    driver = ctrl
+                    driver = self.fkCtrls[i-1]
                 if self.invert and i > 0:
                     out_srt = dag.addChild(self.rig, 'group', self.getName('out_%s_srt' % num))
                     out_mtx = mathOps.multiplyMatrices([negMtx.outputMatrix, driver.worldMatrix[0]],
@@ -160,6 +168,33 @@ class TReverseFoot(components.TBaseComponent):
 
     def addAttributes(self):
         attribute.addFloatAttr(self.params, 'foot_scale', value=1.0)
+        attribute.addFloatAttr(self.params, 'ikfk_blend', minValue=0, maxValue=1)
+        if self.guide.attr_driven:
+            attribute.addDividerAttr(self.params, 'Roll')
+            attribute.proxyAttribute(self.ikHeel_ctrl.rz, self.params, 'roll_heel')
+            attribute.proxyAttribute(self.ikToe_ctrl.rz, self.params, 'roll_ball')
+            attribute.proxyAttribute(self.ikTip_ctrl.rz, self.params, 'roll_tip')
+            for tarsi in range(self.guide.tarsi_segs-1):
+                num = str(tarsi+1).zfill(2)
+                attribute.proxyAttribute(self.tarsiCtrls[tarsi].rz, self.params, 'roll_tarsi_%s' % num)
+
+            attribute.addDividerAttr(self.params, 'Spin')
+            attribute.proxyAttribute(self.ikHeel_ctrl.ry, self.params, 'spin_heel')
+            attribute.proxyAttribute(self.ikBall_ctrl.ry, self.params, 'spin_ball')
+            attribute.proxyAttribute(self.ikTip_ctrl.ry, self.params, 'spin_tip')
+            for tarsi in range(self.guide.tarsi_segs-1):
+                num = str(tarsi+1).zfill(2)
+                attribute.proxyAttribute(self.tarsiCtrls[tarsi].ry, self.params, 'spin_tarsi_%s' % num)
+
+            attribute.addDividerAttr(self.params, 'Lean')
+            attribute.proxyAttribute(self.ikHeel_ctrl.rx, self.params, 'lean_heel')
+            attribute.proxyAttribute(self.ikBall_ctrl.rx, self.params, 'lean_edge')
+            attribute.proxyAttribute(self.ikTip_ctrl.rx, self.params, 'lean_tip')
+            for tarsi in range(self.guide.tarsi_segs-1):
+                num = str(tarsi+1).zfill(2)
+                attribute.proxyAttribute(self.tarsiCtrls[tarsi].rx, self.params, 'lean_tarsi_%s' % num)
+
+
 
 
     def addSystems(self):
@@ -186,6 +221,9 @@ class TReverseFoot(components.TBaseComponent):
         self.params.foot_scale.connect(self.base_srt.sy)
         self.params.foot_scale.connect(self.base_srt.sz)
 
+        for mtx in self.blendMtxList:
+            self.params.ikfk_blend.connect(mtx.target[0].weight)
+
     def finish(self):
         self.setColours(self.guide)
 
@@ -202,6 +240,11 @@ class TReverseFoot(components.TBaseComponent):
         nodeList = [node for node in self.controls_list if '_ik_' in node.name()]
         attrList = ['sx', 'sy', 'sz']
         attribute.channelControl(nodeList=nodeList, attrList=attrList)
+
+        if self.guide.attr_driven:
+            self.ikHeel_ctrl.getParent().v.set(0)
+            for ctrl in [self.ikHeel_ctrl, self.ikTip_ctrl, self.ikBall_ctrl, self.ikToe_ctrl] + self.tarsiCtrls:
+                ctrl.is_tControl.set(0)
 
 
 

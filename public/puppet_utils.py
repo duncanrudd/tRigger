@@ -103,3 +103,43 @@ def getOppositeControl(node):
         return cmpntChildren[ctrlIndex]
     else:
         return 'please select a valid control node'
+
+def getAllControlsBelow(node):
+    '''
+    Returns all controls downstream from the node
+    Args:
+        node: (pm.PyNode) the node whose descendants we are interested in
+
+    Returns:
+        ([pm.PyNode]) List of downstream nodes (including node)
+    '''
+    metaChildren = []
+
+    def _getAllMetaChildrenRecurse(node):
+        mc = getControlsBelow(node)
+        if mc:
+            for n in mc:
+                _getAllMetaChildrenRecurse(n)
+        metaChildren.append(node)
+
+    mc = getControlsBelow(node)
+    for n in mc:
+        _getAllMetaChildrenRecurse(n)
+
+    return
+
+def getControlsBelow(node=None):
+    '''
+    Returns all controls for whom node is meta_parent
+    Args:
+        node: (pm.PyNode) the node whose child ctrls we are interested in
+
+    Returns:
+        ([pm.PyNode]) List of child nodes
+    '''
+    metaChildren = [pm.PyNode(conn.split('.')[0]) for conn in pm.listConnections(node.message, d=1, s=0, p=1)
+                    if conn.split('.')[1] == 'meta_parent']
+    if not metaChildren:
+        metaChildren=[]
+
+    return metaChildren

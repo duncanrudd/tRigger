@@ -170,7 +170,11 @@ def bakeSrtToOffsetParentMtx(node):
     Args:
         node: (pyNode) te node to bake
     '''
-    node.offsetParentMatrix.set(node.worldMatrix[0].get())
+    parent = node.getParent()
+    if parent:
+        node.offsetParentMatrix.set(node.worldMatrix[0].get() * parent.worldInverseMatrix.get())
+    else:
+        node.offsetParentMatrix.set(node.worldMatrix[0].get())
     node.t.set((0, 0, 0))
     node.r.set((0, 0, 0))
     node.s.set((1, 1, 1))

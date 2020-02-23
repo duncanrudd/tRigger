@@ -29,13 +29,11 @@ class TShoulderFK(components.TBaseComponent):
 
         # place base srt and invert sx if side == R
         xform = pm.datatypes.Matrix(aimVec, upVec, sideVec, startPos)
+        if self.comp_side == 'R':
+            xform = mathOps.getInverseHandedMatrix(xform)
         self.base_srt.offsetParentMatrix.set(xform)
         self.base_srt.t.set((0, 0, 0))
         self.base_srt.r.set((0, 0, 0))
-        if self.comp_side == 'R':
-            self.base_srt.s.set((-1, 1, 1))
-        else:
-            self.base_srt.s.set((1, 1, 1))
 
         # Generate controls
         ctrlSize = mathOps.getDistance(guide.locs[0], guide.locs[2])*.25
@@ -61,6 +59,7 @@ class TShoulderFK(components.TBaseComponent):
                                        metaParent=self.controls_list[0])
         if self.comp_side == 'R':
             self.mapToGuideLocs(self.orbit_out, guide.locs[2])
+            self.copyGuideMapping(self.orbit_out, self.orbit_ctrl)
         else:
             self.mapToGuideLocs(self.controls_list[1], guide.locs[2])
 
@@ -75,8 +74,6 @@ class TShoulderFK(components.TBaseComponent):
         components.TBaseComponent.addObjects(self, guide)
 
     def addSystems(self):
-        d = mathOps.decomposeMatrix(self.base_srt.worldMatrix[0], name=self.getName('base_mtx2Srt'))
-        d.outputScale.connect(self.orbit_ctrl.s)
         if self.comp_side == 'R':
             negMtx = mathOps.createComposeMatrix(inputScale=(-1, 1, 1), name=self.getName('invertHandedness_mtx'))
             fk_mtx = mathOps.multiplyMatrices([negMtx.outputMatrix, self.fk_ctrl.worldMatrix[0]],
@@ -90,7 +87,7 @@ class TShoulderFK(components.TBaseComponent):
         # ---------------------------------
         # Internal spaces switching setup
         # ---------------------------------
-        self.spaces['%s' % (self.orbit_ctrl.name())] = 'clavicle: %s.matrixSum' % self.fk_ctrl.name()
+        self.spaces['%s' % (self.orbit_ctrl.name())] = 'clavicle: %s.worldMatrix[0]' % self.fk_ctrl.name()
 
     def finish(self):
         self.setColours(self.guide)

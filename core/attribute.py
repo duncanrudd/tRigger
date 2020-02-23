@@ -1,6 +1,16 @@
 import pymel.core as pm
 from maya.api import OpenMaya as om2
 
+
+def addDividerAttr(node, name):
+    for i in range(20 - len(name)):
+        name += '_'
+    attr = addEnumAttr(node, name, [' '])
+    pm.addAttr(attr, e=1, nn=name)
+    pm.setAttr(attr, lock=1, keyable=0, cb=1, )
+    return attr
+
+
 def addMessageAttr(node, name):
     pm.addAttr(node, ln=name, at='message')
     attr = pm.Attribute('%s.%s' % (node.name(), name))
