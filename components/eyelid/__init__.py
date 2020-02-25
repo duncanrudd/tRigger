@@ -17,6 +17,8 @@ class TEyelid(components.TBaseComponent):
 
     def addObjects(self, guide):
         self.invert = guide.guide_side == 'R'
+        if self.invert:
+            self.negMtx = mathOps.createComposeMatrix(inputScale=(-1, 1, 1), name=self.getName('neg_mtx'))
         upperLocs = [loc for loc in guide.locs if 'upper' in loc.name()]
         ctrlSize = mathOps.getDistance(guide.root, upperLocs[0]) * .1
         self.upperCtrls = []
@@ -26,9 +28,19 @@ class TEyelid(components.TBaseComponent):
         self.rig_srt = dag.addChild(self.rig, 'group', self.getName('rig_base_srt'))
         self.rig_srt.offsetParentMatrix.set(self.base_srt.worldMatrix[0].get())
 
-        self.ctrl = self.addCtrl(shape='gear', size=ctrlSize*5,
-                                 name=self.getName('settings'), xform=self.base_srt.worldMatrix[0].get(),
+        self.ctrl = self.addCtrl(shape='box', size=ctrlSize*5,
+                                 name=self.getName(''), xform=self.base_srt.worldMatrix[0].get(),
                                  parent=self.base_srt, metaParent=self.base_srt)
+        self.eyeball_ctrl = self.addCtrl(shape='arrowForward', size=ctrlSize*5,
+                                 name=self.getName('eyeball'), xform=self.base_srt.worldMatrix[0].get(),
+                                 parent=self.controls, metaParent=self.ctrl)
+        if self.invert:
+            self.ctrl.offsetParentMatrix.set(self.negMtx.outputMatrix.get() * self.ctrl.offsetParentMatrix.get())
+        self.aimCtrl = self.addCtrl(shape='circlePoint', size=ctrlSize*5,
+                                 name=self.getName('aim'), xform=guide.locs[-1].worldMatrix[0].get(),
+                                 parent=self.controls, metaParent=self.ctrl)
+        self.tugSrt = dag.addChild(self.rig, 'group', self.getName('tug_srt'))
+        self.tugSrt.offsetParentMatrix.set(self.base_srt.worldMatrix[0].get())
 
         for index in range(guide.num_ctrls):
             num = str(index).zfill(2)
@@ -50,8 +62,8 @@ class TEyelid(components.TBaseComponent):
                 pathPos = curve.sampleCurvePosition(guide.upperCrv, param)
                 ctrlMtx = _make_ctrl_mtx(pathPos)*self.base_srt.worldMatrix[0].get()
                 ctrl = self.addCtrl(shape='triNorth', size=ctrlSize,
-                                    name=self.getName('%s_upper' % num), xform=ctrlMtx, parent=self.ctrl,
-                                    metaParent=self.ctrl)
+                                    name=self.getName('%s_upper' % num), xform=ctrlMtx, parent=self.eyeball_ctrl,
+                                    metaParent=self.eyeball_ctrl)
                 self.upperCtrls.append(ctrl)
                 srt = dag.addChild(self.rig_srt, 'group', self.getName('%s_upper_srt' % num))
                 transform.align(srt, ctrl)
@@ -63,8 +75,8 @@ class TEyelid(components.TBaseComponent):
                 pathPos = curve.sampleCurvePosition(guide.lowerCrv, param)
                 ctrlMtx = _make_ctrl_mtx(pathPos, prefix='lower')*self.base_srt.worldMatrix[0].get()
                 lowerCtrl = self.addCtrl(shape='triSouth', size=ctrlSize,
-                                         name=self.getName('%s_lower' % num), xform=ctrlMtx, parent=self.ctrl,
-                                         metaParent=self.ctrl)
+                                         name=self.getName('%s_lower' % num), xform=ctrlMtx, parent=self.eyeball_ctrl,
+                                         metaParent=self.eyeball_ctrl)
                 self.lowerCtrls.append(lowerCtrl)
                 srt = dag.addChild(self.rig_srt, 'group', self.getName('%s_lower_srt' % num))
                 transform.align(srt, lowerCtrl)
@@ -76,8 +88,8 @@ class TEyelid(components.TBaseComponent):
                 pathPos = curve.sampleCurvePosition(guide.upperCrv, 0.0)
                 ctrlMtx = _make_ctrl_mtx(pathPos)*self.base_srt.worldMatrix[0].get()
                 self.inner_ctrl = self.addCtrl(shape='triEast', size=ctrlSize,
-                                               name=self.getName('inner'), xform=ctrlMtx, parent=self.ctrl,
-                                               metaParent=self.ctrl)
+                                               name=self.getName('inner'), xform=ctrlMtx, parent=self.eyeball_ctrl,
+                                               metaParent=self.eyeball_ctrl)
                 self.innerSrt = dag.addChild(self.rig_srt, 'group', self.getName('inner_srt'))
                 transform.align(self.innerSrt, self.inner_ctrl)
                 if self.guide.add_joint:
@@ -87,13 +99,33 @@ class TEyelid(components.TBaseComponent):
                 pathPos = curve.sampleCurvePosition(guide.upperCrv, 1.0)
                 ctrlMtx = _make_ctrl_mtx(pathPos)*self.base_srt.worldMatrix[0].get()
                 self.outer_ctrl = self.addCtrl(shape='triWest', size=ctrlSize,
-                                               name=self.getName('outer'), xform=ctrlMtx, parent=self.ctrl,
-                                               metaParent=self.ctrl)
+                                               name=self.getName('outer'), xform=ctrlMtx, parent=self.eyeball_ctrl,
+                                               metaParent=self.eyeball_ctrl)
                 self.outerSrt = dag.addChild(self.rig_srt, 'group', self.getName('outer_srt'))
                 transform.align(self.outerSrt, self.outer_ctrl)
                 if self.guide.add_joint:
                     j = pm.createNode('joint', name=self.getName('outer_jnt'))
                     self.joints_list.append({'joint': j, 'driver': self.outerSrt})
+
+        if self.guide.add_joint:
+            root_j = pm.createNode('joint', name=self.getName('root_jnt'))
+            driver = self.ctrl
+            if self.invert:
+                self.root_srt = dag.addChild(self.rig, 'group', self.getName('root_out_srt'))
+                rootNegMtx = mathOps.multiplyMatrices([self.negMtx.outputMatrix, self.ctrl.worldMatrix[0]],
+                                                      name=self.getName('root_neg_mtx'))
+                rootNegMtx.matrixSum.connect(self.root_srt.offsetParentMatrix)
+                driver = self.root_srt
+            self.joints_list.append({'joint': root_j, 'driver': driver})
+            eyeball_j = pm.createNode('joint', name=self.getName('eyeball_jnt'))
+            eyeball_j.setParent(root_j)
+            self.joints_list.append({'joint': eyeball_j, 'driver': self.eyeball_ctrl})
+            tug_j = pm.createNode('joint', name=self.getName('tug_jnt'))
+            tug_j.setParent(root_j)
+            self.joints_list.append({'joint': tug_j, 'driver': self.tugSrt})
+
+        # GUIDE TO RIG MAPPING
+        self.mapToGuideLocs(self.aimCtrl, guide.locs[-1])
 
     def addAttributes(self):
         attribute.addBoolAttr(self.params, 'show_tweak_ctrls')
@@ -105,13 +137,43 @@ class TEyelid(components.TBaseComponent):
         attribute.addAngleAttr(self.params, 'lower_outer')
         attribute.addFloatAttr(self.params, 'blink', minValue=0.0, maxValue=1.0)
         attribute.addFloatAttr(self.params, 'blink_height', minValue=0.0, maxValue=1.0)
+        attribute.addFloatAttr(self.params, 'auto_lids', minValue=0.0, maxValue=1.0)
+        attribute.addFloatAttr(self.params, 'skin_tug', minValue=0.0, maxValue=1.0)
 
     def addSystems(self):
+        # AIM STUFF
+        aimMtx = transform.createNonRollMatrix(self.ctrl, self.aimCtrl, axis='z',
+                                               name=[self.getName('aim_orbit_mtx'),
+                                                     self.getName('aim_elevation_mtx')])
+        mtxAttr = aimMtx[1].outputMatrix
+        if self.invert:
+            negAimMtx = mathOps.multiplyMatrices([self.negMtx.outputMatrix, mtxAttr],
+                                                 name=self.getName('neg_aim_mtx'))
+            mtxAttr = negAimMtx.matrixSum
+        mtxAttr.connect(self.eyeball_ctrl.offsetParentMatrix)
+
+        mtxAttr = self.ctrl.worldMatrix[0]
+        if self.invert:
+            negAimMtx = mathOps.multiplyMatrices([self.negMtx.outputMatrix, mtxAttr],
+                                                 name=self.getName('neg_tug_mtx'))
+            mtxAttr = negAimMtx.matrixSum
+        tugMtx = transform.blendMatrices(mtxAttr, self.eyeball_ctrl.worldMatrix[0],
+                                         name=self.getName('tug_mtx'))
+        self.params.skin_tug.connect(tugMtx.target[0].weight)
+        tugMtx.outputMatrix.connect(self.tugSrt.offsetParentMatrix)
+        autoMtx = mathOps.multiplyMatrices([self.eyeball_ctrl.worldMatrix[0], self.tugSrt.worldInverseMatrix[0]],
+                                           name=self.getName('auto_mtx'))
+        autoMtx2Srt = mathOps.decomposeMatrix(autoMtx.matrixSum, name=self.getName('auto_mtx2Srt'))
+        autoMult = mathOps.multiplyAngleByScalar(autoMtx2Srt.outputRotateX, self.params.auto_lids,
+                                                 name=self.getName('auto_mult'))
+        autoMult.output.connect(self.rig_srt.rx)
+
+
         if not self.guide.root.local_rig.get():
             self.base_srt.worldMatrix[0].connect(self.rig_srt.offsetParentMatrix)
 
         for ctrl in self.controls_list:
-            if not ctrl == self.ctrl:
+            if not ctrl == self.eyeball_ctrl:
                 self.params.show_tweak_ctrls.connect(ctrl.visibility)
                 
         for index, ctrl in enumerate(self.upperCtrls):
@@ -216,24 +278,40 @@ class TEyelid(components.TBaseComponent):
         localDm.outputRotate.connect(self.outerSrt.r)
         scaledPos.output.connect(self.outerSrt.t)
 
-
-
-
+        # ---------------------------------
+        # Internal spaces switching setup
+        # ---------------------------------
+        # self.spaces['%s' % (self.aimCtrl.name())] = 'eye: %s.worldMatrix[0]' % self.ctrl.name()
 
     def finish(self):
         self.setColours(self.guide)
 
-        nodeList = self.controls_list
+        attrList = ['visibility']
+        nodeList = [self.ctrl]
+        attribute.channelControl(nodeList=nodeList, attrList=attrList)
+
+        attrList = ['visibility', 'sx', 'sy', 'sz', 'tx', 'ty', 'tz']
+        nodeList = [self.eyeball_ctrl]
+        attribute.channelControl(nodeList=nodeList, attrList=attrList)
+
+        attrList = ['visibility', 'sx', 'sy', 'sz', 'rx', 'ry', 'rz']
+        nodeList = [self.aimCtrl]
+        attribute.channelControl(nodeList=nodeList, attrList=attrList)
+
+        nodeList = self.controls_list[3:]
         attrList = ['visibility', 'rx', 'ry', 'rz', 'sx', 'sy', 'sz', 'tz']
         attribute.channelControl(nodeList=nodeList, attrList=attrList)
-        attrList = ['tx', 'ty']
-        attribute.channelControl(nodeList=[self.ctrl], attrList=attrList)
 
         attrList = ['upper_lid', 'upper_inner', 'upper_outer', 'lower_lid',
                     'lower_inner', 'lower_outer', 'blink', 'blink_height',
-                    'show_tweak_ctrls']
+                    'show_tweak_ctrls', 'auto_lids', 'skin_tug']
         for attr in attrList:
             attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.ctrl)
+
+        spaceAttrs = [attr for attr in ['aim_ctrl_parent_space', 'aim_ctrl_translate_space',
+                                        'aim_ctrl_rotate_space'] if pm.hasAttr(self.params, attr)]
+        for attr in spaceAttrs:
+            attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.aimCtrl)
 
 def build(guide):
     '''

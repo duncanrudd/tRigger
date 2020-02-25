@@ -42,6 +42,9 @@ class TEyelidGuide(guide.TGuideBaseComponent):
             if 0 < i < 4:
                 loc = self.addGuideLoc(self.getName('lower_%s' % num), xform, self.root, size=radius*.25, colour='blue')
                 self.lowerLocs.append(loc)
+        xform = transform.getMatrixFromPos((0, 0, radius*5))
+        self.aimLoc = self.addGuideLoc(self.getName('aim'), xform, self.root, size=radius*.25)
+        self.addSpaceSwitchAttr(self.aimLoc)
         self.upperCrv = self.addGuideCurve(self.upperLocs, name='upper_crv', degree=2)
         self.lowerCrv = self.addGuideCurve([self.upperLocs[0]] + self.lowerLocs + [self.upperLocs[-1]], name='lower_crv', degree=2)
 

@@ -266,3 +266,50 @@ def gearIcon(size=10, name='', colour=None):
     if colour:
         setColour(icon, colour)
     return icon
+
+def arrowForwardIcon(size=10, name='', colour=None):
+    points = [(0, 0, 0), (0, size*-.2, 0), (0, size*-.2, size*.6), (0, size*-.4, size*.6), (0, 0, size),
+              (0, size*.4, size*.6), (0, size*.2, size*.6), (0, size*.2, 0), (0, 0, 0)]
+    knots = range(len(points))
+    icon = pm.curve(p=points, k=range(len(points)), degree=1)
+    if name:
+        icon.rename(name)
+    if colour:
+        setColour(icon, colour)
+    return icon
+
+def arrowUpIcon(size=10, name='', colour=None):
+    icon = arrowForwardIcon(size=size, name=name, colour=colour)
+    pm.select('%s.cv[*]' % getShape(icon).name())
+    pm.rotate((-90, 0, 0), r=1)
+    pm.select(icon)
+    return icon
+
+def arrowDownIcon(size=10, name='', colour=None):
+    icon = arrowForwardIcon(size=size, name=name, colour=colour)
+    pm.select('%s.cv[*]' % getShape(icon).name())
+    pm.rotate((90, 0, 0), r=1)
+    pm.select(icon)
+    return icon
+
+def arrowBackIcon(size=10, name='', colour=None):
+    icon = arrowForwardIcon(size=size, name=name, colour=colour)
+    pm.select('%s.cv[*]' % getShape(icon).name())
+    pm.rotate((-180, 0, 0), r=1)
+    pm.select(icon)
+    return icon
+
+def arrowLeftIcon(size=10, name='', colour=None):
+    icon = arrowForwardIcon(size=size, name=name, colour=colour)
+    pm.select('%s.cv[*]' % getShape(icon).name())
+    pm.rotate((0, -90, 0), r=1)
+    pm.select(icon)
+    return icon
+
+def arrowRightIcon(size=10, name='', colour=None):
+    icon = arrowForwardIcon(size=size, name=name, colour=colour)
+    pm.select('%s.cv[*]' % getShape(icon).name())
+    pm.rotate((0, 90, 0), r=1)
+    pm.select(icon)
+    return icon
+
