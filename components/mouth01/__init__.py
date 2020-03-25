@@ -507,13 +507,13 @@ class TMouth01(components.TBaseComponent):
                     name = 'start'
                     rollAttr = self.params.roll_start
 
-                    upperPoint = curve.createPointOnCurve(self.upper_crv, name=self.getName('%s_upper_align_point' % name))
+                    upperPoint = curve.createPointOnCurve(self.upper_crv, name=self.getName('start_upper_align_point'))
                     upperLocalPoint = mathOps.addVector([upperPoint.result.tangent, upperPoint.result.position],
-                                                        name=self.getName('%s_upper_align_local_point' % name))
+                                                        name=self.getName('start_upper_align_local_point'))
 
-                    lowerPoint = curve.createPointOnCurve(self.lower_crv, name=self.getName('%s_lower_align_point'))
+                    lowerPoint = curve.createPointOnCurve(self.lower_crv, name=self.getName('start_lower_align_point'))
                     lowerLocalPoint = mathOps.addVector([lowerPoint.result.tangent, lowerPoint.result.position],
-                                                        name=self.getName('%s_lower_align_local_point' % name))
+                                                        name=self.getName('start_lower_align_local_point'))
 
                 else:
                     name = 'end'
@@ -521,15 +521,15 @@ class TMouth01(components.TBaseComponent):
                                                             name=self.getName('roll_end_inverse'))
                     rollAttr = rollNeg.output
 
-                    upperPoint = curve.createPointOnCurve(self.upper_crv, name=self.getName('%s_upper_align_point' % name))
+                    upperPoint = curve.createPointOnCurve(self.upper_crv, name=self.getName('end_upper_align_point'))
                     upperPoint.parameter.set(1)
                     upperLocalPoint = mathOps.addVector([upperPoint.result.normalizedTangent, upperPoint.result.position],
-                                                        name=self.getName('%s_upper_align_local_point'))
+                                                        name=self.getName('end_upper_align_local_point'))
 
-                    lowerPoint = curve.createPointOnCurve(self.lower_crv, name=self.getName('%s_lower_align_point' % name))
+                    lowerPoint = curve.createPointOnCurve(self.lower_crv, name=self.getName('end_lower_align_point'))
                     lowerPoint.parameter.set(1)
                     lowerLocalPoint = mathOps.addVector([lowerPoint.result.normalizedTangent, lowerPoint.result.position],
-                                                        name=self.getName('%s_lower_align_local_point' % name))
+                                                        name=self.getName('end_lower_align_local_point'))
 
                 upperVec = mathOps.createTransformedPoint(upperLocalPoint.output3D, div.worldInverseMatrix[0],
                                                           name=self.getName('%s_upper_align_vec' % name))
@@ -633,7 +633,7 @@ class TMouth01(components.TBaseComponent):
 
         attribute.proxyAttribute(pm.Attribute(self.params.roll_upper), node=upperMid, alias='roll')
         attribute.proxyAttribute(pm.Attribute(self.params.anchor_mid), node=upperMid, alias='anchor_mid')
-        attribute.proxyAttribute(pm.Attribute(self.params.roll_upper), node=lowerMid, alias='roll')
+        attribute.proxyAttribute(pm.Attribute(self.params.roll_lower), node=lowerMid, alias='roll')
         attribute.proxyAttribute(pm.Attribute(self.params.anchor_mid), node=lowerMid, alias='anchor_mid')
 
         # Lock non-keyable attrs

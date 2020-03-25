@@ -10,7 +10,7 @@ def setDefaults(node):
     Returns:
         None
     '''
-    attrs = pm.listAttr(node, k=1)
+    attrs = [attr for attr in pm.listAttr(node, k=1) if pm.getAttr('%s.%s' % (node.name(), attr), settable=1)]
     attrDict = {}
     for attr in attrs:
         a = pm.Attribute('%s.%s' % (node.name(), attr))
@@ -125,8 +125,9 @@ def getAllControlsBelow(node):
     mc = getControlsBelow(node)
     for n in mc:
         _getAllMetaChildrenRecurse(n)
-
-    return
+    if hasattr(node, 'is_tControl'):
+        metaChildren.insert(0, node)
+    return metaChildren
 
 def getControlsBelow(node=None):
     '''

@@ -31,6 +31,7 @@ class TFkChain(components.TBaseComponent):
             parent = ctrl
             srt = dag.addChild(self.rig, 'group', name=self.getName('%s_srt' % segNum))
             self.srts.append(srt)
+            self.mapToGuideLocs(ctrl, loc)
 
         if guide.root.add_joint.get():
             for srt in self.srts:

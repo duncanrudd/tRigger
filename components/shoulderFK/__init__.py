@@ -96,6 +96,11 @@ class TShoulderFK(components.TBaseComponent):
         attrList = ['visibility']
         attribute.channelControl(nodeList=nodeList, attrList=attrList)
 
+        spaceAttrs = [attr for attr in ['orbit_ctrl_parent_space', 'orbit_ctrl_translate_space',
+                                        'orbit_ctrl_rotate_space'] if pm.hasAttr(self.params, attr)]
+        for attr in spaceAttrs:
+            attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.orbit_ctrl)
+
 def build(guide):
     '''
     Called when rig is built from guide. This function should be in every component module.

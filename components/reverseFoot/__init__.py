@@ -51,10 +51,10 @@ class TReverseFoot(components.TBaseComponent):
                                         parent=self.ik_base_srt, metaParent=self.base_srt)
 
         self.ikInner_srt = dag.addChild(self.ikHeel_ctrl, 'group', self.getName('ik_inner_srt'))
-        transform.align(self.ikInner_srt, guide.locs[6])
+        pm.xform(self.ikInner_srt, ws=1, m=mathOps.getInverseHandedMatrix(guide.locs[6].worldMatrix[0].get()))
         self.ikInner_srt.s.set(1, 1, 1)
         self.ikOuter_srt = dag.addChild(self.ikInner_srt, 'group', self.getName('ik_outer_srt'))
-        transform.align(self.ikOuter_srt, guide.locs[5])
+        pm.xform(self.ikOuter_srt, ws=1, m=mathOps.getInverseHandedMatrix(guide.locs[5].worldMatrix[0].get()))
         self.ikOuter_srt.s.set(1, 1, 1)
         self.ikBall_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize,
                                         name=self.getName('ik_ball'), xform=ikBallXform,
@@ -84,6 +84,8 @@ class TReverseFoot(components.TBaseComponent):
             aimVec = _getVec(self.controls_list[-1], guide.locs[index+7], self.invert)
             upVecTemp = mathOps.getMatrixAxisAsVector(self.controls_list[-1].worldMatrix[0].get(), 'z')
             sideVec = upVecTemp.cross(aimVec).normal()
+            if self.invert:
+                sideVec = aimVec.cross(upVecTemp).normal()
             upVec = aimVec.cross(sideVec).normal()
             startPos = pm.xform(guide.locs[index+7], q=1, ws=1, t=1)
 
@@ -129,6 +131,9 @@ class TReverseFoot(components.TBaseComponent):
                 aimMtx.secondaryMode.set(2)
                 aimMtx.secondaryInputAxis.set((0, 0, 1))
                 aimMtx.secondaryTargetVector.set((0, 0, 1))
+                if self.invert:
+                    aimMtx.secondaryTargetVector.set((0, 0, -1))
+
                 ctrlMtx = mathOps.multiplyMatrices([aimMtx.outputMatrix, refParent.worldInverseMatrix[0]],
                                                    name=self.getName('fk_%s_reverse_mtx' % num))
                 fkMtx = mathOps.composeMatrixFromMatrix(ctrlMtx.matrixSum.get(),

@@ -216,6 +216,10 @@ class TBaseComponent(object):
 
         targMtx = node.worldMatrix[0].get()
         name = '_'.join(node.name().split('_')[2:])
+        print name
+        if name[0].lower() in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
+            name = '_%s' % name
+            print 'name changed: %s' % name
         indexOffset = 0
         if add:
             switch = pm.PyNode('%s_spaceSwitch' % node.name())
@@ -229,7 +233,7 @@ class TBaseComponent(object):
             switchAttr = attribute.addEnumAttr(self.params, '%s_parent_space' % name, [enum for enum in enumNames])
 
             switchAttr.connect(switch.selector)
-            switch.output.connect(node.offsetParentMatrix)
+            switch.output.connect(node.offsetParentMatrix, f=1)
             node.t.set((0, 0, 0))
             node.r.set((0, 0, 0))
             node.inheritsTransform.set(0)
@@ -300,7 +304,7 @@ class TBaseComponent(object):
             switchAttr.connect(translateSwitch.selector)
             switchAttr = attribute.addEnumAttr(self.params, '%s_rotate_space' % name, [enum for enum in enumNames])
             switchAttr.connect(rotateSwitch.selector)
-            blend.outputMatrix.connect(node.offsetParentMatrix)
+            blend.outputMatrix.connect(node.offsetParentMatrix, f=1)
             node.t.set((0, 0, 0))
             node.r.set((0, 0, 0))
             node.inheritsTransform.set(0)
@@ -539,6 +543,10 @@ class TBaseComponent(object):
                     drivenNode = self.guideToRigMapping[node]
                     if node.hasAttr('is_tGuide_root'):
                         drivenNode = self.controls_list[0]
+                    conns = [conn for conn in pm.listConnections(drivenNode.message, d=1)]
+                    if conns:
+                        drivenNode = conns[0]
+
                     # If only one space is specified, do a simple connection
                     if len(inputs) == 1 and drivenNode.name() not in self.spaces.keys():
                         self.connectToInput(inputs[0], drivenNode)
