@@ -139,7 +139,8 @@ class TGuideBaseComponent(object):
     def getGuideParent(self):
         parent = self.root.getParent()
         if parent:
-            if parent.hasAttr('is_tGuide_root') or parent.hasAttr('is_tGuide_loc') or parent.hasAttr('is_tGuide_div'):
+            if parent.hasAttr('is_tGuide_root') or parent.hasAttr('is_tGuide_loc') or parent.hasAttr('is_tGuide_div')\
+                    or parent.hasAttr('is_tGuide_ctrl'):
                 return parent
             else:
                 return None

@@ -8,11 +8,11 @@ reload(anim)
 
 import pymel.core as pm
 
-class TMouth01(components.TBaseComponent):
+class TMouth02(components.TBaseComponent):
     def __init__(self, guide):
         self.guide = guide
-        components.TBaseComponent.__init__(self, guide.guide_name, guide.guide_side, guide.guide_index, 'mouth01')
-        print 'Created Mouth01 Component: %s' % self.comp_name
+        components.TBaseComponent.__init__(self, guide.guide_name, guide.guide_side, guide.guide_index, 'mouth02')
+        print 'Created Mouth02 Component: %s' % self.comp_name
 
     def addObjects(self, guide):
         ctrlSize = mathOps.getDistance(guide.locs[1], guide.locs[-1])*.1
@@ -45,13 +45,6 @@ class TMouth01(components.TBaseComponent):
         lowerPointsList = [points[0]] + lowerPoints + [points[-1]]
         self.lower_crv = curve.curveThroughPoints(self.getName('lower_crv'), lowerPointsList, degree=2)
         self.lower_crv.setParent(self.rig)
-
-        self.circle_crv = pm.circle(s=len(upperLocs)+len(lowerLocs), ch=0, name=self.getName('circle_crv'))[0]
-        lowerPoints.reverse()
-        circlePoints = points + lowerPoints
-        for index, point in enumerate(circlePoints):
-            self.circle_crv.controlPoints[index].set(point)
-        self.circle_crv.setParent(self.rig)
 
         # CONTROLS
         self.upper_ctrls = []
@@ -115,8 +108,6 @@ class TMouth01(components.TBaseComponent):
         attribute.addFloatAttr(self.params, 'end_seal', minValue=0, maxValue=1)
         attribute.addFloatAttr(self.params, 'seal_height', minValue=0, maxValue=1)
         attribute.addFloatAttr(self.params, 'seal_falloff', minValue=0, maxValue=1)
-        attribute.addFloatAttr(self.params, 'start_round_corner', minValue=0, maxValue=1)
-        attribute.addFloatAttr(self.params, 'end_round_corner', minValue=0, maxValue=1)
         attribute.addFloatAttr(self.params, 'anchor_mid', minValue=0, maxValue=1)
         attribute.addFloatAttr(self.params, 'preserve_volume', minValue=0, maxValue=1)
         attribute.addAngleAttr(self.params, 'roll_start', minValue=-180, maxValue=180)
@@ -299,13 +290,11 @@ class TMouth01(components.TBaseComponent):
         d = mathOps.decomposeMatrix(self.upper_ctrls[0].worldMatrix[0], name=self.getName('upper_01_ctrl_mtx2Srt'))
         d.outputTranslate.connect(self.upper_crv.controlPoints[0])
         d.outputTranslate.connect(self.lower_crv.controlPoints[0])
-        d.outputTranslate.connect(self.circle_crv.controlPoints[1])
 
         d = mathOps.decomposeMatrix(self.upper_ctrls[-1].worldMatrix[0],
                                     name=self.getName('upper_%s_ctrl_mtx2Srt') % len(self.upper_ctrls))
         d.outputTranslate.connect(self.upper_crv.controlPoints[len(self.upper_ctrls)-1])
         d.outputTranslate.connect(self.lower_crv.controlPoints[len(self.upper_ctrls)-1])
-        d.outputTranslate.connect(self.circle_crv.controlPoints[len(self.upper_ctrls)])
 
         # blending between upper and lower points for lip sealing
         startSealRange = mathOps.subtractScalar([1, self.params.seal_falloff], name=self.getName('start_seal_range'))
@@ -329,7 +318,7 @@ class TMouth01(components.TBaseComponent):
             startBlendRemap = mathOps.remap(self.params.start_seal, startDist.output, startRange.output1D, 0, 1,
                                             name=self.getName('seal_start_%s_remap' % num))
             startBlendEase = anim.easeCurve(startBlendRemap.outValueX, name=self.getName('seal_start_%s_ease' % num))
-            
+
             endRange = mathOps.subtractScalar([endDist.outputX, self.params.seal_falloff],
                                               name=self.getName('end_seal_%s_range' % num))
             endBlendRemap = mathOps.remap(self.params.end_seal, endRange.output1D, endDist.outputX, 0, 1,
@@ -348,13 +337,11 @@ class TMouth01(components.TBaseComponent):
                                            translateB=sealBlend.outTranslate, weight=blendClamp.outputR,
                                            name=self.getName('upper_seal_%s_pos' % num))
             upperBlend.outTranslate.connect(self.upper_crv.controlPoints[index+1])
-            upperBlend.outTranslate.connect(self.circle_crv.controlPoints[index+2])
 
             lowerBlend = mathOps.pairBlend(translateA=lowerD.outputTranslate,
                                            translateB=sealBlend.outTranslate, weight=blendClamp.outputR,
                                            name=self.getName('lower_seal_%s_pos' % num))
             lowerBlend.outTranslate.connect(self.lower_crv.controlPoints[index+1])
-            lowerBlend.outTranslate.connect(self.circle_crv.controlPoints[numPoints-index])
 
 
         # Calculate mid param relative to start and end for upper and lower. Used to anchor mid points of divs
@@ -370,15 +357,15 @@ class TMouth01(components.TBaseComponent):
             upperStartDist = mathOps.distance(self.upper_ctrls[index], self.upper_ctrls[index+1],
                                               name=self.getName('upper_start_%s_dist' % num))
             upperStartList.append(upperStartDist)
-            
+
             lowerStartDist = mathOps.distance(lowerTempCtrls[index], lowerTempCtrls[index+1],
                                               name=self.getName('lower_start_%s_dist' % num))
             lowerStartList.append(lowerStartDist)
-            
+
             upperEndDist = mathOps.distance(self.upper_ctrls[index+midIndex], self.upper_ctrls[index+1+midIndex],
                                             name=self.getName('upper_end_%s_dist' % num))
             upperEndList.append(upperEndDist)
-            
+
             lowerEndDist = mathOps.distance(lowerTempCtrls[index+midIndex], lowerTempCtrls[index+1+midIndex],
                                             name=self.getName('lower_end_%s_dist' % num))
             lowerEndList.append(lowerEndDist)
@@ -404,19 +391,14 @@ class TMouth01(components.TBaseComponent):
         upperEndMult = mathOps.subtractScalar([2.0, upperStartMult.outputX], name=self.getName('upper_end_bias'))
         lowerEndMult = mathOps.subtractScalar([2.0, lowerStartMult.outputX], name=self.getName('lower_end_bias'))
 
-        # Calculate ratio between upper and lower lengths of circle curve - used to drive parameter of divs on the circle
         upperCrvLen = curve.createCurveLength(self.upper_crv, name=self.getName('upper_crv_len'))
         lowerCrvLen = curve.createCurveLength(self.lower_crv, name=self.getName('lower_crv_len'))
-        lipLen = mathOps.addScalar([upperCrvLen.arcLength, lowerCrvLen.arcLength],
-                                   name=self.getName('total_len'))
-        circleMidParam = mathOps.divide(upperCrvLen.arcLength, lipLen.output1D,
-                                        name=self.getName('circle_mid_param'))
-        
+
         upperRestLen = mathOps.multiply(upperCrvLen.arcLength.get(), baseMtx2Srt.outputScaleX,
                                         name=self.getName('upper_rest_len'))
         upperStretch = mathOps.divide(upperRestLen.output, upperCrvLen.arcLength,
                                       name=self.getName('upper_stretch'))
-        
+
         lowerRestLen = mathOps.multiply(lowerCrvLen.arcLength.get(), baseMtx2Srt.outputScaleX,
                                         name=self.getName('lower_rest_len'))
         lowerStretch = mathOps.divide(lowerRestLen.output, lowerCrvLen.arcLength,
@@ -450,35 +432,16 @@ class TMouth01(components.TBaseComponent):
             mp = curve.createMotionPathNode(crv, uValue=paramBlend.output, follow=0,
                                             name=self.getName('%s_div_%s_mp' % (prefix, num)))
 
-            if prefix == 'upper':
-                circleParam = mathOps.remap(paramBlend.output, 0, 1, 0, circleMidParam.outputX,
-                                        name=self.getName('%s_div_%s_circle_param' % (prefix, num)))
-            else:
-                circleParam = mathOps.remap(paramBlend.output, 0, 1, 1, circleMidParam.outputX,
-                                        name=self.getName('%s_div_%s_circle_param' % (prefix, num)))
-            circleMp = curve.createMotionPathNode(self.circle_crv, uValue=circleParam.outValueX, follow=0,
-                                                  name=self.getName('%s_div_%s_mp' % (prefix, num)))
-            paramBlendRev = mathOps.reverse(paramBlend.output,
-                                            name=self.getName('%s_div_%s_param_reverse' % (prefix, num)))
-            startRoundMult = mathOps.multiply(paramBlendRev.outputX, self.params.start_round_corner,
-                                              name=self.getName('%s_div_%s_start_round_mult' % (prefix, num)))
-            endRoundMult = mathOps.multiply(paramBlend.output, self.params.end_round_corner,
-                                              name=self.getName('%s_div_%s_start_round_mult' % (prefix, num)))
-            roundSum = mathOps.addScalar([startRoundMult.output, endRoundMult.output],
-                                         name=self.getName('%s_div_%s_round_sum' % (prefix, num)))
-            roundPosBlend = mathOps.pairBlend(translateA=mp.allCoordinates, translateB=circleMp.allCoordinates,
-                                              weight=roundSum.output1D,
-                                              name=self.getName('%s_div_%s_pos' % (prefix, num)))
-            roundPosBlend.outTranslate.connect(div.t)
+            mp.allCoordinates.connect(div.t)
 
-            basePoint = curve.createNearestPointOnCurve(self.base_crv, roundPosBlend.outTranslate,
+            basePoint = curve.createNearestPointOnCurve(self.base_crv, mp.allCoordinates,
                                                        name=self.getName('%s_div_%s_base_point' % (prefix, num)))
             baseMp = curve.createMotionPathNode(self.base_crv, uValue=basePoint.result.parameter,
                                                 wut=2, wuo=self.base_srt, fractionMode=0,
                                                 upAxis='y', name=self.getName('%s_div_%s_base_mp' % (prefix, num)))
             targRot = baseMp.rotate
             if self.jaw:
-                jawPoint = curve.createNearestPointOnCurve(self.jaw_crv, roundPosBlend.outTranslate,
+                jawPoint = curve.createNearestPointOnCurve(self.jaw_crv, mp.outTranslate,
                                                            name=self.getName('%s_div_%s_jaw_point' % (prefix, num)))
                 jawMp = curve.createMotionPathNode(self.jaw_crv, uValue=jawPoint.result.parameter,
                                                    wut=2, wuo=self.jaw_srt, fractionMode=0,
@@ -509,104 +472,80 @@ class TMouth01(components.TBaseComponent):
             baseMtx2Srt.outputScale.connect(div.s)
 
             # Drive aligned divs
-            if index == 0 or index == len(self.upperDivs)-1:
-                if index == 0:
-                    name = 'start'
-                    rollAttr = self.params.roll_start
-
-                    upperPoint = curve.createPointOnCurve(self.upper_crv, name=self.getName('start_upper_align_point'))
-                    upperLocalPoint = mathOps.addVector([upperPoint.result.tangent, upperPoint.result.position],
-                                                        name=self.getName('start_upper_align_local_point'))
-
-                    lowerPoint = curve.createPointOnCurve(self.lower_crv, name=self.getName('start_lower_align_point'))
-                    lowerLocalPoint = mathOps.addVector([lowerPoint.result.tangent, lowerPoint.result.position],
-                                                        name=self.getName('start_lower_align_local_point'))
-
-                else:
-                    name = 'end'
-                    rollNeg = mathOps.multiplyAngleByScalar(self.params.roll_end, -1,
-                                                            name=self.getName('roll_end_inverse'))
-                    rollAttr = rollNeg.output
-
-                    upperPoint = curve.createPointOnCurve(self.upper_crv, name=self.getName('end_upper_align_point'))
-                    upperPoint.parameter.set(1)
-                    upperLocalPoint = mathOps.addVector([upperPoint.result.normalizedTangent, upperPoint.result.position],
-                                                        name=self.getName('end_upper_align_local_point'))
-
-                    lowerPoint = curve.createPointOnCurve(self.lower_crv, name=self.getName('end_lower_align_point'))
-                    lowerPoint.parameter.set(1)
-                    lowerLocalPoint = mathOps.addVector([lowerPoint.result.normalizedTangent, lowerPoint.result.position],
-                                                        name=self.getName('end_lower_align_local_point'))
-
-                upperVec = mathOps.createTransformedPoint(upperLocalPoint.output3D, div.worldInverseMatrix[0],
-                                                          name=self.getName('%s_upper_align_vec' % name))
-                upperAng = mathOps.angleBetween((1, 0, 0), upperVec.output,
-                                                name=self.getName('%s_upper_align_angle' % name))
-
-                lowerVec = mathOps.createTransformedPoint(lowerLocalPoint.output3D, div.worldInverseMatrix[0],
-                                                          name=self.getName('%s_lower_align_vec' % name))
-                lowerAng = mathOps.angleBetween((1, 0, 0), lowerVec.output,
-                                                name=self.getName('%s_lower_align_angle' % name))
-                ang = mathOps.addAngles(upperAng.euler.eulerZ, lowerAng.euler.eulerZ,
-                                        name=self.getName('%s_align_angle' % name))
-                ang.weightA.set(0.5)
-                ang.weightB.set(0.5)
-
-                div.worldMatrix[0].connect(alignDiv.offsetParentMatrix)
-                ang.output.connect(alignDiv.rz)
-                rollAttr.connect(alignDiv.ry)
+            frontAxis = mathOps.createMatrixAxisVector(div.matrix, (0, 0, 1),
+                                                       name=self.getName('%s_frontAxis_%s' % (prefix, num)))
+            if param == 0 or param == 1:
+                topMp = curve.createMotionPathNode(self.upper_crv, uValue=paramBlend.output, follow=1, wut=3,
+                                                   wu=frontAxis.output, upAxis='z',
+                                                   name=self.getName('%s_topAlignDiv_%s_mp' % (prefix, num)))
+                btmMp = curve.createMotionPathNode(self.lower_crv, uValue=paramBlend.output, follow=1, wut=3,
+                                                   wu=frontAxis.output, upAxis='z',
+                                                   name=self.getName('%s_btmAlignDiv_%s_mp' % (prefix, num)))
+                pb = mathOps.pairBlend(rotateA=topMp.rotate, rotateB=btmMp.rotate, quatBlend=1,
+                                       name=self.getName('%s_align_%s_rotate_blend' % (prefix, num)))
+                targPos = topMp.allCoordinates
+                targRot = pb.outRotate
             else:
-                # Squash n stretch
-                stretchAttr = upperStretch.outputX
-                if prefix != 'upper':
-                    stretchAttr = lowerStretch.outputX
-                midDist = 1 - (math.fabs(0.5 - param)*2)
-                endEase = 1 - ((1-midDist) * (1-midDist) * (1-midDist))
-                stretch = mathOps.multiply(self.params.preserve_volume, endEase,
-                                           name=self.getName('%s_stretch_%s_mult' % (prefix, num)))
-                stretchBlend = mathOps.blendScalarAttrs(baseMtx2Srt.outputScaleX, stretchAttr, stretch.output,
-                                                        name=self.getName('%s_stretch_%s_blend' % (prefix, num)))
-                stretchBlend.output.connect(alignDiv.sy)
-                stretchBlend.output.connect(alignDiv.sz)
-                baseMtx2Srt.outputScaleX.connect(alignDiv.sx)
+                alignMp = curve.createMotionPathNode(crv, uValue=paramBlend.output, follow=1, wut=3,
+                                                     wu=frontAxis.output, upAxis='z',
+                                                     name=self.getName('%s_alignDiv_%s_mp' % (prefix, num)))
+                targPos = alignMp.allCoordinates
+                targRot = alignMp.rotate
 
-                mp = curve.createMotionPathNode(self.circle_crv, uValue=circleParam.outValueX,
-                                                wut=2, wuo=div.matrix,
-                                                upAxis='z', name=self.getName('%s_align_%s_mp' % (prefix, num)))
-                mp.worldUpVector.set(0, 0, 1)
-                roundPosBlend.outTranslate.connect(alignDiv.t)
-                mp.rotate.connect(alignDiv.r)
-                if prefix == 'lower':
-                    mp.inverseFront.set(1)
+            # Squash n stretch
+            stretchAttr = upperStretch.outputX
+            if prefix != 'upper':
+                stretchAttr = lowerStretch.outputX
+            midDist = 1 - (math.fabs(0.5 - param)*2)
+            endEase = 1 - ((1-midDist) * (1-midDist) * (1-midDist))
+            stretch = mathOps.multiply(self.params.preserve_volume, endEase,
+                                       name=self.getName('%s_stretch_%s_mult' % (prefix, num)))
+            stretchBlend = mathOps.blendScalarAttrs(baseMtx2Srt.outputScaleX, stretchAttr, stretch.output,
+                                                    name=self.getName('%s_stretch_%s_blend' % (prefix, num)))
+            stretchBlend.output.connect(alignDiv.sy)
+            stretchBlend.output.connect(alignDiv.sz)
+            baseMtx2Srt.outputScaleX.connect(alignDiv.sx)
 
-                # Roll
-                startRoll = max(0, 1-(param*2))*-1
-                endRoll = (max(0, (param-0.5)*2))*-1
-                upperRoll = 0
-                lowerRoll = (1-(math.fabs(param-0.5)*2))*-1
-                if prefix == 'upper':
-                    upperRoll = lowerRoll*-1
-                    lowerRoll = 0
-                    endRoll *= -1
-                    startRoll *= -1
-                endsMult = mathOps.multiplyAngleByScalar(self.params.roll_start, startRoll,
-                                                         name=self.getName('%s_%s_ends_roll_mult' % (prefix, num)))
-                self.params.roll_end.connect(endsMult.inputB)
-                endsMult.weightB.set(endRoll)
-                if upperRoll > 0:
-                    midMult = mathOps.multiplyAngleByScalar(self.params.roll_upper, upperRoll,
-                                                              name=self.getName('%s_%s_mid_roll_mult' % (prefix, num)))
-                    endsMult.output.connect(midMult.inputB)
-                else:
-                    midMult = mathOps.multiplyAngleByScalar(self.params.roll_lower, lowerRoll,
-                                                              name=self.getName('%s_%s_mid_roll_mult' % (prefix, num)))
-                    endsMult.output.connect(midMult.inputB)
-                midMult.output.connect(mp.frontTwist)
+            targPos.connect(alignDiv.t)
+            targRot.connect(alignDiv.r)
+
+            # Roll
+            startRoll = max(0, 1-(param*2))*-1
+            endRoll = (max(0, (param-0.5)*2))*-1
+            upperRoll = 0
+            lowerRoll = (1-(math.fabs(param-0.5)*2))*-1
+            if prefix == 'upper':
+                upperRoll = lowerRoll*-1
+                lowerRoll = 0
+                endRoll *= -1
+                startRoll *= -1
+            endsMult = mathOps.multiplyAngleByScalar(self.params.roll_start, startRoll,
+                                                     name=self.getName('%s_%s_ends_roll_mult' % (prefix, num)))
+            self.params.roll_end.connect(endsMult.inputB)
+            endsMult.weightB.set(endRoll)
+            if upperRoll > 0:
+                midMult = mathOps.multiplyAngleByScalar(self.params.roll_upper, upperRoll,
+                                                          name=self.getName('%s_%s_mid_roll_mult' % (prefix, num)))
+                endsMult.output.connect(midMult.inputB)
+            else:
+                midMult = mathOps.multiplyAngleByScalar(self.params.roll_lower, lowerRoll,
+                                                          name=self.getName('%s_%s_mid_roll_mult' % (prefix, num)))
+                endsMult.output.connect(midMult.inputB)
+            if param == 0:
+                midMult.output.connect(topMp.sideTwist)
+                midMult.output.connect(btmMp.sideTwist)
+            elif param == 1:
+                rollRev = mathOps.reverse(midMult.output, name=self.getName('%s_%s_mid_roll_reverse' % (prefix, num)))
+                rollRev.outputX.connect(topMp.sideTwist)
+                rollRev.outputX.connect(btmMp.sideTwist)
+            else:
+                midMult.output.connect(alignMp.frontTwist)
+
 
         if self.guide.local_rig:
             self.base_crv.worldInverseMatrix[0].connect(self.local_srt.offsetParentMatrix)
-            self.upperDivs[0].inheritsTransform.set(0)
-            self.upperDivs[-1].inheritsTransform.set(0)
+            # self.upperDivs[0].inheritsTransform.set(0)
+            # self.upperDivs[-1].inheritsTransform.set(0)
 
 
         for index, div in enumerate(self.upperDivs):
@@ -657,9 +596,4 @@ def build(guide):
     Its job is to instantiate the component
     :return: The newly created component instance
     '''
-    return TMouth01(guide)
-
-'''
-
-HOW MUCH IS CIRCLE ADDING? IS IT WORTH IT JUST TO BLEND CORNERS? DOESN'T SEEM TO HAVE A HUGE EFFECT
-'''
+    return TMouth02(guide)

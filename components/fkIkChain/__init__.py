@@ -57,7 +57,7 @@ class TFkIkChain(components.TBaseComponent):
         # IK end control
         self.ik_end_ctrl = self.addCtrl(shape='box', size=ctrlSize,
                                         name=self.getName('ik_end'), xform=guide.locs[3].worldMatrix[0].get(),
-                                        parent=self.controls, metaParent=self.base_srt)
+                                        parent=self.controls, metaParent=self.fk_ctrls[-1])
         self.fk_tip.worldMatrix[0].connect(self.ik_end_ctrl.offsetParentMatrix)
 
         # mid_ctrl
@@ -258,6 +258,10 @@ class TFkIkChain(components.TBaseComponent):
             bulgeResult.output.connect(div.sy)
             bulgeResult.output.connect(div.sz)
             baseMtx2Srt.outputScaleX.connect(div.sx)
+
+        # For some reason this control does not end up in self.controls_list and therefore doesn't get tagged!?!
+        # Manually add it
+        self.controls_list.append(self.ik_end_ctrl)
 
     def finish(self):
         self.setColours(self.guide)

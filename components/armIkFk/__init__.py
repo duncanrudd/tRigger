@@ -60,13 +60,15 @@ class TArmIkFk(components.TBaseComponent):
         # FK controls
         self.fk_start_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.3,
                                           name=self.getName('fk_start'), xform=startXform,
-                                          parent=self.base_srt, buffer=1)
+                                          parent=self.base_srt, metaParent=self.base_srt, buffer=1)
         if self.invert:
             self.fk_start_ctrl.getParent().sx.set(-1)
         self.fk_mid_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.3,
-                                        name=self.getName('fk_mid'), xform=midXform, parent=self.fk_start_ctrl)
+                                        name=self.getName('fk_mid'), xform=midXform, parent=self.fk_start_ctrl,
+                                        metaParent=self.fk_start_ctrl)
         self.fk_end_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.3,
-                                        name=self.getName('fk_end'), xform=endXform, parent=self.fk_mid_ctrl)
+                                        name=self.getName('fk_end'), xform=endXform, parent=self.fk_mid_ctrl,
+                                        metaParent=self.fk_mid_ctrl)
 
         # --------------------------------
         # IK
@@ -83,14 +85,16 @@ class TArmIkFk(components.TBaseComponent):
             upVec = aimVec.cross(sideVec).normal()
             ik_ctrl_mtx = pm.datatypes.Matrix(aimVec, sideVec, upVec, startPos)
         self.ik_ctrl = self.addCtrl(shape='squarePoint', size=ctrlSize*.3,
-                                    name=self.getName('ik'), xform=ik_ctrl_mtx, parent=self.controls)
+                                    name=self.getName('ik'), xform=ik_ctrl_mtx, parent=self.controls,
+                                    metaParent=self.base_srt)
         self.ik_displaced = dag.addChild(self.rig, 'group', name=self.getName('ik_displaced_srt'))
         self.ik_ctrl.worldMatrix[0].connect(self.ik_displaced.offsetParentMatrix)
 
         # Pole Vector ctrl
         pole_ctrl_mtx = transform.getMatrixFromPos(pm.xform(guide.locs[4], q=1, ws=1, t=1))
         self.pole_ctrl = self.addCtrl(shape='ball', size=ctrlSize*.05,
-                                      name=self.getName('ik_pole'), xform=pole_ctrl_mtx, parent=self.controls)
+                                      name=self.getName('ik_pole'), xform=pole_ctrl_mtx, parent=self.controls,
+                                      metaParent=self.ik_ctrl)
 
         # --------------------------------
         # RESULT
@@ -116,14 +120,6 @@ class TArmIkFk(components.TBaseComponent):
         self.result_startTip = dag.addChild(self.rig, 'group', name=self.getName('result_startTip_srt'))
         self.result_startTip.offsetParentMatrix.set(tipXform)
 
-        # BendyControls
-        self.upper_startBend_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.15,
-                                                 name=self.getName('upper_startBend'),
-                                                 xform=startXform, parent=self.controls)
-        self.upper_endBend_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.15,
-                                               name=self.getName('upper_endBend'),
-                                               xform=tipXform, parent=self.controls)
-
         # Build mid matrix
         aimVec = _getVec(guide.locs[3], guide.locs[1], self.invert)
         sideVec = upVec.cross(aimVec).normal()
@@ -135,14 +131,6 @@ class TArmIkFk(components.TBaseComponent):
         tipXform = pm.datatypes.Matrix(aimVec, sideVec, upVec, tipPos)
         self.result_midTip = dag.addChild(self.rig, 'group', name=self.getName('result_midTip_srt'))
         self.result_midTip.offsetParentMatrix.set(tipXform)
-
-        # BendyControls
-        self.lower_startBend_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.15,
-                                                 name=self.getName('lower_startBend'),
-                                                 xform=midXform, parent=self.controls)
-        self.lower_endBend_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.15,
-                                               name=self.getName('lower_endBend'),
-                                               xform=tipXform, parent=self.controls)
 
         # Build end matrix
         aimVec = _getVec(guide.locs[2], guide.locs[3], self.invert)
@@ -161,6 +149,20 @@ class TArmIkFk(components.TBaseComponent):
                                      name=self.getName('mid'),
                                      xform=midCtrl_xform,
                                      parent=self.controls)
+
+        # BendyControls
+        self.upper_startBend_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.15,
+                                                 name=self.getName('upper_startBend'),
+                                                 xform=startXform, parent=self.controls, metaParent=self.mid_ctrl)
+        self.upper_endBend_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.15,
+                                               name=self.getName('upper_endBend'),
+                                               xform=tipXform, parent=self.controls, metaParent=self.mid_ctrl)
+        self.lower_startBend_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.15,
+                                                 name=self.getName('lower_startBend'),
+                                                 xform=midXform, parent=self.controls, metaParent=self.mid_ctrl)
+        self.lower_endBend_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.15,
+                                               name=self.getName('lower_endBend'),
+                                               xform=tipXform, parent=self.controls, metaParent=self.mid_ctrl)
 
         # AVG srts
         self.avgSrts = []
@@ -332,6 +334,8 @@ class TArmIkFk(components.TBaseComponent):
         attribute.addFloatAttr(self.params, 'upper_twist', minValue=0, maxValue=1)
         attribute.addFloatAttr(self.params, 'lower_twist', minValue=-1, maxValue=0)
         if self.guide.sleeve != 0:
+            attribute.addBoolAttr(self.params, 'show_sleeve_ctrls')
+            pm.setAttr(self.params.show_sleeve_ctrls, k=0, cb=1)
             attribute.addFloatAttr(self.params, 'sleeve_twist', minValue=0, maxValue=1)
             if self.guide.sleeve == 4:
                 attribute.addFloatAttr(self.params, 'lower_sleeve_pull', minValue=0, maxValue=1)
@@ -352,6 +356,9 @@ class TArmIkFk(components.TBaseComponent):
         attribute.addFloatAttr(self.params, 'end_follow', minValue=.001, maxValue=1, value=1)
         attribute.addFloatAttr(self.params, 'volume_preserve', minValue=0.0)
         attribute.addFloatAttr(self.params, 'volume_falloff', minValue=0.0, maxValue=2.0)
+        attribute.addBoolAttr(self.params, 'show_bendy_ctrls')
+        pm.setAttr(self.params.show_bendy_ctrls, k=0, cb=1)
+
 
         # Call overloaded method of parent class
         #components.TBaseComponent.addAttributes(self)
@@ -968,15 +975,20 @@ class TArmIkFk(components.TBaseComponent):
         attrList = [self.params.ikfk_blend, self.params.volume_preserve, self.params.volume_falloff,
                     self.params.roundness, self.params.round_radius, self.params.start_tangent,
                     self.params.start_follow, self.params.end_tangent, self.params.end_follow, self.params.chamfer,
-                    self.params.upper_twist, self.params.lower_twist, self.params.mid_twist]
+                    self.params.upper_twist, self.params.lower_twist, self.params.mid_twist,
+                    self.params.show_bendy_ctrls]
         if not self.guide.sleeve == 0:
+            attrList.append(self.params.show_sleeve_ctrls)
             attrList.append(self.params.sleeve_twist)
             attrList.append(self.params.sleeve_pull)
 
         for attr in attrList:
             attribute.proxyAttribute(attr, self.mid_ctrl)
+        pm.setAttr(self.mid_ctrl.show_bendy_ctrls, k=0, cb=1)
+        if not self.guide.sleeve == 0:
+            pm.setAttr(self.mid_ctrl.show_sleeve_ctrls, k=0, cb=1)
 
-        # --------------------------------------------------
+# --------------------------------------------------
         # Set lock / hide properties on controls attrs
         # --------------------------------------------------
         nodeList = self.controls_list
@@ -1019,6 +1031,18 @@ class TArmIkFk(components.TBaseComponent):
         for node in [self.fk_start_ctrl]:
             pm.setAttr(node.visibility, lock=0)
             isFk.outColorR.connect(node.visibility)
+
+        # Bendy ctrls vis
+        for ctrl in [self.upper_startBend_ctrl, self.upper_endBend_ctrl,
+                     self.lower_startBend_ctrl, self.lower_endBend_ctrl]:
+            pm.setAttr(ctrl.visibility, lock=0)
+            self.params.show_bendy_ctrls.connect(ctrl.visibility)
+
+        # Sleeve ctrls vis
+        if not self.guide.sleeve == 0:
+            for ctrl in [ctrl for ctrl in self.controls_list if 'sleeve' in ctrl.name()]:
+                pm.setAttr(ctrl.visibility, lock=0)
+                self.params.show_sleeve_ctrls.connect(ctrl.visibility)
 
 def build(guide):
     '''

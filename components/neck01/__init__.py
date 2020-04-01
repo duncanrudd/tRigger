@@ -189,14 +189,6 @@ class TNeck01(components.TBaseComponent):
         for index, point in enumerate(railPoints):
             point.connect(self.railCrv.controlPoints[index])
 
-        # MAP TO GUIDE LOCS
-        mappingPairs = [[self.ik_end_ctrl.getParent(), guide.locs[3]], [self.base_srt, guide.locs[0]],
-                        [self.ik_end_ctrl, guide.locs[5]]]
-        if self.guide.aimer:
-            mappingPairs.append([self.aim_ctrl, guide.locs[4]])
-        for pair in mappingPairs:
-            self.mapToGuideLocs(pair[0], pair[1])
-
         self.divs = []
         for i, div in enumerate(guide.divisionLocs):
             num = str(i+1).zfill(2)
@@ -205,6 +197,16 @@ class TNeck01(components.TBaseComponent):
             pm.xform(node, ws=1, m=mtx)
             self.mapToGuideLocs(node, div)
             self.divs.append(node)
+
+        # MAP TO GUIDE LOCS
+        mappingPairs = [[self.ik_end_ctrl.getParent(), guide.locs[3]], [self.base_srt, guide.locs[0]],
+                        [self.ik_end_ctrl, guide.locs[5]], [self.ik_mid_ctrl, guide.ctrlLocs[len(guide.ctrlLocs)/2]]]
+        for div, loc in zip(self.divs, guide.divisionLocs):
+            mappingPairs.append([div, loc])
+        if self.guide.aimer:
+            mappingPairs.append([self.aim_ctrl, guide.locs[4]])
+        for pair in mappingPairs:
+            self.mapToGuideLocs(pair[0], pair[1])
 
         # Head shear srt
         self.end_shear_srt = dag.addChild(self.rig, 'group', name=self.getName('end_shear_srt'))
@@ -244,8 +246,14 @@ class TNeck01(components.TBaseComponent):
                                              self.startTangent.result.position],
                                             name=self.getName('start_tangent_sum'))
 
+        startLocalCompositeMtx = transform.blend_T_R_matrices(self.fk_ctrls[0].worldMatrix[0],
+                                                              self.base_srt.worldMatrix[0],
+                                                              name=self.getName('start_composite_mtx'))
+        compositeInverseMtx = mathOps.inverseMatrix(startLocalCompositeMtx.outputMatrix,
+                                                    name=self.getName('start_composite_inverse_mtx'))
+
         startLocalTangent = mathOps.createTransformedPoint(startTangentSum.output3D,
-                                                           self.base_srt.worldInverseMatrix[0],
+                                                           compositeInverseMtx.outputMatrix,
                                                            name=self.getName('start_local_tangent'))
         startAngle = mathOps.angleBetween((0, 1, 0), startLocalTangent.output, name=self.getName('start_angle'))
         startAngleMult = mathOps.multiplyRotationByScalar(startAngle.euler, self.params.shear_amount,
@@ -327,15 +335,15 @@ class TNeck01(components.TBaseComponent):
 
             self.ik_end_ctrl.inheritsTransform.set(0)
 
-            # ---------------------------------
-            # Internal spaces switching setup
-            # ---------------------------------
-            self.spaces['%s' % (self.ik_end_ctrl.getParent().name())] =\
-                'neck_base: %s.worldMatrix[0], neck_tip: %s.worldMatrix[0]' % (self.fk_ctrls[0].name(), self.fk_tip.name())
-
             self.spaces['%s' % (self.aim_ctrl.name())] = 'neck_tip: %s.worldMatrix[0]' % self.fk_tip.name()
         else:
             self.fk_tip.worldMatrix[0].connect(self.ik_end_ctrl.getParent().offsetParentMatrix)
+
+        # ---------------------------------
+        # Internal spaces switching setup
+        # ---------------------------------
+        self.spaces['%s' % (self.ik_end_ctrl.getParent().name())] =\
+            'neck_base: %s.worldMatrix[0], neck_tip: %s.worldMatrix[0]' % (self.fk_ctrls[0].name(), self.fk_tip.name())
 
     def finish(self):
         self.setColours(self.guide)

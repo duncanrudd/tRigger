@@ -79,6 +79,7 @@ class TFkHand(components.TBaseComponent):
 
     def addAttributes(self):
         attribute.addFloatAttr(self.params, 'bulge', minValue=0, maxValue=1)
+        attribute.addFloatAttr(self.params, 'hand_scale', minValue=0.01, value=1)
 
     def addSystems(self):
         aimAxis = (1, 0, 0)
@@ -141,6 +142,10 @@ class TFkHand(components.TBaseComponent):
                 bulgeSum = mathOps.addScalar([1.0, bulgeMult.output], name=aim.name().replace('aim_vec', 'bulge_sum'))
                 bulgeSum.output1D.connect(inSrt.sz)
                 bulgeSum.output1D.connect(outSrt.sz)
+
+        self.params.hand_scale.connect(self.base_srt.sx)
+        self.params.hand_scale.connect(self.base_srt.sz)
+        self.params.hand_scale.connect(self.base_srt.sy)
 
 
 

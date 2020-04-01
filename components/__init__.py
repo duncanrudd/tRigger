@@ -222,6 +222,7 @@ class TBaseComponent(object):
             print 'name changed: %s' % name
         indexOffset = 0
         if add:
+            print 'ADDING CONNECTION'
             switch = pm.PyNode('%s_spaceSwitch' % node.name())
             attr = pm.Attribute('%s.%s_parent_space' % (self.params.name(), name))
             existingNames = pm.attributeQuery('%s_parent_space' % name, node=self.params, listEnum=1)[0]
@@ -229,6 +230,7 @@ class TBaseComponent(object):
             pm.addAttr(attr, enumName=newEnumNames, e=1)
             indexOffset = len(existingNames.split(':'))
         else:
+            print 'CREATING CONNECTION'
             switch = pm.createNode('choice', name=self.getName('%s_spaceSwitch' % name))
             switchAttr = attribute.addEnumAttr(self.params, '%s_parent_space' % name, [enum for enum in enumNames])
 
@@ -519,6 +521,7 @@ class TBaseComponent(object):
         print 'Added Connections: %s' % self.comp_name
 
         # Next check for nodes that have multiple spaces
+        processed = []
         switchNodes = [node for node in self.guide.locs if node.hasAttr('spaces')]
         for node in switchNodes:
             spaces = [space for space in node.spaces.get().replace(' ', '').split(',')]
@@ -543,17 +546,20 @@ class TBaseComponent(object):
                     drivenNode = self.guideToRigMapping[node]
                     if node.hasAttr('is_tGuide_root'):
                         drivenNode = self.controls_list[0]
-                    conns = [conn for conn in pm.listConnections(drivenNode.message, d=1)]
+                    conns = [conn for conn in pm.listConnections(drivenNode.message, d=1, p=1)]
                     if conns:
-                        drivenNode = conns[0]
+                        if 'mapping_node' in conns[0].name():
+                            drivenNode = pm.PyNode(conns[0].name().split('.')[0])
 
-                    # If only one space is specified, do a simple connection
-                    if len(inputs) == 1 and drivenNode.name() not in self.spaces.keys():
-                        self.connectToInput(inputs[0], drivenNode)
-                    elif node.splitTranslateAndRotate.get():
-                        self.connectToMultiInputsSplit(inputs, enumNames, drivenNode)
-                    else:
-                        self.connectToMultiInputs(inputs, enumNames, drivenNode)
+                    if not drivenNode in processed:
+                        # If only one space is specified, do a simple connection
+                        if len(inputs) == 1 and drivenNode.name() not in self.spaces.keys():
+                            self.connectToInput(inputs[0], drivenNode)
+                        elif node.splitTranslateAndRotate.get():
+                            self.connectToMultiInputsSplit(inputs, enumNames, drivenNode)
+                        else:
+                            self.connectToMultiInputs(inputs, enumNames, drivenNode)
+                        processed.append(drivenNode)
 
         # Now check for nodes with internal space switching
         switchNodes = [pm.PyNode(node) for node in self.spaces.keys()]

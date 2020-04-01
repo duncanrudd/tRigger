@@ -15,7 +15,7 @@ class TEyelidGuide(guide.TGuideBaseComponent):
         if not fromDagNode:
             attribute.addIntAttr(self.root, 'num_ctrls', num_ctrls)
             attribute.addBoolAttr(self.root, 'add_joint', add_joint)
-            attribute.addBoolAttr(self.root, 'local_rig', add_joint)
+            attribute.addBoolAttr(self.root, 'local_rig', local_rig)
             self.addLocs()
         else:
             self.root.num_ctrls.set(self.num_ctrls)

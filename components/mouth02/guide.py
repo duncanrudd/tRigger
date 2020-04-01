@@ -7,10 +7,10 @@ from maya.api import OpenMaya as om2
 reload(guide)
 reload(mathOps)
 
-class TMouth01Guide(guide.TGuideBaseComponent):
+class TMouth02Guide(guide.TGuideBaseComponent):
     def __init__(self, guide_name='', guide_side='C', guide_index=0, num_divisions=8, num_ctrls=1, corner_start=.25,
                  local_rig=0, fromDagNode=0):
-        guide.TGuideBaseComponent.__init__(self, guide_name, 'mouth01', guide_side, guide_index,
+        guide.TGuideBaseComponent.__init__(self, guide_name, 'mouth02', guide_side, guide_index,
                                            fromDagNode=fromDagNode)
         self.num_divisions = num_divisions
         self.num_ctrls = num_ctrls
@@ -216,7 +216,7 @@ class TMouth01Guide(guide.TGuideBaseComponent):
                 print 'Unable to reparent: %s to %s' % (child.name(), key)
 
 def instantiateFromDagNode(dagNode):
-    return TMouth01Guide(dagNode.guide_name.get(),
+    return TMouth02Guide(dagNode.guide_name.get(),
                            dagNode.guide_side.get(),
                            dagNode.guide_index.get(),
                            dagNode.num_divisions.get(),
@@ -227,5 +227,5 @@ def instantiateFromDagNode(dagNode):
 
 
 def buildGuide(**kwargs):
-    return TMouth01Guide(**kwargs)
+    return TMouth02Guide(**kwargs)
 

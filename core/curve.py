@@ -66,8 +66,14 @@ def createMotionPathNode(crv, uValue=0, frontAxis='x', upAxis='y', fractionMode=
             mp.inverseUp.set(1)
         mp.worldUpType.set(wut)
         if wuo:
-            wuo.worldMatrix[0].connect(mp.worldUpMatrix)
-        mp.worldUpVector.set(wu)
+            if type(wuo) == pm.general.Attribute:
+                wuo.connect(mp.worldUpMatrix)
+            else:
+                wuo.worldMatrix[0].connect(mp.worldUpMatrix)
+        if type(wu) == pm.general.Attribute:
+            wu.connect(mp.worldUpVector)
+        else:
+            mp.worldUpVector.set(wu)
     return mp
 
 def createCurveInfo(crv, name=None):
