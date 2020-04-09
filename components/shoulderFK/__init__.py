@@ -96,6 +96,9 @@ class TShoulderFK(components.TBaseComponent):
         attrList = ['visibility']
         attribute.channelControl(nodeList=nodeList, attrList=attrList)
 
+        nodeList = self.controls_list
+        attribute.channelControl(nodeList=nodeList, attrList=['rotateOrder'], keyable=1, lock=0)
+
         spaceAttrs = [attr for attr in ['orbit_ctrl_parent_space', 'orbit_ctrl_translate_space',
                                         'orbit_ctrl_rotate_space'] if pm.hasAttr(self.params, attr)]
         for attr in spaceAttrs:

@@ -200,7 +200,8 @@ class TNeck01(components.TBaseComponent):
 
         # MAP TO GUIDE LOCS
         mappingPairs = [[self.ik_end_ctrl.getParent(), guide.locs[3]], [self.base_srt, guide.locs[0]],
-                        [self.ik_end_ctrl, guide.locs[5]], [self.ik_mid_ctrl, guide.ctrlLocs[len(guide.ctrlLocs)/2]]]
+                        [self.ik_end_ctrl, guide.locs[5]], [self.ik_mid_ctrl, guide.ctrlLocs[len(guide.ctrlLocs)/2]],
+                        [self.fk_ctrls[0], guide.ctrlLocs[0]]]
         for div, loc in zip(self.divs, guide.divisionLocs):
             mappingPairs.append([div, loc])
         if self.guide.aimer:
@@ -347,6 +348,9 @@ class TNeck01(components.TBaseComponent):
 
     def finish(self):
         self.setColours(self.guide)
+
+        nodeList = [node for node in self.controls_list if not node == self.ik_mid_ctrl]
+        attribute.channelControl(nodeList=nodeList, attrList=['rotateOrder'], keyable=1, lock=0)
         
         spaceAttrs = [attr for attr in ['ik_end_buffer_srt_parent_space', 'ik_end_buffer_srt_translate_space',
                                         'ik_end_buffer_srt_rotate_space'] if pm.hasAttr(self.params, attr)]

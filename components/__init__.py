@@ -257,6 +257,9 @@ class TBaseComponent(object):
 
         '''
         name = '_'.join(node.name().split('_')[2:])
+        if name[0].lower() in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
+            name = '_%s' % name
+            print 'name changed: %s' % name
         targMtx = node.worldMatrix[0].get()
         indexOffset=0
 

@@ -53,6 +53,7 @@ class TControlLocal(components.TBaseComponent):
 
     def finish(self):
         self.setColours(self.guide)
+        attribute.channelControl(nodeList=self.controls_list, attrList=['rotateOrder'], keyable=1, lock=0)
         attrList = ['visibility']
         attribute.channelControl(nodeList=self.controls_list, attrList=attrList)
 

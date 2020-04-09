@@ -148,7 +148,7 @@ class TArmIkFk(components.TBaseComponent):
         self.mid_ctrl = self.addCtrl(shape='ball', size=ctrlSize*.1,
                                      name=self.getName('mid'),
                                      xform=midCtrl_xform,
-                                     parent=self.controls)
+                                     parent=self.controls, metaParent=self.base_srt)
 
         # BendyControls
         self.upper_startBend_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.15,

@@ -45,6 +45,16 @@ class TControl(components.TBaseComponent):
 
     def finish(self):
         self.setColours(self.guide)
+
+        attribute.channelControl(nodeList=self.controls_list, attrList=['rotateOrder'], keyable=1, lock=0)
+
+        ctrlName = '_' + '_'.join(self.controls_list[-1].name().split('_')[-2:])
+
+        spaceAttrs = [attr for attr in ['%s_parent_space' % ctrlName, '%s_translate_space' % ctrlName,
+                                        '%s_rotate_space' % ctrlName] if pm.hasAttr(self.params, attr)]
+        for attr in spaceAttrs:
+            attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.controls_list[-1])
+
         attrList = ['visibility']
         attribute.channelControl(nodeList=self.controls_list, attrList=attrList)
 
