@@ -137,6 +137,24 @@ def multiplyAngleByScalar(input, weight, name=None):
 
     return node
 
+def multiplyRotationByScalar(input, weight, name=None):
+    '''
+        creates an animBlendNodeAdditiveRotation node and connects input1 with weightA as multiplier
+        '''
+    node = pm.createNode('animBlendNodeAdditiveRotation')
+    if name:
+        node.rename(name)
+    if type(input) == pm.general.Attribute:
+        input.connect(node.inputA)
+    else:
+        node.inputA.set(input)
+    if type(weight) == pm.general.Attribute:
+        weight.connect(node.weightA)
+    else:
+        node.weightA.set(weight)
+
+    return node
+
 def getAngleBetweenVectors(v1, v2, vUp, degrees=1):
     '''
     returns the signed angle between v1 and v2

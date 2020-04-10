@@ -278,6 +278,29 @@ def list2Mtx(list):
     return pm.datatypes.Matrix((list[0], list[1], list[2]), (list[4], list[5], list[6]),
                                (list[8], list[9], list[10]), (list[12], list[13], list[14]))
 
+def invertRotateOrder(node, name=None):
+    '''
+    Creates a choice node with inputs corresponding to the reverse of the standard rotate order dropdown.
+    Node.rotateOrder is connected to the choice node's selector attribute. Use to negate a parent transforms rotation.
+    Args:
+        node: (pm.PyNode) the node whose rotateOrder we want to reverse
+        name: (str) the name to give the newly created choice node
+
+    Returns:
+        (pm.PyNode) The newly created choice node
+    '''
+    choice = pm.createNode('choice')
+    if name:
+        choice.rename(name)
+    choice.input[0].set(5)
+    choice.input[1].set(3)
+    choice.input[2].set(4)
+    choice.input[3].set(1)
+    choice.input[4].set(2)
+    choice.input[5].set(0)
+    node.rotateOrder.connect(choice.selector)
+    return choice
+
 
 
 
