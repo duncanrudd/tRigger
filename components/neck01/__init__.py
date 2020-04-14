@@ -1,5 +1,5 @@
 from tRigger import components
-from tRigger.core import attribute, dag, mathOps, transform, curve, anim
+from tRigger.core import attribute, dag, mathOps, transform, curve, anim, icon
 reload(components)
 reload(mathOps)
 reload(curve)
@@ -345,6 +345,10 @@ class TNeck01(components.TBaseComponent):
         # ---------------------------------
         self.spaces['%s' % (self.ik_end_ctrl.getParent().name())] =\
             'neck_base: %s.worldMatrix[0], neck_tip: %s.worldMatrix[0]' % (self.fk_ctrls[0].name(), self.fk_tip.name())
+
+        # Attach params shape to end srt
+        pm.cluster(icon.getShapes(self.params), wn=[self.ik_end_ctrl, self.ik_end_ctrl],
+                   name=self.getName('params_cluster'))
 
     def finish(self):
         self.setColours(self.guide)

@@ -39,15 +39,14 @@ class TBaseComponent(object):
         self.guideToJointMapping = {}
         self.inputs = []
         self.outputs = []
+        self.controls_list = []
+        self.joints_list = []
         self.spaces = {} # Internal space switching options
         self.createGroups()
         attribute.addStringAttr(self.root, 'comp_type', compType)
         attribute.addStringAttr(self.root, 'comp_name', name)
         attribute.addStringAttr(self.root, 'comp_side', side)
         attribute.addIntAttr(self.root, 'comp_index', self.comp_index)
-
-        self.controls_list = []
-        self.joints_list = []
 
     def createGroups(self):
         '''
@@ -56,9 +55,13 @@ class TBaseComponent(object):
         self.root = pm.createNode('transform', name=self.getName('comp'))
         self.input = dag.addChild(self.root, 'group', name=self.getName('input'))
         self.controls = dag.addChild(self.root, 'group', name=self.getName('controls'))
-        self.params = dag.addChild(self.controls, 'group', name=self.getName('anim_params'))
         self.base_srt = dag.addChild(self.controls, 'group', name=self.getName('base_srt'))
         transform.align(self.base_srt, self.guide.root)
+        self.params = self.addCtrl('gear', size=1.0, name=self.getName('params'), xform=pm.datatypes.Matrix(), parent=self.controls,
+                                   metaParent=self.base_srt)
+        self.params.inheritsTransform.set(0)
+        attribute.channelControl(attrList=['tx', 'ty', 'tz', 'rx', 'ry', 'rz', 'sx', 'sy', 'sz'],
+                                 nodeList=[self.params])
         self.rig = dag.addChild(self.root, 'group', name=self.getName('rig'))
         self.output = dag.addChild(self.root, 'group', name=self.getName('output'))
         self.deform = dag.addChild(self.root, 'group', name=self.getName('deform'))
@@ -548,7 +551,7 @@ class TBaseComponent(object):
                         inputs.append(input)
                     drivenNode = self.guideToRigMapping[node]
                     if node.hasAttr('is_tGuide_root'):
-                        drivenNode = self.controls_list[0]
+                        drivenNode = self.controls_list[1]
                     conns = [conn for conn in pm.listConnections(drivenNode.message, d=1, p=1)]
                     if conns:
                         if 'mapping_node' in conns[0].name():

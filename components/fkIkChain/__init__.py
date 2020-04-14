@@ -1,5 +1,5 @@
 from tRigger import components
-from tRigger.core import attribute, dag, mathOps, transform, curve, anim
+from tRigger.core import attribute, dag, mathOps, transform, curve, anim, icon
 reload(components)
 reload(mathOps)
 reload(curve)
@@ -262,6 +262,10 @@ class TFkIkChain(components.TBaseComponent):
         # For some reason this control does not end up in self.controls_list and therefore doesn't get tagged!?!
         # Manually add it
         self.controls_list.append(self.ik_end_ctrl)
+
+        # Attach params shape to end srt
+        pm.cluster(icon.getShapes(self.params), wn=[self.base_srt, self.base_srt],
+                   name=self.getName('params_cluster'))
 
     def finish(self):
         self.setColours(self.guide)

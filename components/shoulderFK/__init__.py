@@ -1,5 +1,5 @@
 from tRigger import components
-from tRigger.core import attribute, transform, dag, mathOps
+from tRigger.core import attribute, transform, dag, mathOps, icon
 import pymel.core as pm
 reload(components)
 reload(transform)
@@ -47,7 +47,7 @@ class TShoulderFK(components.TBaseComponent):
             self.fk_out.offsetParentMatrix.set(xform)
             self.mapToGuideLocs(self.fk_out, guide.locs[0])
         else:
-            self.mapToGuideLocs(self.controls_list[0], guide.locs[0])
+            self.mapToGuideLocs(self.controls_list[1], guide.locs[0])
 
         xform = guide.locs[2].worldMatrix[0].get()
         if self.comp_side == 'R':
@@ -56,16 +56,16 @@ class TShoulderFK(components.TBaseComponent):
             xform = mathOps.invertHandedness(xform)
         self.orbit_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.5,
                                        name=self.getName('orbit'), xform=xform, parent=self.controls,
-                                       metaParent=self.controls_list[0])
+                                       metaParent=self.controls_list[1])
         if self.comp_side == 'R':
             self.mapToGuideLocs(self.orbit_out, guide.locs[2])
             self.copyGuideMapping(self.orbit_out, self.orbit_ctrl)
         else:
-            self.mapToGuideLocs(self.controls_list[1], guide.locs[2])
+            self.mapToGuideLocs(self.controls_list[2], guide.locs[2])
 
         if guide.root.add_joint.get():
             j = pm.createNode('joint', name=self.getName('jnt'))
-            driver = self.controls_list[0]
+            driver = self.controls_list[1]
             if self.comp_side == 'R':
                 driver = self.fk_out
             self.joints_list.append({'joint': j, 'driver': driver})
@@ -88,6 +88,10 @@ class TShoulderFK(components.TBaseComponent):
         # Internal spaces switching setup
         # ---------------------------------
         self.spaces['%s' % (self.orbit_ctrl.name())] = 'clavicle: %s.worldMatrix[0]' % self.fk_ctrl.name()
+
+        # Attach params shape to end srt
+        pm.cluster(icon.getShapes(self.params), wn=[self.base_srt, self.base_srt],
+                   name=self.getName('params_cluster'))
 
     def finish(self):
         self.setColours(self.guide)

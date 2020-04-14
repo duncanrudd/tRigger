@@ -954,6 +954,10 @@ class TArmIkFk(components.TBaseComponent):
         # ---------------------------------
         self.spaces['%s' % (self.pole_ctrl.name())] = 'limb_average: %s.matrixSum' % base_mtx.name()
 
+        # Attach params shape to end srt
+        pm.cluster(icon.getShapes(self.params), wn=[self.result_end, self.result_end],
+                   name=self.getName('params_cluster'))
+
     def finish(self):
         # --------------------------------------------------
         # Proxy animation attrs on to relevant controls
@@ -984,7 +988,7 @@ class TArmIkFk(components.TBaseComponent):
 
         for attr in attrList:
             attribute.proxyAttribute(attr, self.mid_ctrl)
-        pm.setAttr(self.mid_ctrl.show_bendy_ctrls, k=0, cb=1)
+        # pm.setAttr(self.mid_ctrl.show_bendy_ctrls, k=0, cb=1)
         if not self.guide.sleeve == 0:
             pm.setAttr(self.mid_ctrl.show_sleeve_ctrls, k=0, cb=1)
 

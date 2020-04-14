@@ -51,6 +51,10 @@ class TFkChain(components.TBaseComponent):
                 driver = mtx.matrixSum
             driver.connect(self.srts[index].offsetParentMatrix)
 
+        # Attach params shape to end srt
+        pm.cluster(icon.getShapes(self.params), wn=[self.base_srt, self.base_srt],
+                   name=self.getName('params_cluster'))
+
     def finish(self):
         self.setColours(self.guide)
 

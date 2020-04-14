@@ -145,6 +145,9 @@ class TArc(components.TBaseComponent):
             twistSum.weightA.set(midMult)
             twistSum.output.connect(mp.frontTwist)
 
+        # Attach params shape to mid ctrl
+        pm.cluster(icon.getShapes(self.params), wn=[self.mid_ctrl, self.mid_ctrl], name=self.getName('params_cluster'))
+
     def finish(self):
         self.setColours(self.guide)
 

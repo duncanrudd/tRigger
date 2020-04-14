@@ -1,6 +1,6 @@
 from tRigger import components
 import math
-from tRigger.core import attribute, transform, dag, mathOps, curve
+from tRigger.core import attribute, transform, dag, mathOps, curve, icon
 import pymel.core as pm
 reload(components)
 reload(transform)
@@ -283,6 +283,10 @@ class TEyelid(components.TBaseComponent):
         # ---------------------------------
         # self.spaces['%s' % (self.aimCtrl.name())] = 'eye: %s.worldMatrix[0]' % self.ctrl.name()
 
+        # Attach params shape to end srt
+        pm.cluster(icon.getShapes(self.params), wn=[self.eyeball_ctrl, self.eyeball_ctrl],
+                   name=self.getName('params_cluster'))
+
     def finish(self):
         self.setColours(self.guide)
 
@@ -298,7 +302,7 @@ class TEyelid(components.TBaseComponent):
         nodeList = [self.aimCtrl]
         attribute.channelControl(nodeList=nodeList, attrList=attrList)
 
-        nodeList = self.controls_list[3:]
+        nodeList = self.controls_list[4:]
         attrList = ['visibility', 'rx', 'ry', 'rz', 'sx', 'sy', 'sz', 'tz']
         attribute.channelControl(nodeList=nodeList, attrList=attrList)
 

@@ -31,7 +31,7 @@ class TControlLocal(components.TBaseComponent):
         offsetMtx = mathOps.composeMatrixFromMatrix(self.base_srt.worldMatrix[0].get())
 
         if not self.invert:
-            mtx = mathOps.multiplyMatrices([self.controls_list[0].worldMatrix[0],
+            mtx = mathOps.multiplyMatrices([self.controls_list[1].worldMatrix[0],
                                             self.base_srt.worldInverseMatrix[0],
                                             offsetMtx.outputMatrix],
                                            name=self.getName('outSrt_mtx'))
@@ -50,6 +50,10 @@ class TControlLocal(components.TBaseComponent):
             self.joints_list.append({'joint': j, 'driver': self.out_srt})
             self.mapJointToGuideLocs(j, guide.locs[-1])
         components.TBaseComponent.addObjects(self, guide)
+
+        # Attach params shape to end srt
+        pm.cluster(icon.getShapes(self.params), wn=[self.controls_list[-1], self.controls_list[-1]],
+                   name=self.getName('params_cluster'))
 
     def finish(self):
         self.setColours(self.guide)

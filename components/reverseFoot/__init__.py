@@ -105,7 +105,7 @@ class TReverseFoot(components.TBaseComponent):
         # ----------------------
         # FK controls
         # ----------------------
-        refControls = self.controls_list[2:]
+        refControls = self.controls_list[3:]
         refControls.append(self.ikEnd_srt)
         refControls.reverse()
         self.blendMtxList = []
@@ -176,39 +176,74 @@ class TReverseFoot(components.TBaseComponent):
         attribute.addFloatAttr(self.params, 'ikfk_blend', minValue=0, maxValue=1)
         if self.guide.attr_driven:
             attribute.addDividerAttr(self.params, 'Roll')
-            attribute.proxyAttribute(self.ikHeel_ctrl.rz, self.params, 'roll_heel')
-            attribute.proxyAttribute(self.ikToe_ctrl.rz, self.params, 'roll_ball')
-            attribute.proxyAttribute(self.ikTip_ctrl.rz, self.params, 'roll_tip')
+            for attr in  ['roll_heel', 'roll_ball', 'roll_tip']:
+                attribute.addAngleAttr(self.params, attr)
+            #attribute.proxyAttribute(self.ikHeel_ctrl.rz, self.params, 'roll_heel')
+            #attribute.proxyAttribute(self.ikToe_ctrl.rz, self.params, 'roll_ball')
+            #attribute.proxyAttribute(self.ikTip_ctrl.rz, self.params, 'roll_tip')
             for tarsi in range(self.guide.tarsi_segs-1):
                 num = str(tarsi+1).zfill(2)
-                attribute.proxyAttribute(self.tarsiCtrls[tarsi].rz, self.params, 'roll_tarsi_%s' % num)
+                attribute.addAngleAttr(self.params, 'roll_tarsi_%s' % num)
+                #attribute.proxyAttribute(self.tarsiCtrls[tarsi].rz, self.params, 'roll_tarsi_%s' % num)
 
             attribute.addDividerAttr(self.params, 'Spin')
-            attribute.proxyAttribute(self.ikHeel_ctrl.ry, self.params, 'spin_heel')
-            attribute.proxyAttribute(self.ikBall_ctrl.ry, self.params, 'spin_ball')
-            attribute.proxyAttribute(self.ikTip_ctrl.ry, self.params, 'spin_tip')
+            for attr in  ['spin_heel', 'spin_ball', 'spin_tip']:
+                attribute.addAngleAttr(self.params, attr)
+            #attribute.proxyAttribute(self.ikHeel_ctrl.ry, self.params, 'spin_heel')
+            #attribute.proxyAttribute(self.ikBall_ctrl.ry, self.params, 'spin_ball')
+            #attribute.proxyAttribute(self.ikTip_ctrl.ry, self.params, 'spin_tip')
             for tarsi in range(self.guide.tarsi_segs-1):
                 num = str(tarsi+1).zfill(2)
-                attribute.proxyAttribute(self.tarsiCtrls[tarsi].ry, self.params, 'spin_tarsi_%s' % num)
+                attribute.addAngleAttr(self.params, 'spin_tarsi_%s' % num)
+                #attribute.proxyAttribute(self.tarsiCtrls[tarsi].ry, self.params, 'spin_tarsi_%s' % num)
 
             attribute.addDividerAttr(self.params, 'Lean')
-            attribute.proxyAttribute(self.ikHeel_ctrl.rx, self.params, 'lean_heel')
-            attribute.proxyAttribute(self.ikBall_ctrl.rx, self.params, 'lean_edge')
-            attribute.proxyAttribute(self.ikTip_ctrl.rx, self.params, 'lean_tip')
+            for attr in ['lean_heel', 'lean_edge', 'lean_tip']:
+                attribute.addAngleAttr(self.params, attr)
+            #attribute.proxyAttribute(self.ikHeel_ctrl.rx, self.params, 'lean_heel')
+            #attribute.proxyAttribute(self.ikBall_ctrl.rx, self.params, 'lean_edge')
+            #attribute.proxyAttribute(self.ikTip_ctrl.rx, self.params, 'lean_tip')
             for tarsi in range(self.guide.tarsi_segs-1):
                 num = str(tarsi+1).zfill(2)
-                attribute.proxyAttribute(self.tarsiCtrls[tarsi].rx, self.params, 'lean_tarsi_%s' % num)
+                attribute.addAngleAttr(self.params, 'lean_tarsi_%s' % num)
+                #attribute.proxyAttribute(self.tarsiCtrls[tarsi].rx, self.params, 'lean_tarsi_%s' % num)
 
 
 
 
     def addSystems(self):
+        if self.guide.attr_driven:
+            self.params.roll_heel.connect(self.ikHeel_ctrl.rz)
+            self.params.roll_ball.connect(self.ikToe_ctrl.rz)
+            self.params.roll_tip.connect(self.ikTip_ctrl.rz)
+            for tarsi in range(self.guide.tarsi_segs-1):
+                num = str(tarsi+1).zfill(2)
+                attr = pm.general.Attribute('%s.roll_tarsi_%s' % (self.params.name(), num))
+                attr.connect(self.tarsiCtrls[tarsi].rz)
+
+            self.params.spin_heel.connect(self.ikHeel_ctrl.ry)
+            self.params.spin_ball.connect(self.ikToe_ctrl.ry)
+            self.params.spin_tip.connect(self.ikTip_ctrl.ry)
+            for tarsi in range(self.guide.tarsi_segs - 1):
+                num = str(tarsi + 1).zfill(2)
+                attr = pm.general.Attribute('%s.spin_tarsi_%s' % (self.params.name(), num))
+                attr.connect(self.tarsiCtrls[tarsi].ry)
+
+            self.params.lean_heel.connect(self.ikHeel_ctrl.rx)
+            self.params.lean_ball.connect(self.ikToe_ctrl.rx)
+            self.params.lean_tip.connect(self.ikTip_ctrl.rx)
+            for tarsi in range(self.guide.tarsi_segs - 1):
+                num = str(tarsi + 1).zfill(2)
+                attr = pm.general.Attribute('%s.lean_tarsi_%s' % (self.params.name(), num))
+                attr.connect(self.tarsiCtrls[tarsi].rx)
+                
+                
         # Ik foot side roll system
         buffer = self.ikBall_ctrl.getParent()
         sideRollNeg = mathOps.multiplyAngleByScalar(self.ikBall_ctrl.rx, -1, name=self.getName('ik_sideRoll_invert'))
         sideRollNeg.output.connect(buffer.rx)
         inner, outer = self.ikInner_srt, self.ikOuter_srt
-        if self.invert:
+        if not self.invert:
             outer, inner = self.ikInner_srt, self.ikOuter_srt
 
         pm.transformLimits(inner, rx=(0, 1000), erx=(1, 0))
@@ -228,6 +263,10 @@ class TReverseFoot(components.TBaseComponent):
 
         for mtx in self.blendMtxList:
             self.params.ikfk_blend.connect(mtx.target[0].weight)
+
+        # Attach params shape to end srt
+        pm.cluster(icon.getShapes(self.params), wn=[self.base_srt, self.base_srt],
+                   name=self.getName('params_cluster'))
 
     def finish(self):
         self.setColours(self.guide)

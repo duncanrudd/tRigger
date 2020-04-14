@@ -131,6 +131,7 @@ def proxyAttribute(sourceAttr, node, alias=None):
     Returns:
         (pm.general.Attribute) The proxied attribute
     '''
+    return None
     attrName=alias
     if attrName is None:
         attrName=str(sourceAttr).split('.')[1]

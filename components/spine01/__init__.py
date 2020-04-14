@@ -1,5 +1,5 @@
 from tRigger import components
-from tRigger.core import attribute, dag, mathOps, transform, curve, anim
+from tRigger.core import attribute, dag, mathOps, transform, curve, anim, icon
 reload(components)
 reload(mathOps)
 reload(curve)
@@ -274,6 +274,10 @@ class TSpine01(components.TBaseComponent):
             bulgeSum.output1D.connect(div.sx)
             bulgeSum.output1D.connect(div.sz)
             dm.outputScaleY.connect(div.sy)
+
+        # Attach params shape to end srt
+        pm.cluster(icon.getShapes(self.params), wn=[self.base_srt, self.base_srt],
+                   name=self.getName('params_cluster'))
 
     def finish(self):
         self.setColours(self.guide)

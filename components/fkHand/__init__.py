@@ -147,6 +147,10 @@ class TFkHand(components.TBaseComponent):
         self.params.hand_scale.connect(self.base_srt.sz)
         self.params.hand_scale.connect(self.base_srt.sy)
 
+        # Attach params shape to end srt
+        pm.cluster(icon.getShapes(self.params), wn=[self.base_srt, self.base_srt],
+                   name=self.getName('params_cluster'))
+
 
 
     def finish(self):

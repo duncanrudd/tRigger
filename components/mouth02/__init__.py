@@ -1,5 +1,5 @@
 from tRigger import components
-from tRigger.core import attribute, dag, mathOps, transform, curve, anim
+from tRigger.core import attribute, dag, mathOps, transform, curve, anim, icon
 import math
 reload(components)
 reload(mathOps)
@@ -553,6 +553,10 @@ class TMouth02(components.TBaseComponent):
 
         for index in range(1, len(self.lowerDivs)+1):
             _driveDiv(self.lowerDivs[index-1], self.lowerAlignDivs[index-1], index, prefix='lower')
+
+        # Attach params shape to end srt
+        pm.cluster(icon.getShapes(self.params), wn=[self.base_srt, self.base_srt],
+                   name=self.getName('params_cluster'))
 
 
 

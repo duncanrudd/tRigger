@@ -248,7 +248,7 @@ def triWestIcon(size=20, name='', colour=None):
 def gearIcon(size=10, name='', colour=None):
     radius = size*0.5
     points = []
-    teeth = 10
+    teeth = 5
     step = 6.2832 / teeth
     for i in range(teeth):
         angle = i * step

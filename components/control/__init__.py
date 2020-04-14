@@ -43,6 +43,10 @@ class TControl(components.TBaseComponent):
             self.mapJointToGuideLocs(j, guide.locs[-1])
         components.TBaseComponent.addObjects(self, guide)
 
+        # Attach params shape to end srt
+        pm.cluster(icon.getShapes(self.params), wn=[self.controls_list[-1], self.controls_list[-1]],
+                   name=self.getName('params_cluster'))
+
     def finish(self):
         self.setColours(self.guide)
 

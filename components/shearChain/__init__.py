@@ -146,6 +146,10 @@ class TShearChain(components.TBaseComponent):
             baseMtx2Srt.outputScale.connect(self.inSrts[index].s)
             baseMtx2Srt.outputScale.connect(self.outSrts[index].s)
 
+        # Attach params shape to end srt
+        pm.cluster(icon.getShapes(self.params), wn=[self.base_srt, self.base_srt],
+                   name=self.getName('params_cluster'))
+
 
 
     def finish(self):
