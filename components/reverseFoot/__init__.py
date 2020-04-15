@@ -161,6 +161,10 @@ class TReverseFoot(components.TBaseComponent):
                     out_mtx = mathOps.multiplyMatrices([negMtx.outputMatrix, driver.worldMatrix[0]],
                                                        name=self.getName('out_%s_mtx' % num))
                     out_mtx.matrixSum.connect(out_srt.offsetParentMatrix)
+
+                    # Add mapping connection to control - used when mapping controller tags
+                    self.mapToControl(self.controls_list[-1], out_srt)
+
                     driver = out_srt
                 self.joints_list.append({'joint': j, 'driver': driver})
                 self.mapJointToGuideLocs(j, guide.locs[len(guide.locs)-(i+1)])
@@ -230,7 +234,7 @@ class TReverseFoot(components.TBaseComponent):
                 attr.connect(self.tarsiCtrls[tarsi].ry)
 
             self.params.lean_heel.connect(self.ikHeel_ctrl.rx)
-            self.params.lean_ball.connect(self.ikToe_ctrl.rx)
+            self.params.lean_edge.connect(self.ikToe_ctrl.rx)
             self.params.lean_tip.connect(self.ikTip_ctrl.rx)
             for tarsi in range(self.guide.tarsi_segs - 1):
                 num = str(tarsi + 1).zfill(2)
@@ -264,9 +268,11 @@ class TReverseFoot(components.TBaseComponent):
         for mtx in self.blendMtxList:
             self.params.ikfk_blend.connect(mtx.target[0].weight)
 
-        # Attach params shape to end srt
-        pm.cluster(icon.getShapes(self.params), wn=[self.base_srt, self.base_srt],
-                   name=self.getName('params_cluster'))
+        # Attach params shape to base srt
+        tempJoint = pm.createNode('joint')
+        skn = pm.skinCluster(tempJoint, self.params)
+        pm.skinCluster(skn, e=1, ai=self.base_srt, lw=1, wt=1)
+        pm.delete(tempJoint)
 
     def finish(self):
         self.setColours(self.guide)
@@ -277,6 +283,9 @@ class TReverseFoot(components.TBaseComponent):
         # --------------------------------------------------
         # Set lock / hide properties on controls attrs
         # --------------------------------------------------
+        nodes = [node for node in self.fkCtrls]
+        attribute.channelControl(nodeList=nodes, attrList=['rotateOrder'], keyable=1, lock=0)
+
         nodeList = self.controls_list
         attrList = ['visibility']
         attribute.channelControl(nodeList=nodeList, attrList=attrList)

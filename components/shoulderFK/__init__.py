@@ -46,6 +46,9 @@ class TShoulderFK(components.TBaseComponent):
             self.fk_out = dag.addChild(self.rig, 'group', name=self.getName('fk_out_srt'))
             self.fk_out.offsetParentMatrix.set(xform)
             self.mapToGuideLocs(self.fk_out, guide.locs[0])
+
+            # Add mapping connection to control - used when mapping controller tags
+            self.copyGuideMapping(self.fk_ctrl, self.fk_out)
         else:
             self.mapToGuideLocs(self.controls_list[1], guide.locs[0])
 
@@ -60,6 +63,8 @@ class TShoulderFK(components.TBaseComponent):
         if self.comp_side == 'R':
             self.mapToGuideLocs(self.orbit_out, guide.locs[2])
             self.copyGuideMapping(self.orbit_out, self.orbit_ctrl)
+            # Add mapping connection to control - used when mapping controller tags
+            self.mapToControl(self.orbit_ctrl, self.orbit_out)
         else:
             self.mapToGuideLocs(self.controls_list[2], guide.locs[2])
 
@@ -89,9 +94,11 @@ class TShoulderFK(components.TBaseComponent):
         # ---------------------------------
         self.spaces['%s' % (self.orbit_ctrl.name())] = 'clavicle: %s.worldMatrix[0]' % self.fk_ctrl.name()
 
-        # Attach params shape to end srt
-        pm.cluster(icon.getShapes(self.params), wn=[self.base_srt, self.base_srt],
-                   name=self.getName('params_cluster'))
+        # Attach params shape to base srt
+        tempJoint = pm.createNode('joint')
+        skn = pm.skinCluster(tempJoint, self.params)
+        pm.skinCluster(skn, e=1, ai=self.base_srt, lw=1, wt=1)
+        pm.delete(tempJoint)
 
     def finish(self):
         self.setColours(self.guide)
@@ -100,8 +107,8 @@ class TShoulderFK(components.TBaseComponent):
         attrList = ['visibility']
         attribute.channelControl(nodeList=nodeList, attrList=attrList)
 
-        nodeList = self.controls_list
-        attribute.channelControl(nodeList=nodeList, attrList=['rotateOrder'], keyable=1, lock=0)
+        nodes = [node for node in self.controls_list if not node == self.params]
+        attribute.channelControl(nodeList=nodes, attrList=['rotateOrder'], keyable=1, lock=0)
 
         spaceAttrs = [attr for attr in ['orbit_ctrl_parent_space', 'orbit_ctrl_translate_space',
                                         'orbit_ctrl_rotate_space'] if pm.hasAttr(self.params, attr)]

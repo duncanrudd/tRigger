@@ -184,6 +184,8 @@ class TArmIkFk(components.TBaseComponent):
                         [self.result_end, guide.locs[2]]]
         for pair in mappingPairs:
             self.mapToGuideLocs(pair[0], pair[1])
+        # Add mapping connection to control - used when mapping controller tags
+        self.mapToControl(self.mid_ctrl, self.result_end)
 
         # -----------------------------------------
         # Twist segments
@@ -230,7 +232,7 @@ class TArmIkFk(components.TBaseComponent):
             self.upper_sleeve_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.25,
                                                   name=self.getName('upper_sleeve'),
                                                   xform=self.result_start.worldMatrix[0].get(),
-                                                  parent=self.controls)
+                                                  parent=self.controls, metaParent=self.base_srt)
             self.result_start.worldMatrix[0].connect(self.upper_sleeve_ctrl.offsetParentMatrix)
             self.upperSleeve_mps = curve.nodesAlongCurve(self.upper_startBend_ctrl.worldMatrix[0],
                                                          self.upper_endBend_ctrl.worldMatrix[0],
@@ -252,7 +254,7 @@ class TArmIkFk(components.TBaseComponent):
                 self.lower_sleeve_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.25,
                                                       name=self.getName('lower_sleeve'),
                                                       xform=self.mid_ctrl.worldMatrix[0].get(),
-                                                      parent=self.upper_sleeve_ctrl)
+                                                      parent=self.upper_sleeve_ctrl, metaParent=self.upper_sleeve_ctrl)
                 self.lowerSleeve_mps = curve.nodesAlongCurve(self.upperSleeveDivs[-1].worldMatrix[0],
                                                              self.lower_endBend_ctrl.worldMatrix[0],
                                                              guide.num_divisions, self.lower_crv,
@@ -289,7 +291,7 @@ class TArmIkFk(components.TBaseComponent):
             self.lower_sleeve_ctrl = self.addCtrl(shape='circlePoint', size=ctrlSize*.25,
                                                   name=self.getName('lower_sleeve'),
                                                   xform=self.result_midTip.worldMatrix[0].get(),
-                                                  parent=self.controls)
+                                                  parent=self.controls, metaParent=self.base_srt)
             self.result_midTip.worldMatrix[0].connect(self.lower_sleeve_ctrl.offsetParentMatrix)
             self.lowerSleeve_mps = curve.nodesAlongCurve(self.lower_endBend_ctrl.worldMatrix[0],
                                                          self.lower_startBend_ctrl.worldMatrix[0],
@@ -955,8 +957,10 @@ class TArmIkFk(components.TBaseComponent):
         self.spaces['%s' % (self.pole_ctrl.name())] = 'limb_average: %s.matrixSum' % base_mtx.name()
 
         # Attach params shape to end srt
-        pm.cluster(icon.getShapes(self.params), wn=[self.result_end, self.result_end],
-                   name=self.getName('params_cluster'))
+        tempJoint = pm.createNode('joint')
+        skn = pm.skinCluster(tempJoint, self.params)
+        pm.skinCluster(skn, e=1, ai=self.result_end_avg, lw=1, wt=1)
+        pm.delete(tempJoint)
 
     def finish(self):
         # --------------------------------------------------
@@ -989,8 +993,8 @@ class TArmIkFk(components.TBaseComponent):
         for attr in attrList:
             attribute.proxyAttribute(attr, self.mid_ctrl)
         # pm.setAttr(self.mid_ctrl.show_bendy_ctrls, k=0, cb=1)
-        if not self.guide.sleeve == 0:
-            pm.setAttr(self.mid_ctrl.show_sleeve_ctrls, k=0, cb=1)
+        # if not self.guide.sleeve == 0:
+            # pm.setAttr(self.mid_ctrl.show_sleeve_ctrls, k=0, cb=1)
 
 # --------------------------------------------------
         # Set lock / hide properties on controls attrs
@@ -999,7 +1003,7 @@ class TArmIkFk(components.TBaseComponent):
         attrList = ['sx', 'sy', 'sz', 'visibility']
         attribute.channelControl(nodeList=nodeList, attrList=attrList)
 
-        nodeList = [node for node in self.controls_list if not node == self.pole_ctrl]
+        nodeList = [node for node in self.controls_list if node not in [self.pole_ctrl, self.params]]
         attribute.channelControl(nodeList=nodeList, attrList=['rotateOrder'], keyable=1, lock=0)
 
         nodeList = [self.upper_startBend_ctrl, self.lower_endBend_ctrl]

@@ -34,6 +34,8 @@ class TControl(components.TBaseComponent):
             xform.matrixSum.connect(self.out_srt.offsetParentMatrix)
             self.mapToGuideLocs(self.out_srt, guide.locs[-1])
             driver = self.out_srt
+            # Add mapping connection to control - used when mapping controller tags
+            self.mapToControl(self.controls_list[-1], self.out_srt)
         else:
             self.mapToGuideLocs(self.controls_list[-1], guide.locs[-1])
 
@@ -43,14 +45,17 @@ class TControl(components.TBaseComponent):
             self.mapJointToGuideLocs(j, guide.locs[-1])
         components.TBaseComponent.addObjects(self, guide)
 
-        # Attach params shape to end srt
-        pm.cluster(icon.getShapes(self.params), wn=[self.controls_list[-1], self.controls_list[-1]],
-                   name=self.getName('params_cluster'))
+        # Attach params shape to last control
+        tempJoint = pm.createNode('joint')
+        skn = pm.skinCluster(tempJoint, self.params)
+        pm.skinCluster(skn, e=1, ai=self.controls_list[-1], lw=1, wt=1)
+        pm.delete(tempJoint)
 
     def finish(self):
         self.setColours(self.guide)
 
-        attribute.channelControl(nodeList=self.controls_list, attrList=['rotateOrder'], keyable=1, lock=0)
+        nodes = [node for node in self.controls_list if not node == self.params]
+        attribute.channelControl(nodeList=nodes, attrList=['rotateOrder'], keyable=1, lock=0)
 
         ctrlName = '_' + '_'.join(self.controls_list[-1].name().split('_')[-2:])
 

@@ -146,12 +146,16 @@ class TArc(components.TBaseComponent):
             twistSum.output.connect(mp.frontTwist)
 
         # Attach params shape to mid ctrl
-        pm.cluster(icon.getShapes(self.params), wn=[self.mid_ctrl, self.mid_ctrl], name=self.getName('params_cluster'))
+        tempJoint = pm.createNode('joint')
+        skn = pm.skinCluster(tempJoint, self.params)
+        pm.skinCluster(skn, e=1, ai=self.mid_ctrl, lw=1, wt=1)
+        pm.delete(tempJoint)
 
     def finish(self):
         self.setColours(self.guide)
 
-        attribute.channelControl(nodeList=self.controls_list, attrList=['rotateOrder'], keyable=1, lock=0)
+        nodes = [node for node in self.controls_list if not node == self.params]
+        attribute.channelControl(nodeList=nodes, attrList=['rotateOrder'], keyable=1, lock=0)
 
         attrList = ['visibility', 'sx', 'sy', 'sz']
         attribute.channelControl(nodeList=self.controls_list, attrList=attrList)

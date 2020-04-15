@@ -263,12 +263,17 @@ class TFkIkChain(components.TBaseComponent):
         # Manually add it
         self.controls_list.append(self.ik_end_ctrl)
 
-        # Attach params shape to end srt
-        pm.cluster(icon.getShapes(self.params), wn=[self.base_srt, self.base_srt],
-                   name=self.getName('params_cluster'))
+        # Attach params shape to base srt
+        tempJoint = pm.createNode('joint')
+        skn = pm.skinCluster(tempJoint, self.params)
+        pm.skinCluster(skn, e=1, ai=self.base_srt, lw=1, wt=1)
+        pm.delete(tempJoint)
 
     def finish(self):
         self.setColours(self.guide)
+
+        nodes = [node for node in self.controls_list if node not in [self.params, self.ik_mid_ctrl]]
+        attribute.channelControl(nodeList=nodes, attrList=['rotateOrder'], keyable=1, lock=0)
         
         spaceAttrs = [attr for attr in ['ik_end_buffer_srt_parent_space', 'ik_end_buffer_srt_translate_space',
                                         'ik_end_buffer_srt_rotate_space', 'aim'] if pm.hasAttr(self.params, attr)]

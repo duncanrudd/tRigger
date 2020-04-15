@@ -283,9 +283,11 @@ class TEyelid(components.TBaseComponent):
         # ---------------------------------
         # self.spaces['%s' % (self.aimCtrl.name())] = 'eye: %s.worldMatrix[0]' % self.ctrl.name()
 
-        # Attach params shape to end srt
-        pm.cluster(icon.getShapes(self.params), wn=[self.eyeball_ctrl, self.eyeball_ctrl],
-                   name=self.getName('params_cluster'))
+        # Attach params shape to eyeball_ctrl
+        tempJoint = pm.createNode('joint')
+        skn = pm.skinCluster(tempJoint, self.params)
+        pm.skinCluster(skn, e=1, ai=self.eyeball_ctrl, lw=1, wt=1)
+        pm.delete(tempJoint)
 
     def finish(self):
         self.setColours(self.guide)

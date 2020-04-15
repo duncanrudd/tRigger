@@ -275,9 +275,11 @@ class TSpine01(components.TBaseComponent):
             bulgeSum.output1D.connect(div.sz)
             dm.outputScaleY.connect(div.sy)
 
-        # Attach params shape to end srt
-        pm.cluster(icon.getShapes(self.params), wn=[self.base_srt, self.base_srt],
-                   name=self.getName('params_cluster'))
+        # Attach params shape to base srt
+        tempJoint = pm.createNode('joint')
+        skn = pm.skinCluster(tempJoint, self.params)
+        pm.skinCluster(skn, e=1, ai=self.base_srt, lw=1, wt=1)
+        pm.delete(tempJoint)
 
     def finish(self):
         self.setColours(self.guide)

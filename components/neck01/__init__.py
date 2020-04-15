@@ -346,14 +346,16 @@ class TNeck01(components.TBaseComponent):
         self.spaces['%s' % (self.ik_end_ctrl.getParent().name())] =\
             'neck_base: %s.worldMatrix[0], neck_tip: %s.worldMatrix[0]' % (self.fk_ctrls[0].name(), self.fk_tip.name())
 
-        # Attach params shape to end srt
-        pm.cluster(icon.getShapes(self.params), wn=[self.ik_end_ctrl, self.ik_end_ctrl],
-                   name=self.getName('params_cluster'))
+        # Attach params shape to ik end ctrl
+        tempJoint = pm.createNode('joint')
+        skn = pm.skinCluster(tempJoint, self.params)
+        pm.skinCluster(skn, e=1, ai=self.ik_end_ctrl, lw=1, wt=1)
+        pm.delete(tempJoint)
 
     def finish(self):
         self.setColours(self.guide)
 
-        nodeList = [node for node in self.controls_list if not node == self.ik_mid_ctrl]
+        nodeList = [node for node in self.controls_list if node not in [self.params, self.ik_mid_ctrl]]
         attribute.channelControl(nodeList=nodeList, attrList=['rotateOrder'], keyable=1, lock=0)
         
         spaceAttrs = [attr for attr in ['ik_end_buffer_srt_parent_space', 'ik_end_buffer_srt_translate_space',

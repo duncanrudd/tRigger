@@ -16,6 +16,7 @@ class TGuide(object):
         attribute.addColourAttr(self.root, 'centre_colour')
         attribute.addColourAttr(self.root, 'left_colour')
         attribute.addColourAttr(self.root, 'right_colour')
+        attribute.addStringAttr(self.root, 'custom_step_file')
 
 class TGuideBaseComponent(object):
     def __init__(self, name, guideType, side='C', index='0', fromDagNode=0):

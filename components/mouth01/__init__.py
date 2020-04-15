@@ -615,9 +615,11 @@ class TMouth01(components.TBaseComponent):
         for index in range(1, len(self.lowerDivs)+1):
             _driveDiv(self.lowerDivs[index-1], self.lowerAlignDivs[index-1], index, prefix='lower')
 
-        # Attach params shape to end srt
-        pm.cluster(icon.getShapes(self.params), wn=[self.base_srt, self.base_srt],
-                   name=self.getName('params_cluster'))
+        # Attach params shape to base srt
+        tempJoint = pm.createNode('joint')
+        skn = pm.skinCluster(tempJoint, self.params)
+        pm.skinCluster(skn, e=1, ai=self.base_srt, lw=1, wt=1)
+        pm.delete(tempJoint)
 
 
 

@@ -1,5 +1,5 @@
 import pymel.core as pm
-import os
+import os, sys, json
 import tRigger.components as tComponents
 from tRigger.core import transform, attribute
 reload(attribute)
@@ -106,6 +106,32 @@ def buildFromGuide(guideRoot=None, buildLevel='objects'):
         return 'Please supply a valid TGuide root node'
     guideDict = compileGuide(guideRoot)
 
+    # Check for customSteps
+    customStepDict = None
+    if guideRoot.hasAttr('custom_step_file'):
+        if os.path.isfile(guideRoot.custom_step_file.get()):
+            with open(guideRoot.custom_step_file.get()) as json_file:
+                customStepDict = json.load(json_file)
+
+    # Pre build scripts
+    if customStepDict:
+        cleanUpPath = 0
+        thePath = customStepDict['pre_scripts']['path']
+        if not thePath in sys.path:
+            cleanUpPath = 1
+            sys.path.append(thePath)
+
+        for step in customStepDict['pre_scripts']['scripts']:
+            evalString = 'import %s as tempStep' % step
+            exec(evalString)
+            reload(tempStep)
+            if 'runStep' in dir(tempStep):
+                tempStep.runStep()
+            else:
+                print 'No runStep method found in script: %s.py' % step
+        if cleanUpPath:
+            sys.path.remove(thePath)
+
     returnDict = {}
 
     buildDict = {'objects': 0, 'attributes': 1, 'systems': 2, 'connections': 3, 'deformers': 4, 'finish': 5}
@@ -150,6 +176,25 @@ def buildFromGuide(guideRoot=None, buildLevel='objects'):
     rObj.root.show_joints.connect(rObj.joints.visibility)
     rObj.geo.overrideDisplayType.set(2)
     rObj.root.lock_geo.connect(rObj.geo.overrideEnabled)
+
+    # Post build scripts
+    if customStepDict:
+        cleanUpPath = 0
+        thePath = customStepDict['post_scripts']['path']
+        if not thePath in sys.path:
+            cleanUpPath = 1
+            sys.path.append(thePath)
+
+        for step in customStepDict['post_scripts']['scripts']:
+            evalString = 'import %s as tempStep' % step
+            exec(evalString)
+            reload(tempStep)
+            if 'runStep' in dir(tempStep):
+                tempStep.runStep(returnDict)
+            else:
+                print 'No runStep method found in script: %s.py' % step
+        if cleanUpPath:
+            sys.path.remove(thePath)
     return returnDict
 
 def duplicateGuide(guideRoot, includeChildGuides=0):

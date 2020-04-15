@@ -423,7 +423,20 @@ class TBaseComponent(object):
         attribute.addMessageAttr(dest, 'mapping_node')
         source.message.connect(dest.mapping_node)
 
+    def mapToControl(self, source, dest):
+        '''
+        Creates a message connection between two nodes so dest can access the control node mapped to source.
+        Used when parenting controller tags across component borders in the event that the child cmpnt is not parented
+        to a control node but to some ofther srt
+        Args:
+            source: (pm.PyNode) the node whose mapping we want to copy
+            dest: (pm.PyNode) the node to copy the mapping to
 
+        Returns:
+            None
+        '''
+        attribute.addMessageAttr(dest, 'control_node')
+        source.message.connect(dest.control_node)
 
     #----------------------------------------------------------------
     # BUILD ROUTINES
@@ -608,10 +621,13 @@ class TBaseComponent(object):
                 eldestControls = [control for control in controls if metadata.getMetaParent(control) == self.base_srt]
                 compObj = pm.PyNode('_'.join(parent.name().split('_')[:2]) + '_comp')
                 parentObj = rig[compObj.name()].guideToRigMapping[parent]
+                if pm.hasAttr(parentObj, 'control_node'):
+                    conns = pm.listConnections(parentObj.control_node)
+                    if conns:
+                        parentObj = conns[0]
                 for control in eldestControls:
                     if pm.hasAttr(parentObj, 'is_tControl'):
                         if parentObj.is_tControl.get():
-                            print 'Eldest control: %s\tParent control: %s' % (control.name(), parentObj.name())
                             metadata.parentConnect(parentObj, control)
 
     def finish(self):

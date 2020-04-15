@@ -51,9 +51,11 @@ class TFkChain(components.TBaseComponent):
                 driver = mtx.matrixSum
             driver.connect(self.srts[index].offsetParentMatrix)
 
-        # Attach params shape to end srt
-        pm.cluster(icon.getShapes(self.params), wn=[self.base_srt, self.base_srt],
-                   name=self.getName('params_cluster'))
+        # Attach params shape to base srt
+        tempJoint = pm.createNode('joint')
+        skn = pm.skinCluster(tempJoint, self.params)
+        pm.skinCluster(skn, e=1, ai=self.base_srt, lw=1, wt=1)
+        pm.delete(tempJoint)
 
     def finish(self):
         self.setColours(self.guide)
@@ -61,6 +63,8 @@ class TFkChain(components.TBaseComponent):
         # --------------------------------------------------
         # Set lock / hide properties on controls attrs
         # --------------------------------------------------
+        nodes = [node for node in self.controls_list if not node == self.params]
+        attribute.channelControl(nodeList=nodes, attrList=['rotateOrder'], keyable=1, lock=0)
         nodeList = self.controls_list
         attrList = ['visibility']
         attribute.channelControl(nodeList=nodeList, attrList=attrList)
