@@ -205,6 +205,8 @@ class TBaseComponent(object):
         Returns: None
 
         '''
+        if not self.params.hasAttr('SPACE_SWITCHING_________'):
+            attribute.addDividerAttr(self.params, 'SPACE_SWITCHING')
         def _getOffset(input):
             if input.name().endswith('_mtx'):
                 suffix = input.name().split('.')[1].replace('_mtx', '')
@@ -259,6 +261,8 @@ class TBaseComponent(object):
         Returns: None
 
         '''
+        if not self.params.hasAttr('SPACE_SWITCHING_________'):
+            attribute.addDividerAttr(self.params, 'SPACE_SWITCHING')
         name = '_'.join(node.name().split('_')[2:])
         if name[0].lower() in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
             name = '_%s' % name

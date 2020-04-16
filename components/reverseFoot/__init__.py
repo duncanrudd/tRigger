@@ -226,7 +226,7 @@ class TReverseFoot(components.TBaseComponent):
                 attr.connect(self.tarsiCtrls[tarsi].rz)
 
             self.params.spin_heel.connect(self.ikHeel_ctrl.ry)
-            self.params.spin_ball.connect(self.ikToe_ctrl.ry)
+            self.params.spin_ball.connect(self.ikBall_ctrl.ry)
             self.params.spin_tip.connect(self.ikTip_ctrl.ry)
             for tarsi in range(self.guide.tarsi_segs - 1):
                 num = str(tarsi + 1).zfill(2)
@@ -234,7 +234,7 @@ class TReverseFoot(components.TBaseComponent):
                 attr.connect(self.tarsiCtrls[tarsi].ry)
 
             self.params.lean_heel.connect(self.ikHeel_ctrl.rx)
-            self.params.lean_edge.connect(self.ikToe_ctrl.rx)
+            self.params.lean_edge.connect(self.ikBall_ctrl.rx)
             self.params.lean_tip.connect(self.ikTip_ctrl.rx)
             for tarsi in range(self.guide.tarsi_segs - 1):
                 num = str(tarsi + 1).zfill(2)

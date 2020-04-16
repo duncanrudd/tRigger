@@ -621,6 +621,35 @@ class TMouth01(components.TBaseComponent):
         pm.skinCluster(skn, e=1, ai=self.base_srt, lw=1, wt=1)
         pm.delete(tempJoint)
 
+    def setColours(self):
+        '''
+        Sets the drawing override settings on controls and the outliner colour for the component root
+        Returns:
+            None
+        '''
+        colour = pm.Attribute('guide.centre_colour').get()
+        if self.comp_side == 'R':
+            colour = pm.Attribute('guide.right_colour').get()
+        elif self.comp_side == 'L':
+            colour = pm.Attribute('guide.left_colour').get()
+        dag.setOutlinerColour(self.root, colour)
+
+        for index, node in enumerate(self.upper_ctrls):
+            colour = pm.Attribute('guide.centre_colour').get()
+            if index < len(self.upper_ctrls)/2:
+                colour = pm.Attribute('guide.right_colour').get()
+            elif index > (len(self.upper_ctrls)/2):
+                colour = pm.Attribute('guide.left_colour').get()
+            icon.setColourRGB(node, colour)
+
+        for index, node in enumerate(self.lower_ctrls):
+            colour = pm.Attribute('guide.centre_colour').get()
+            if index < len(self.lower_ctrls)/2:
+                colour = pm.Attribute('guide.right_colour').get()
+            elif index > (len(self.lower_ctrls)/2):
+                colour = pm.Attribute('guide.left_colour').get()
+            icon.setColourRGB(node, colour)
+
 
 
     def finish(self):

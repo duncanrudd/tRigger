@@ -55,11 +55,11 @@ class TMouth02(components.TBaseComponent):
             xform = loc.worldMatrix[0].get()
             if index < len(upperLocs)/2:
                 xform = mathOps.getInverseHandedMatrix(xform)
-            shape='triNorth'
+            shape = 'triNorth'
             if loc == upperLocs[0]:
-                shape='triWest'
+                shape = 'triWest'
             elif loc == upperLocs[-1]:
-                shape='triWest'
+                shape = 'triWest'
             ctrl = self.addCtrl(shape=shape, size=ctrlSize, name=self.getName('upper_%s' % num),
                                 xform=xform, parent=self.controls, metaParent=self.base_srt, buffer=1)
             self.upper_ctrls.append(ctrl)
@@ -311,7 +311,7 @@ class TMouth02(components.TBaseComponent):
             # Find distance from start and end
             startDist = mathOps.multiply(startSealRange.output1D, params[index+1],
                                          name=self.getName('seal_start_%s_dist' % num))
-            endDist = mathOps.reverse(startDist.output)
+            endDist = mathOps.reverse(startDist.output, name=self.getName('seal_end_%s_dist' % num))
 
             startRange = mathOps.addScalar([startDist.output, self.params.seal_falloff],
                                            name=self.getName('start_seal_%s_range' % num))
@@ -560,10 +560,40 @@ class TMouth02(components.TBaseComponent):
         pm.skinCluster(skn, e=1, ai=self.base_srt, lw=1, wt=1)
         pm.delete(tempJoint)
 
+    def setColours(self):
+        '''
+        Sets the drawing override settings on controls and the outliner colour for the component root
+        Returns:
+            None
+        '''
+        colour = pm.Attribute('guide.centre_colour').get()
+        if self.comp_side == 'R':
+            colour = pm.Attribute('guide.right_colour').get()
+        elif self.comp_side == 'L':
+            colour = pm.Attribute('guide.left_colour').get()
+        dag.setOutlinerColour(self.root, colour)
+        icon.setColourRGB(self.params, colour)
+
+        for index, node in enumerate(self.upper_ctrls):
+            colour = pm.Attribute('guide.centre_colour').get()
+            if index < len(self.upper_ctrls)/2:
+                colour = pm.Attribute('guide.right_colour').get()
+            elif index > (len(self.upper_ctrls)/2):
+                colour = pm.Attribute('guide.left_colour').get()
+            icon.setColourRGB(node, colour)
+
+        for index, node in enumerate(self.lower_ctrls):
+            colour = pm.Attribute('guide.centre_colour').get()
+            if index < len(self.lower_ctrls)/2:
+                colour = pm.Attribute('guide.right_colour').get()
+            elif index > (len(self.lower_ctrls)/2):
+                colour = pm.Attribute('guide.left_colour').get()
+            icon.setColourRGB(node, colour)
+
 
 
     def finish(self):
-        self.setColours(self.guide)
+        self.setColours()
 
         attrList = ['start_seal', 'seal_height', 'seal_falloff', 'preserve_volume',
                     'roll_start']

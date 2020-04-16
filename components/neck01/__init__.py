@@ -75,7 +75,7 @@ class TNeck01(components.TBaseComponent):
             blend = transform.blendMatrices(baseMtx, self.fk_ctrls[(len(self.fk_ctrls)/2)+1].worldMatrix[0],
                                             name=self.getName('ik_mid_pos_blend_mtx'))
             baseMtx = blend.outputMatrix
-        tipMtx2Srt = mathOps.decomposeMatrix(self.fk_tip.worldMatrix[0])
+        tipMtx2Srt = mathOps.decomposeMatrix(self.fk_tip.worldMatrix[0], name=self.getName('tip_mtx2Srt'))
         tipOffset = mathOps.subtractVector([d.outputTranslate, tipMtx2Srt.outputTranslate],
                                            name=self.getName('tip_offset_vec'))
         dist1 = mathOps.getDistance(baseMtx, self.ik_end_ctrl)

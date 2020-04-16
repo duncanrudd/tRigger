@@ -331,11 +331,36 @@ class TArmIkFk(components.TBaseComponent):
         components.TBaseComponent.addObjects(self, guide)
 
     def addAttributes(self):
+        attribute.addDividerAttr(self.params, 'IK')
         attribute.addFloatAttr(self.params, 'ikfk_blend', minValue=0, maxValue=1)
-        attribute.addFloatAttr(self.params, 'mid_twist', minValue=-1, maxValue=1)
+        attribute.addFloatAttr(self.params, 'stretch', minValue=0, maxValue=1)
+        attribute.addFloatAttr(self.params, 'softness', minValue=0, maxValue=1)
+        attribute.addFloatAttr(self.params, 'length', minValue=0, value=1)
+        attribute.addFloatAttr(self.params, 'pin_to_pole', minValue=0, maxValue=1)
+        attribute.addFloatAttr(self.params, 'mid_slide', minValue=-1, maxValue=1)
+
+        attribute.addDividerAttr(self.params, 'BENDY')
+        attribute.addFloatAttr(self.params, 'start_radius', minValue=.001, maxValue=1, value=.001)
+        attribute.addFloatAttr(self.params, 'start_roundness', minValue=.001, maxValue=1, value=1)
+        attribute.addFloatAttr(self.params, 'mid_roundness', minValue=0, maxValue=1)
+        attribute.addFloatAttr(self.params, 'mid_radius', minValue=.001, maxValue=1, value=.001)
+        attribute.addFloatAttr(self.params, 'end_radius', minValue=.001, maxValue=1, value=.001)
+        attribute.addFloatAttr(self.params, 'end_roundness', minValue=.001, maxValue=1, value=1)
+        attribute.addFloatAttr(self.params, 'chamfer', minValue=0, maxValue=1)
+        attribute.addBoolAttr(self.params, 'show_bendy_ctrls')
+        pm.setAttr(self.params.show_bendy_ctrls, k=0, cb=1)
+
+        attribute.addDividerAttr(self.params, 'TWIST')
         attribute.addFloatAttr(self.params, 'upper_twist', minValue=0, maxValue=1)
+        attribute.addFloatAttr(self.params, 'mid_twist', minValue=-1, maxValue=1)
         attribute.addFloatAttr(self.params, 'lower_twist', minValue=-1, maxValue=0)
+
+        attribute.addDividerAttr(self.params, 'VOLUME')
+        attribute.addFloatAttr(self.params, 'volume_preserve', minValue=0.0)
+        attribute.addFloatAttr(self.params, 'volume_falloff', minValue=0.0, maxValue=2.0)
+
         if self.guide.sleeve != 0:
+            attribute.addDividerAttr(self.params, 'SLEEVE')
             attribute.addBoolAttr(self.params, 'show_sleeve_ctrls')
             pm.setAttr(self.params.show_sleeve_ctrls, k=0, cb=1)
             attribute.addFloatAttr(self.params, 'sleeve_twist', minValue=0, maxValue=1)
@@ -344,22 +369,6 @@ class TArmIkFk(components.TBaseComponent):
                 attribute.addFloatAttr(self.params, 'upper_sleeve_pull', minValue=0, maxValue=1)
             else:
                 attribute.addFloatAttr(self.params, 'sleeve_pull', minValue=0, maxValue=1)
-        attribute.addFloatAttr(self.params, 'mid_slide', minValue=-1, maxValue=1)
-        attribute.addFloatAttr(self.params, 'stretch', minValue=0, maxValue=1)
-        attribute.addFloatAttr(self.params, 'pin_to_pole', minValue=0, maxValue=1)
-        attribute.addFloatAttr(self.params, 'softness', minValue=0, maxValue=1)
-        attribute.addFloatAttr(self.params, 'extend', minValue=0, value=1)
-        attribute.addFloatAttr(self.params, 'roundness', minValue=0, maxValue=1)
-        attribute.addFloatAttr(self.params, 'round_radius', minValue=.001, maxValue=1, value=.001)
-        attribute.addFloatAttr(self.params, 'chamfer', minValue=0, maxValue=1)
-        attribute.addFloatAttr(self.params, 'start_tangent', minValue=.001, maxValue=1, value=.001)
-        attribute.addFloatAttr(self.params, 'start_follow', minValue=.001, maxValue=1, value=1)
-        attribute.addFloatAttr(self.params, 'end_tangent', minValue=.001, maxValue=1, value=.001)
-        attribute.addFloatAttr(self.params, 'end_follow', minValue=.001, maxValue=1, value=1)
-        attribute.addFloatAttr(self.params, 'volume_preserve', minValue=0.0)
-        attribute.addFloatAttr(self.params, 'volume_falloff', minValue=0.0, maxValue=2.0)
-        attribute.addBoolAttr(self.params, 'show_bendy_ctrls')
-        pm.setAttr(self.params.show_bendy_ctrls, k=0, cb=1)
 
 
         # Call overloaded method of parent class
@@ -375,7 +384,7 @@ class TArmIkFk(components.TBaseComponent):
         if self.invert:
             axis = '-x'
             angle=(-1, 0, 0)
-        d = mathOps.decomposeMatrix(self.ik_displaced.worldMatrix[0])
+        d = mathOps.decomposeMatrix(self.ik_displaced.worldMatrix[0], name=self.getName('ik_displaced_mtx2Srt'))
         targToBaseVec = mathOps.createTransformedPoint(d.outputTranslate, self.base_srt.worldInverseMatrix[0],
                                                        name=self.getName('ik_targ_to_base_vec'))
         base_angle = mathOps.angleBetween(angle, targToBaseVec.output, name=self.getName('ik_base_angle'))
@@ -404,7 +413,7 @@ class TArmIkFk(components.TBaseComponent):
         chainLen = mathOps.addScalar([mathOps.getDistance(self.fk_start_ctrl, self.fk_mid_ctrl),
                                       mathOps.getDistance(self.fk_mid_ctrl, self.fk_end_ctrl)],
                                      name=self.getName('ik_chain_len'))
-        extendLen = mathOps.multiply(chainLen.output1D, self.params.extend, name=self.getName('ik_extend_len'))
+        extendLen = mathOps.multiply(chainLen.output1D, self.params.length, name=self.getName('ik_extend_len'))
 
         softLen = mathOps.multiply(extendLen.output, self.params.softness, name=self.getName('softLen'))
 
@@ -701,7 +710,7 @@ class TArmIkFk(components.TBaseComponent):
         startLocalMtx = pm.createNode('composeMatrix', name=self.getName('upper_start_tangent_local_mtx'))
         upperStartTangentLen = pm.createNode('animBlendNodeAdditive', name=self.getName('upper_start_tangent_len'))
         upperStartTangentLen.output.connect(startLocalMtx.inputTranslateX)
-        self.params.start_tangent.connect(upperStartTangentLen.weightA)
+        self.params.start_radius.connect(upperStartTangentLen.weightA)
         upperDistScaled.outputX.connect(upperStartTangentLen.inputA)
         startTargMtx = self.base_srt.worldMatrix[0]
         if self.invert:
@@ -712,7 +721,7 @@ class TArmIkFk(components.TBaseComponent):
                                                 name=self.getName('upper_start_aim_mtx'))
         startBlendMtx = transform.blendMatrices(startTargMtx, startAimMtx.outputMatrix,
                                                 name=self.getName('upper_start_blend_mtx'))
-        self.params.start_follow.connect(startBlendMtx.target[0].weight)
+        self.params.start_roundness.connect(startBlendMtx.target[0].weight)
 
         upperTwistMtx = mathOps.createComposeMatrix(name=self.getName('start_twist_mtx'))
         upperTwistMult = mathOps.multiplyAngleByScalar(rotX[1].outputRotateX, self.params.upper_twist,
@@ -731,7 +740,7 @@ class TArmIkFk(components.TBaseComponent):
         upperEndLocalMtx = pm.createNode('composeMatrix', name=self.getName('upper_end_tangent_local_mtx'))
         upperEndTangentLen = pm.createNode('animBlendNodeAdditive', name=self.getName('upper_end_tangent_len'))
         upperEndTangentLen.output.connect(upperEndLocalMtx.inputTranslateX)
-        self.params.round_radius.connect(upperEndTangentLen.weightA)
+        self.params.mid_radius.connect(upperEndTangentLen.weightA)
         upperDistInverse.output.connect(upperEndTangentLen.inputA)
 
         endAimMtx = transform.createAimMatrix(self.mid_ctrl.worldMatrix[0], self.base_srt.worldMatrix[0],
@@ -739,7 +748,7 @@ class TArmIkFk(components.TBaseComponent):
         endAimMtx.primaryInputAxis.set(-1, 0, 0)
         endBlendMtx = transform.blendMatrices(endAimMtx.outputMatrix, self.mid_ctrl.worldMatrix[0],
                                                 name=self.getName('upper_end_blend_mtx'))
-        self.params.roundness.connect(endBlendMtx.target[0].weight)
+        self.params.mid_roundness.connect(endBlendMtx.target[0].weight)
         endTangentMtx = mathOps.multiplyMatrices([upperEndLocalMtx.outputMatrix, endBlendMtx.outputMatrix],
                                                  name=self.getName('upper_end_tangent_mtx'))
         endTangentMtx.matrixSum.connect(self.upper_endBend_ctrl.offsetParentMatrix)
@@ -748,7 +757,7 @@ class TArmIkFk(components.TBaseComponent):
         dm.outputTranslate.connect(self.upper_crv.controlPoints[2])
         
         # LOWER
-        dm = mathOps.decomposeMatrix(self.mid_ctrl.worldMatrix[0])
+        dm = mathOps.decomposeMatrix(self.mid_ctrl.worldMatrix[0], name=self.getName('midCtrl_mtx2Srt'))
         dm.outputTranslate.connect(self.lower_crv.controlPoints[0])
         dm = mathOps.decomposeMatrix(result_end_mtx.outputMatrix, name=self.getName('result_end_mtx2Srt'))
         dm.outputTranslate.connect(self.lower_crv.controlPoints[3])
@@ -762,14 +771,14 @@ class TArmIkFk(components.TBaseComponent):
         lowerEndLocalMtx = pm.createNode('composeMatrix', name=self.getName('lower_end_tangent_local_mtx'))
         lowerEndTangentLen = pm.createNode('animBlendNodeAdditive', name=self.getName('lower_end_tangent_len'))
         lowerEndTangentLen.output.connect(lowerEndLocalMtx.inputTranslateX)
-        self.params.round_radius.connect(lowerEndTangentLen.weightA)
+        self.params.mid_radius.connect(lowerEndTangentLen.weightA)
         lowerDistScaled.outputX.connect(lowerEndTangentLen.inputA)
 
         lowerStartAimMtx = transform.createAimMatrix(self.mid_ctrl.worldMatrix[0], result_end_mtx.outputMatrix,
                                                      name=self.getName('lower_start_aim_mtx'))
         lowerStartBlendMtx = transform.blendMatrices(lowerStartAimMtx.outputMatrix, self.mid_ctrl.worldMatrix[0],
                                                      name=self.getName('lower_start_blend_mtx'))
-        self.params.roundness.connect(lowerStartBlendMtx.target[0].weight)
+        self.params.mid_roundness.connect(lowerStartBlendMtx.target[0].weight)
         lowerStartTangentMtx = mathOps.multiplyMatrices([lowerEndLocalMtx.outputMatrix,
                                                          lowerStartBlendMtx.outputMatrix],
                                                         name=self.getName('lower_start_tangent_mtx'))
@@ -782,7 +791,7 @@ class TArmIkFk(components.TBaseComponent):
         lowerEndLocalMtx = pm.createNode('composeMatrix', name=self.getName('lower_end_tangent_local_mtx'))
         lowerEndTangentLen = pm.createNode('animBlendNodeAdditive', name=self.getName('lower_end_tangent_len'))
         lowerEndTangentLen.output.connect(lowerEndLocalMtx.inputTranslateX)
-        self.params.end_tangent.connect(lowerEndTangentLen.weightA)
+        self.params.end_radius.connect(lowerEndTangentLen.weightA)
         lowerDistInverse.output.connect(lowerEndTangentLen.inputA)
         endTargMtx = self.result_end.worldMatrix[0]
         if self.invert:
@@ -794,7 +803,7 @@ class TArmIkFk(components.TBaseComponent):
         lowerEndAimMtx.primaryInputAxis.set((-1, 0, 0))
         lowerEndBlendMtx = transform.blendMatrices(endTargMtx, lowerEndAimMtx.outputMatrix,
                                                    name=self.getName('lower_end_blend_mtx'))
-        self.params.end_follow.connect(lowerEndBlendMtx.target[0].weight)
+        self.params.end_roundness.connect(lowerEndBlendMtx.target[0].weight)
 
         lowerTwistSum = mathOps.addAngles(startTwistMtx2Srt.outputRotateX, rotX[1].outputRotateX,
                                           name=self.getName('lower_twist_sum'))
@@ -981,8 +990,8 @@ class TArmIkFk(components.TBaseComponent):
             attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.pole_ctrl)
 
         attrList = [self.params.ikfk_blend, self.params.volume_preserve, self.params.volume_falloff,
-                    self.params.roundness, self.params.round_radius, self.params.start_tangent,
-                    self.params.start_follow, self.params.end_tangent, self.params.end_follow, self.params.chamfer,
+                    self.params.mid_roundness, self.params.mid_radius, self.params.start_radius,
+                    self.params.start_roundness, self.params.end_radius, self.params.end_roundness, self.params.chamfer,
                     self.params.upper_twist, self.params.lower_twist, self.params.mid_twist,
                     self.params.show_bendy_ctrls]
         if not self.guide.sleeve == 0:
