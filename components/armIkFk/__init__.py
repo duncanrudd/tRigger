@@ -719,7 +719,7 @@ class TArmIkFk(components.TBaseComponent):
                                                              name=self.getName('base_neg_mtx')).matrixSum
         startAimMtx = transform.createAimMatrix(startTargMtx, self.mid_ctrl.worldMatrix[0],
                                                 name=self.getName('upper_start_aim_mtx'))
-        startBlendMtx = transform.blendMatrices(startTargMtx, startAimMtx.outputMatrix,
+        startBlendMtx = transform.blendMatrices(startAimMtx.outputMatrix, startTargMtx,
                                                 name=self.getName('upper_start_blend_mtx'))
         self.params.start_roundness.connect(startBlendMtx.target[0].weight)
 
@@ -801,7 +801,7 @@ class TArmIkFk(components.TBaseComponent):
         lowerEndAimMtx = transform.createAimMatrix(endTargMtx, self.mid_ctrl.worldMatrix[0],
                                                    name=self.getName('lower_end_aim_mtx'))
         lowerEndAimMtx.primaryInputAxis.set((-1, 0, 0))
-        lowerEndBlendMtx = transform.blendMatrices(endTargMtx, lowerEndAimMtx.outputMatrix,
+        lowerEndBlendMtx = transform.blendMatrices(lowerEndAimMtx.outputMatrix, endTargMtx,
                                                    name=self.getName('lower_end_blend_mtx'))
         self.params.end_roundness.connect(lowerEndBlendMtx.target[0].weight)
 
