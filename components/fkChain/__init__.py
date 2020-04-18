@@ -42,7 +42,7 @@ class TFkChain(components.TBaseComponent):
         if self.invert:
             negMtx = mathOps.createComposeMatrix(inputScale=(-1, 1, 1), name=self.getName('neg_mtx'))
 
-        for index, ctrl in enumerate(self.controls_list):
+        for index, ctrl in enumerate(self.controls_list[1:]):
             driver = ctrl.worldMatrix[0]
             num = str(index+1).zfill(2)
             if self.invert:
