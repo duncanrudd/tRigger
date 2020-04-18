@@ -161,3 +161,23 @@ def createNearestPointOnCurve(crv, point, name=None):
         node.inPosition.set(point)
     crv.worldSpace[0].connect(node.inputCurve)
     return node
+
+def getNearestPointOnCurve(crv, point):
+    '''
+    Creates a temp nearestPointOnCurve node with the specified curve connected. Samples it's parameter value
+    and then deletes it
+    Args:
+        crv: (pm.PyNode(nurbsCurve)) the curve to get the nearest point on
+        point: (pm.general.Attribute) The position to use as input
+        name: (str) name of the newly created node
+    Returns:
+        (float) the parameter value of the nearest point on the curve
+    '''
+    node = pm.createNode('nearestPointOnCurve')
+    if type(point) == pm.PyNode:
+        point = pm.datatypes.Matrix(point.worldMatrix[0].get()).translate.get()
+    node.inPosition.set(point)
+    crv.worldSpace[0].connect(node.inputCurve)
+    param = node.result.parameter.get()
+    pm.delete(node)
+    return param

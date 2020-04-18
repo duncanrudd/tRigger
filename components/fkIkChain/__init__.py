@@ -296,6 +296,37 @@ class TFkIkChain(components.TBaseComponent):
         attrList = ['rx', 'rz']
         attribute.channelControl(nodeList=[self.ik_mid_ctrl], attrList=attrList)
 
+    def exposeCurvePointAsOutput(self, requestedFrom, name):
+        '''
+        Adds a transform to the component's rig group which is driven along the component's crv. An attribute is
+        added on the component's params ctrl to drive the parameter along the curve
+        Args:
+            requestedFrom: (pm.PyNode) The node that is requesting the output. The initial param value is based
+            on this node's nearest point to the curve.
+        Returns: (pm.general.Attribute) The newly created matrix attr
+        '''
+        initialParam = curve.getNearestPointOnCurve(self.crv, requestedFrom)
+        mp = curve.createMotionPathNode(self.crv, uValue=initialParam, frontAxis='x', upAxis='y', wut=1,
+                                        name=self.getName('%s_crvOutput_mp' % name))
+        railMp = curve.createMotionPathNode(self.railCrv, uValue=initialParam, follow=0,
+                                        name=self.getName('%s_crvOutput_railMp' % name))
+        railMtx = mathOps.createComposeMatrix(inTranslate=railMp.allCoordinates,
+                                              name=self.getName('%s_crvOutput_rail_mtx' % name))
+        railMtx.outputMatrix.connect(mp.worldUpMatrix)
+        out_srt = dag.addChild(self.rig, 'group', name=self.getName('%s_crvOutput_srt' % name))
+        if not self.params.hasAttr('CURVE_OUTPUTS___________'):
+            attribute.addDividerAttr(self.params, 'CURVE_OUTPUTS')
+        paramAttr = attribute.addFloatAttr(self.params, minValue=(0.0 - initialParam), maxValue=(1.0 - initialParam))
+        paramSum = mathOps.addScalar([paramAttr, initialParam], name=self.getName('%s_crvOutput_sum' % name))
+        paramSum.output1D.connect(mp.uValue)
+        paramSum.output1D.connect(railMp.uValue)
+        mp.allCoordinates.connect(out_srt.t)
+        mp.rotate.connect(out_srt.r)
+        d = mathOps.decomposeMatrix(self.base_srt)
+        d.outputScale.connect(out_srt.s)
+        return out_srt
+
+
 def build(guide):
     '''
     Called when rig is built from guide. This function should be in every component module.
