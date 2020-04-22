@@ -174,7 +174,7 @@ def getNearestPointOnCurve(crv, point):
         (float) the parameter value of the nearest point on the curve
     '''
     node = pm.createNode('nearestPointOnCurve')
-    if type(point) == pm.PyNode:
+    if type(point) == pm.nodetypes.Transform:
         point = pm.datatypes.Matrix(point.worldMatrix[0].get()).translate.get()
     node.inPosition.set(point)
     crv.worldSpace[0].connect(node.inputCurve)
