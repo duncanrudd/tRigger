@@ -592,7 +592,10 @@ def normalize(vector, name=''):
     node = pm.createNode('vectorProduct')
     if name:
         node.rename(name)
-    vector.connect(node.input1)
+    if type(vector) == pm.Attribute:
+        vector.connect(node.input1)
+    else:
+        node.input1.set(vector)
     node.normalizeOutput.set(1)
     node.operation.set(0)
 

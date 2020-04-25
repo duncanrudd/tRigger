@@ -20,6 +20,9 @@ class TControlArray(components.TBaseComponent):
         ctrlSize = max(.1, mathOps.getDistance(guide.locs[0], guide.locs[-1]))
         self.srts = []
         for loc in locs:
+            buffer = 0
+            if loc.hasAttr('buffer'):
+                buffer = loc.buffer.get()
             ctrlName = loc.ctrl_name.get()
             parentKey = guide.locDict[loc.name().split('_')[2]]['parent']
             if 'root' in parentKey:
@@ -31,7 +34,7 @@ class TControlArray(components.TBaseComponent):
             if self.invert:
                 xform = mathOps.getInverseHandedMatrix(xform)
             ctrl = self.addCtrl(shape='box', size=ctrlSize*.15,
-                                name=self.getName(ctrlName),
+                                name=self.getName(ctrlName), buffer=buffer,
                                 xform=xform, parent=parent, metaParent=parent)
             if loc.spaces.get():
                 ctrl.setParent(self.controls)
