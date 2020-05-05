@@ -367,6 +367,8 @@ class TArmIkFk(components.TBaseComponent):
             if self.guide.sleeve == 4:
                 attribute.addFloatAttr(self.params, 'lower_sleeve_pull', minValue=0, maxValue=1)
                 attribute.addFloatAttr(self.params, 'upper_sleeve_pull', minValue=0, maxValue=1)
+            elif self.guide.sleeve == 3:
+                attribute.addFloatAttr(self.params, 'lower_sleeve_pull', minValue=0, maxValue=1)
             else:
                 attribute.addFloatAttr(self.params, 'sleeve_pull', minValue=0, maxValue=1)
 
@@ -989,6 +991,7 @@ class TArmIkFk(components.TBaseComponent):
         for attr in spaceAttrs:
             attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.pole_ctrl)
 
+        '''
         attrList = [self.params.ikfk_blend, self.params.volume_preserve, self.params.volume_falloff,
                     self.params.mid_roundness, self.params.mid_radius, self.params.start_radius,
                     self.params.start_roundness, self.params.end_radius, self.params.end_roundness, self.params.chamfer,
@@ -1004,6 +1007,7 @@ class TArmIkFk(components.TBaseComponent):
         # pm.setAttr(self.mid_ctrl.show_bendy_ctrls, k=0, cb=1)
         # if not self.guide.sleeve == 0:
             # pm.setAttr(self.mid_ctrl.show_sleeve_ctrls, k=0, cb=1)
+        '''
 
 # --------------------------------------------------
         # Set lock / hide properties on controls attrs

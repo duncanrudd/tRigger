@@ -633,27 +633,28 @@ class TMouth01(components.TBaseComponent):
         elif self.comp_side == 'L':
             colour = pm.Attribute('guide.left_colour').get()
         dag.setOutlinerColour(self.root, colour)
+        icon.setColourRGB(self.params, colour)
 
         for index, node in enumerate(self.upper_ctrls):
             colour = pm.Attribute('guide.centre_colour').get()
-            if index < len(self.upper_ctrls)/2:
+            if index < len(self.upper_ctrls) / 2:
                 colour = pm.Attribute('guide.right_colour').get()
-            elif index > (len(self.upper_ctrls)/2):
+            elif index > (len(self.upper_ctrls) / 2):
                 colour = pm.Attribute('guide.left_colour').get()
             icon.setColourRGB(node, colour)
 
         for index, node in enumerate(self.lower_ctrls):
             colour = pm.Attribute('guide.centre_colour').get()
-            if index < len(self.lower_ctrls)/2:
+            if index < len(self.lower_ctrls) / 2:
                 colour = pm.Attribute('guide.right_colour').get()
-            elif index > (len(self.lower_ctrls)/2):
+            elif index > (len(self.lower_ctrls) / 2):
                 colour = pm.Attribute('guide.left_colour').get()
             icon.setColourRGB(node, colour)
 
 
 
     def finish(self):
-        self.setColours(self.guide)
+        self.setColours()
 
         attrList = ['start_seal', 'seal_height', 'seal_falloff', 'preserve_volume',
                     'roll_start']

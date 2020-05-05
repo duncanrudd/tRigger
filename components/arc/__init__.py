@@ -53,6 +53,12 @@ class TArc(components.TBaseComponent):
                 self.mapJointToGuideLocs(j, guide.root)
         components.TBaseComponent.addObjects(self, guide)
 
+        mappingPairs = [[self.start_ctrl, self.guide.locs[1]],
+                        [self.mid_ctrl, self.guide.locs[2]],
+                        [self.end_ctrl, self.guide.locs[3]]]
+        for pair in mappingPairs:
+            self.mapToGuideLocs(pair[0], pair[1])
+
     def addAttributes(self):
         attribute.addAngleAttr(self.params, 'start_twist')
         attribute.addAngleAttr(self.params, 'mid_twist')
