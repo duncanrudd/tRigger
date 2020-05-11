@@ -217,8 +217,14 @@ def blendMatrices(mtx1, mtx2, name=None, weight=0.5):
     node = pm.createNode('blendMatrix')
     if name:
         node.rename(name)
-    mtx1.connect(node.inputMatrix)
-    mtx2.connect(node.target[0].targetMatrix)
+    if type(mtx1) == pm.general.Attribute:
+        mtx1.connect(node.inputMatrix)
+    else:
+        node.inputMatrix.set(mtx1)
+    if type(mtx2) == pm.general.Attribute:
+        mtx2.connect(node.target[0].targetMatrix)
+    else:
+        node.target[0].targetMatrix.set(mtx2)
     node.target[0].weight.set(weight)
 
     return node
@@ -277,6 +283,20 @@ def list2Mtx(list):
     '''
     return pm.datatypes.Matrix((list[0], list[1], list[2]), (list[4], list[5], list[6]),
                                (list[8], list[9], list[10]), (list[12], list[13], list[14]))
+
+def mtx2List(mtx):
+    '''
+    Takes a pymel.datatypes.Matrix and turns it into a flat list which is serializable to json
+    Args:
+        mtx: (pm.datatypes.Matrix) the matrix to convert to a list
+
+    Returns:
+        (list) the list representing the matrix
+    '''
+    return [mtx[0][0], mtx[0][1], mtx[0][2], mtx[0][3],
+            mtx[1][0], mtx[1][1], mtx[1][2], mtx[1][3],
+            mtx[2][0], mtx[2][1], mtx[2][2], mtx[2][3],
+            mtx[3][0], mtx[3][1], mtx[3][2], mtx[3][3]]
 
 def invertRotateOrder(node, name=None):
     '''

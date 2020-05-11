@@ -389,6 +389,11 @@ class TNeck01(components.TBaseComponent):
         attrList = ['rx', 'rz']
         attribute.channelControl(nodeList=[self.ik_mid_ctrl], attrList=attrList)
 
+        if self.ik_end_ctrl not in self.controls_list:
+            self.controls_list.append(self.ik_end_ctrl)
+
+
+
     def exposeCurvePointAsOutput(self, requestedFrom, name, live=0):
         '''
         Adds a transform to the component's rig group which is driven along the component's crv. An attribute is

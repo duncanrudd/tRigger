@@ -41,6 +41,7 @@ class TControlArrayGuide(guide.TGuideBaseComponent):
             self.addSpaceSwitchAttr(loc)
             attribute.addStringAttr(loc, 'ctrl_name')
             attribute.addBoolAttr(loc, 'buffer')
+            attribute.addBoolAttr(loc, 'invert')
             for attr in animAttrList:
                 attribute.addBoolAttr(loc, 'enable_%s' % attr)
 

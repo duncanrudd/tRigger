@@ -393,6 +393,7 @@ class TBaseComponent(object):
         Returns:
             None
         '''
+        print 'Adding Control tags: %s' % self.controls_list
         for control in self.controls_list:
             parent = metadata.getMetaParent(control)
             tag = pm.controller(control)

@@ -1,5 +1,6 @@
 from tRigger import components
 from tRigger.core import attribute, transform, mathOps, dag, icon
+import math
 reload(components)
 
 import pymel.core as pm
@@ -31,7 +32,12 @@ class TControlArray(components.TBaseComponent):
                 parentName = [l for l in locs if parentKey in l.name()][0].ctrl_name.get()
                 parent = pm.PyNode(self.getName(parentName) + '_ctrl')
             xform = loc.worldMatrix[0].get()
-            if self.invert:
+            ctrlInvert = self.invert
+            try:
+                ctrlInvert = math.fabs(ctrlInvert - loc.invert.get())
+            except:
+                pass
+            if ctrlInvert:
                 xform = mathOps.getInverseHandedMatrix(xform)
             ctrl = self.addCtrl(shape='box', size=ctrlSize*.15,
                                 name=self.getName(ctrlName), buffer=buffer,

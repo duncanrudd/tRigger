@@ -8,7 +8,7 @@ reload(mathOps)
 reload(anim)
 
 class TPoseDisc(object):
-    def __init__(self, name, rig, host, ref, target, numPoses=4):
+    def __init__(self, name, rig, host, ref, target, numPoses=4, axis='x'):
         '''
         Ouputs a 0-1 value for each pose on the edge of an imaginary disc based on the angle between ref and target
         vectors.
@@ -52,7 +52,7 @@ class TPoseDisc(object):
             output.connect(input)
             refInput = mathOps.inverseMatrix(input, name=host.getName('%s_ref_inverse_mtx' % name)).outputMatrix
 
-        targetInput = ref.worldMatrix[0]
+        targetInput = target.worldMatrix[0]
         if not targetCmpnt == host:
             output = targetCmpnt.addOutput(target)
             targetInput = attribute.addMatrixAttr(host.input, '%s_target_in_mtx' % name)
@@ -63,32 +63,51 @@ class TPoseDisc(object):
 
         # Create heading point (nearest point on circle to target's [y, z] vector
         # or [0, 0] if ref and target are aligned
-        axisCheck = mathOps.getMatrixAxisAsVector(localTargetMtx.matrixSum, 'x')
+        axisCheck = mathOps.getMatrixAxisAsVector(localTargetMtx.matrixSum, axis.lower())
         targ = (1, 0, 0)
-        if axisCheck[0] < 0.0:
-            targ = (-1, 0, 0)
+        axisIndex = 0
+        if 'y' in axis.lower():
+            targ = (0, 1, 0)
+            axisIndex = 1
+        elif 'z' in axis.lower():
+            targ = (0, 0, 1)
+            axisIndex = 2
+        if axisCheck[axisIndex] < 0.0:
+            targ = (targ[0]*-1, targ[1]*-1, targ[2]*-1)
         targetAxis = mathOps.createMatrixAxisVector(localTargetMtx.matrixSum, targ,
                                                     name=host.getName('%s_target_axis' % name))
-        targetProjection = mathOps.normalize((1, 0, 0), name=host.getName('%starget_projection_vec' % name))
+        targetProjection = mathOps.normalize(targ, name=host.getName('%starget_projection_vec' % name))
 
-        targetAxis.outputY.connect(targetProjection.input1Y)
-        targetAxis.outputZ.connect(targetProjection.input1Z)
+        if 'x' not in axis.lower():
+            targetAxis.outputX.connect(targetProjection.input1X)
+        if 'y' not in axis.lower():
+            targetAxis.outputY.connect(targetProjection.input1Y)
+        if 'z' not in axis.lower():
+            targetAxis.outputZ.connect(targetProjection.input1Z)
+
         projectionCheck = pm.createNode('condition', name=host.getName('%s_target_projection_check' % name))
         dist = pm.createNode('distanceBetween', name=host.getName('%s_projection_check_dist' % name))
-        targetAxis.outputX.connect(dist.point1X)
+
+        sourceAttr = pm.general.Attribute('%s.output%s' % (targetAxis.name(), axis.upper()))
+        destAttr = pm.general.Attribute('%s.point1%s' % (dist.name(), axis.upper()))
+        sourceAttr.connect(destAttr)
         dist.point2.set((0, 0, 0))
         dist.distance.connect(projectionCheck.firstTerm)
         projectionCheck.secondTerm.set(1)
         projectionCheck.colorIfTrueR.set(1)
         projectionCheck.colorIfFalseR.set(0)
-        projectionCheck.outColorR.connect(targetProjection.input1X)
+        destAttr = pm.general.Attribute('%s.input1%s' % (targetProjection.name(), axis.upper()))
+        projectionCheck.outColorR.connect(destAttr)
 
         # Measure the angle between ref and target vectors and normalize the 0 - half pi radian range
-        poseAngle = mathOps.angleBetween(targetAxis.output, (1, 0, 0), name=host.getName('%s_pose_angle' % name))
+        poseAngle = mathOps.angleBetween(targetAxis.output,
+                                         (math.fabs(targ[0]), math.fabs(targ[1]), math.fabs(targ[2])),
+                                         name=host.getName('%s_pose_angle' % name))
         poseAngleNormal = mathOps.convert(poseAngle.angle, 0.636537,
                                           name=host.getName('%s_pose_angle_normalized' % name))
         poseStrength = pm.createNode('condition', name=host.getName('%s_pose_strength' % name))
-        targetAxis.outputX.connect(poseStrength.firstTerm)
+        sourceAttr = pm.general.Attribute('%s.output%s' % (targetAxis.name(), axis.upper()))
+        sourceAttr.connect(poseStrength.firstTerm)
         poseStrength.operation.set(5)
         poseAngleNormal.output.connect(poseStrength.colorIfFalseR)
         poseStrength.colorIfTrueR.set(1)
@@ -101,7 +120,12 @@ class TPoseDisc(object):
             y = math.cos(step * i)
             z = math.sin(step * i)
 
-            angle = mathOps.angleBetween(targetProjection.output, (0, y, z),
+            refAngle = (0, y, z)
+            if 'y' in axis.lower():
+                refAngle = (y, 0, z)
+            elif 'y' in axis.lower():
+                refAngle = (y, z, 0)
+            angle = mathOps.angleBetween(targetProjection.output, refAngle,
                                          name=host.getName('%s_pose_%s_angle' % (name, num)))
             degrees = mathOps.convert(angle.angle, 57.29578, name=host.getName('%s_pose_%s_rad2Deg' % (name, num)))
             falloffAttr = pm.Attribute('%s.pose_%s_falloff' % (self.config.name(), num))
