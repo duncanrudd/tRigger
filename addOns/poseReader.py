@@ -222,7 +222,11 @@ def buildFromFile(filename):
     with open(filename) as json_file:
         prDict = json.load(json_file)
 
+    poseReaders = []
+
     for key in prDict.keys():
-        buildFromDict(prDict[key])
+        poseReaders.append(buildFromDict(prDict[key]))
+
+    return poseReaders
 
 

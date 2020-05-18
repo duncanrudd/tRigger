@@ -17,6 +17,7 @@ class TRig(object):
         self.root = pm.createNode('transform', name=name)
         self.components = dag.addChild(self.root, 'group', 'components')
         self.joints = dag.addChild(self.root, 'group', 'joints')
+        self.addOns = dag.addChild(self.root, 'group', 'addOns')
         self.geo = dag.addChild(self.root, 'group', 'geo')
         self.rig_name = name
         attribute.addStringAttr(self.root, 'rig_name', name)

@@ -341,11 +341,11 @@ class TArmIkFk(components.TBaseComponent):
 
         attribute.addDividerAttr(self.params, 'BENDY')
         attribute.addFloatAttr(self.params, 'start_radius', minValue=.001, maxValue=1, value=.001)
-        attribute.addFloatAttr(self.params, 'start_roundness', minValue=.001, maxValue=1, value=1)
+        attribute.addFloatAttr(self.params, 'start_roundness', minValue=.001, maxValue=1, value=0)
         attribute.addFloatAttr(self.params, 'mid_roundness', minValue=0, maxValue=1)
         attribute.addFloatAttr(self.params, 'mid_radius', minValue=.001, maxValue=1, value=.001)
         attribute.addFloatAttr(self.params, 'end_radius', minValue=.001, maxValue=1, value=.001)
-        attribute.addFloatAttr(self.params, 'end_roundness', minValue=.001, maxValue=1, value=1)
+        attribute.addFloatAttr(self.params, 'end_roundness', minValue=.001, maxValue=1, value=0)
         attribute.addFloatAttr(self.params, 'chamfer', minValue=0, maxValue=1)
         attribute.addBoolAttr(self.params, 'show_bendy_ctrls')
         pm.setAttr(self.params.show_bendy_ctrls, k=0, cb=1)
