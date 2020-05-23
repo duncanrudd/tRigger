@@ -16,6 +16,7 @@ class TFkHand(components.TBaseComponent):
     def addObjects(self, guide):
         transform.align(self.base_srt, guide.root)
         self.fingerDict = {}
+        skewStartIndex = -2 + self.guide.skew_start
         # fingers
         for i in range(guide.num_digits):
             num = str(i+1).zfill(2)
@@ -39,7 +40,7 @@ class TFkHand(components.TBaseComponent):
                 self.fingerDict[num]['controls'].append(ctrl)
                 srt = dag.addChild(self.rig, 'group', name=self.getName('%s_%s_base_srt' % (num, segNum)))
                 self.fingerDict[num]['srts'].append(srt)
-                if 0 < index < (guide.num_segments-2):
+                if skewStartIndex < index < (guide.num_segments-2):
                     # add srt for tip of segment
                     srt = dag.addChild(self.rig, 'group', name=self.getName('%s_%s_tip_srt' % (num, segNum)))
                     self.fingerDict[num]['srts'].append(srt)
@@ -66,12 +67,14 @@ class TFkHand(components.TBaseComponent):
 
                 srt = dag.addChild(self.rig, 'group', name=self.getName('thumb_%s_base_srt' % (segNum)))
                 self.fingerDict['thumb']['srts'].append(srt)
-                if 0 < index < (guide.num_segments-3):
+                if skewStartIndex < index < (guide.num_segments-3):
                     # add srt for tip of segment
                     srt = dag.addChild(self.rig, 'group', name=self.getName('thumb_%s_tip_srt' % (segNum)))
                     self.fingerDict['thumb']['srts'].append(srt)
 
         if guide.root.add_joint.get():
+            j = pm.createNode('joint', name=self.getName('base_jnt'))
+            self.joints_list.append({'joint': j, 'driver': self.base_srt})
             for key in self.fingerDict.keys():
                 for srt in self.fingerDict[key]['srts']:
                     j = pm.createNode('joint', name=srt.name().replace('srt', 'jnt'))
@@ -103,7 +106,8 @@ class TFkHand(components.TBaseComponent):
                     vec = mathOps.createMatrixAxisVector(aimMtx.outputMatrix, (1, 0, 0),
                                                          name=aimMtx.name().replace('mtx', 'vec'))
                     finger['aims'].append(vec)
-                    if 0 < index < (len(finger['controls'])-2):
+                    skewStartIndex = -2 + self.guide.skew_start
+                    if skewStartIndex < index < (len(finger['controls'])-2):
                         tipSrt = pm.PyNode(ctrl.name().replace('ctrl', 'tip_srt'))
                         blendMtx = transform.blendMatrices(aimMtx.outputMatrix,
                                                            finger['controls'][index+1].worldMatrix[0],
@@ -115,13 +119,14 @@ class TFkHand(components.TBaseComponent):
                         blendMtx.outputMatrix.connect(tipSrt.offsetParentMatrix)
                 else:
                     baseMtx.connect(baseSrt.offsetParentMatrix)
-            for index, aim in enumerate(finger['aims'][1:-1]):
+            skewStartIndex = self.guide.skew_start - 1
+            for index, aim in enumerate(finger['aims'][skewStartIndex:-1]):
                 mtx = pm.listConnections(aim.matrix, s=1, p=1, d=0)[0]
                 upVec = mathOps.createMatrixAxisVector(mtx, (0, 1, 0), name=aim.name().replace('aim_vec', 'up_vec'))
-                dot = mathOps.createDotProduct(finger['aims'][index+2].output, upVec.output,
+                dot = mathOps.createDotProduct(finger['aims'][index+self.guide.skew_start].output, upVec.output,
                                                name=aim.name().replace('aim_vec', 'dot'))
                 dotRange = mathOps.remap(dot.outputX, -.1, .1, 1, -1, name=aim.name().replace('aim_vec', 'signed_dot'))
-                angle = mathOps.angleBetween(aim.output, finger['aims'][index+2].output,
+                angle = mathOps.angleBetween(aim.output, finger['aims'][index+self.guide.skew_start].output,
                                              name=aim.name().replace('aim_vec', 'angle'))
                 signedAngle = pm.createNode('animBlendNodeAdditiveDA',
                                             name=aim.name().replace('aim_vec', 'signed_angle'))
@@ -131,7 +136,7 @@ class TFkHand(components.TBaseComponent):
                 signedAngle.output.connect(angleUC.input)
                 angleUC.conversionFactor.set(.67)
                 inSrt = pm.PyNode(aim.name().replace('aim_vec', 'tip_srt'))
-                outSrt = pm.PyNode(finger['aims'][index+2].name().replace('aim_vec', 'base_srt'))
+                outSrt = pm.PyNode(finger['aims'][index+self.guide.skew_start].name().replace('aim_vec', 'base_srt'))
                 angleUC.output.connect(inSrt.shearXY)
                 outShear = mathOps.multiply(angleUC.output, -1, name=aim.name().replace('aim_vec', 'out_shear'))
                 outShear.output.connect(outSrt.shearXY)

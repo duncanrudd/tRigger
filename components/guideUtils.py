@@ -346,3 +346,18 @@ def extractControls(controls):
         for shape in newShapes:
             pm.parent(shape, transform, s=1, r=1)
 
+def updateGuide(guideRoot):
+    guideRoot = validateGuideRoot(guideRoot)
+    if not guideRoot:
+        return 'Please supply a valid TGuide root node'
+
+    compType = guideRoot.guide_type.get()
+    exec("import tRigger.components.%s.guide as mod" % compType)
+    reload(mod)
+    try:
+        (mod.updateGuide(guideRoot))
+        print('Component: %s updated successfully' % compType)
+    except:
+        print('No updates found for component: %s' % compType)
+
+

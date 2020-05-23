@@ -7,13 +7,14 @@ reload(guide)
 
 
 class TFkHandGuide(guide.TGuideBaseComponent):
-    def __init__(self, guide_name='', guide_side='C', guide_index=0, num_segments=6, num_digits=4, thumb=1, fromDagNode=0):
+    def __init__(self, guide_name='', guide_side='C', guide_index=0, num_segments=6, skew_start=2, num_digits=4, thumb=1, fromDagNode=0):
         guide.TGuideBaseComponent.__init__(self, guide_name, 'fkHand', guide_side, guide_index, fromDagNode=fromDagNode)
         for param in ['num_segments', 'num_digits', 'thumb']:
             self.params.append(param)
         if not fromDagNode:
             attribute.addIntAttr(self.root, 'num_digits', num_digits)
             attribute.addIntAttr(self.root, 'num_segments', num_segments)
+            attribute.addIntAttr(self.root, 'skew_start', skew_start)
             attribute.addBoolAttr(self.root, 'thumb', thumb)
             attribute.addBoolAttr(self.root, 'add_joint')
             self.addLocs()
@@ -21,6 +22,7 @@ class TFkHandGuide(guide.TGuideBaseComponent):
             self.locs = self.getGuideLocs(fromDagNode)
             self.num_segments = self.root.num_segments.get()
             self.num_digits = self.root.num_digits.get()
+            self.skew_start = self.root.skew_start.get()
             self.thumb = self.root.thumb.get()
         self.installComponentCallbacks()
 
@@ -88,6 +90,7 @@ def instantiateFromDagNode(dagNode):
                          dagNode.guide_side.get(),
                          dagNode.guide_index.get(),
                          dagNode.num_segments.get(),
+                         dagNode.skew_start.get(),
                          dagNode.num_digits.get(),
                          dagNode.thumb.get(),
                          fromDagNode=dagNode)
@@ -95,3 +98,7 @@ def instantiateFromDagNode(dagNode):
 
 def buildGuide(**kwargs):
     return TFkHandGuide(**kwargs)
+
+def updateGuide(guideRoot):
+    if not guideRoot.hasAttr('skew_start'):
+        attribute.addIntAttr(guideRoot, 'skew_start', 2)

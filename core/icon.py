@@ -313,3 +313,15 @@ def arrowRightIcon(size=10, name='', colour=None):
     pm.select(icon)
     return icon
 
+def planeUpIcon(size=10, name='', colour=None):
+    s = size*0.5
+    points = [(s, 0, -s), (s, 0, s), (-s, 0, s), (-s, 0, -s), (s, 0, -s), (0, 0, 0), (0, s*.5, 0), (0, s*.5, s*.1),
+              (0, s*.75, 0), (0, s*.5, s*-.1)]
+    knots = range(len(points))
+    icon = pm.curve(p=points, k=range(len(points)), degree=1)
+    if name:
+        icon.rename(name)
+    if colour:
+        setColour(icon, colour)
+    return icon
+
