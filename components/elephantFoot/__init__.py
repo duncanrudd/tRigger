@@ -35,6 +35,7 @@ class TElephantFoot(components.TBaseComponent):
         curve.rebuildUniform(self.reader_crv)
 
         # Add ctrls for perimeter plus srts and joints if required
+        self.driven_srt = dag.addChild(self.base_srt, 'locator', name=self.getName('driven_srt'))
         self.edgeCtrls = []
         for index in range(self.guide.num_ctrls):
             num = str(index+1).zfill(2)
@@ -48,7 +49,7 @@ class TElephantFoot(components.TBaseComponent):
                 localXform = mathOps.invertHandedness(localXform)
             xform = localXform*self.base_srt.worldMatrix[0].get()
             ctrl = self.addCtrl(shape='triNorth', size=1.0, name=self.getName('edge_%s' % num), xform=xform,
-                                parent=self.base_srt, metaParent=self.base_srt, buffer=1)
+                                parent=self.driven_srt, metaParent=self.base_srt, buffer=1)
             self.edgeCtrls.append(ctrl)
 
             if self.guide.add_joint:
@@ -62,10 +63,13 @@ class TElephantFoot(components.TBaseComponent):
                 j = pm.createNode('joint', name=self.getName('edge_%s_jnt' % num))
                 self.joints_list.append({'joint': j, 'driver': srt})
         components.TBaseComponent.addObjects(self, guide)
+        self.ikEnd_srt = dag.addChild(self.rig, 'locator', name=self.getName('ikEnd_srt'))
 
     def addAttributes(self):
         attribute.addFloatAttr(self.params, 'slide_rate', minValue=0.0)
         attribute.addFloatAttr(self.params, 'align_depth', minValue=0.0)
+        attribute.addAngleAttr(self.params, 'roll_start_angle', minValue=0.0, maxValue=180, value=30)
+        attribute.addAngleAttr(self.params, 'roll_end_angle', minValue=0.0, maxValue=180, value=60)
 
     def addSystems(self):
         # Set up nearest point on reader crv based on rotation of roll ctrl
@@ -73,6 +77,9 @@ class TElephantFoot(components.TBaseComponent):
         roll_projection = mathOps.normalize((0, .001, 0), name=self.getName('roll_projection'))
         roll_y_axis.outputX.connect(roll_projection.input1X)
         roll_y_axis.outputZ.connect(roll_projection.input1Z)
+        roll_angle = mathOps.angleBetween(roll_y_axis.output, (0, 1, 0), name=self.getName('reader_roll_angle'))
+        rollRemap = mathOps.remap(roll_angle.angle, self.params.roll_start_angle, self.params.roll_end_angle, 0, 1,
+                                  name=self.getName('roll_remap'))
         reader_point = curve.createNearestPointOnCurve(self.reader_crv, roll_projection.output,#
                                                        name=self.getName('reader_nearest_point'))
 
@@ -82,7 +89,7 @@ class TElephantFoot(components.TBaseComponent):
         outer_mp = curve.createMotionPathNode(self.outer_crv, uValue=reader_point.result.parameter, follow=0,
                                               name=self.getName('outer_mp'))
         roll_blend = mathOps.pairBlend(translateA=inner_mp.allCoordinates, translateB=outer_mp.allCoordinates,
-                                       name=self.getName('roll_blend'))
+                                       weight=rollRemap.outValueX, name=self.getName('roll_blend'))
         aim_angle = mathOps.angleBetween((0, 0, 1), (0, 0, 1), name=self.getName('reader_aim_angle'))
         roll_blend.outTranslateX.connect(aim_angle.vector2X)
         roll_blend.outTranslateZ.connect(aim_angle.vector2Z)
@@ -95,7 +102,6 @@ class TElephantFoot(components.TBaseComponent):
         aim_switch.outColorR.connect(aim_result.weightB)
         aim_switch_reverse = mathOps.reverse(aim_switch.outColorR, name=self.getName('reader_aim_switch_reverse'))
         aim_switch_reverse.outputX.connect(aim_result.weightA)
-        roll_angle = mathOps.angleBetween(roll_y_axis.output, (0, 1, 0), name=self.getName('reader_roll_angle'))
 
         # Create displacement
         pivot_mtx = mathOps.createComposeMatrix(inputTranslate=roll_blend.outTranslate, inputRotate=(0, 0, 0),
@@ -110,6 +116,9 @@ class TElephantFoot(components.TBaseComponent):
 
         displace_mtx = mathOps.multiplyMatrices([pivot_inverse_mtx.outputMatrix, roll_mtx.outputMatrix],
                                                 name=self.getName('displace_mtx'))
+        displace_mtx.matrixSum.connect(self.ikEnd_srt.offsetParentMatrix)
+        displace_mtx.matrixSum.connect(self.driven_srt.offsetParentMatrix)
+
         # Get collider normal (y axis of worldMAtrix)
         self.floorNormal = mathOps.createMatrixAxisVector(self.floor_ctrl.worldMatrix[0], (0, 1, 0),
                                                           name=self.getName('floor_normal'))
