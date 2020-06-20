@@ -641,3 +641,5 @@ class TBaseComponent(object):
         # complete the component setup. Lock attrs, hide unnecessary nodes etc.
         print 'Finished: %s' % self.comp_name
 
+# Test commit to pre2020 branch
+
