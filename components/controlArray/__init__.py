@@ -53,9 +53,11 @@ class TControlArray(components.TBaseComponent):
             # Add mapping connection to control - used when mapping controller tags
             self.mapToControl(ctrl, srt)
 
-        if guide.root.add_joint.get():
-            for srt in self.srts:
+            if guide.root.add_joint.get():
                 j = pm.createNode('joint', name=srt.name().replace('srt', 'jnt'))
+                if parent != self.base_srt:
+                    parent = pm.PyNode(self.getName(parentName) + '_jnt')
+                    j.setParent(parent)
                 self.joints_list.append({'joint': j, 'driver': srt})
 
     def addSystems(self):

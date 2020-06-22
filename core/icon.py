@@ -63,6 +63,15 @@ def getShapes(node):
     shapes = pm.listRelatives(node, c=1, s=1)
     return shapes
 
+def replaceIcon(node, newIcon):
+    oldShapes = getShapes(node)
+    pm.delete(oldShapes)
+    tempIcon = eval('%sIcon()' % newIcon)
+    for index, shape in enumerate(getShapes(tempIcon)):
+        pm.parent(shape, node, s=1, r=1)
+        shape.rename('%sShape%s' % (node.name(), str(index + 1)))
+    pm.delete(tempIcon)
+
 def boxIcon(size=20.0, name='', colour=None):
     '''
     Creates a box shaped nurbs curve

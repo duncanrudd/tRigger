@@ -120,7 +120,8 @@ def sampleCurvePosition(crv, uValue, fractionMode=1):
     pm.delete(mp)
     return pos
 
-def nodesAlongCurve(start, end, divs, crv, name, frontAxis='x', upAxis='y', upVec=(0, 1, 0), wut=2):
+def nodesAlongCurve(start, end, divs, crv, name, frontAxis='x', upAxis='y', upVec=(0, 1, 0), wut=2,
+                    startParam=0, endParam=1):
     '''
     Creates motionPath nodes along a curve. Up vectors are blended between start and end matrices
     Args:
@@ -132,13 +133,15 @@ def nodesAlongCurve(start, end, divs, crv, name, frontAxis='x', upAxis='y', upVe
         frontAxis: (string) axis along which to aim
         upAxis: (string) axis to align to upVector
         upVec: (float3) matrix axis to use as upVector
+        startParam: (float) point on the curve where the first node should sit
+        endParam: (float) point on the curve where the last node should sit
     Returns:
         [motionPath] list of newly created motionPath nodes
     '''
     mps = []
     for i in range(divs):
         num = str(i+1).zfill(2)
-        param = (1.0 / (divs-1))*i
+        param = (((endParam - startParam) / (divs-1))*i) + startParam
         mp = createMotionPathNode(crv, param, frontAxis, upAxis, name='%s_%s_mp' % (name, num), wu=upVec, wut=wut)
         blend = transform.blendMatrices(start, end, name='%s_%s_up_mtx' % (name, num), weight=param)
         blend.outputMatrix.connect(mp.worldUpMatrix)

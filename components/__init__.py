@@ -181,6 +181,10 @@ class TBaseComponent(object):
         Returns: None
 
         '''
+        tVal = node.t.get()
+        rVal = node.r.get()
+        node.t.set((0, 0, 0))
+        node.r.set((0, 0, 0))
         targMtx = node.worldMatrix[0].get()
         mtxAttr = input
         suffix = input.name().split('.')[1].replace('_mtx', '')
@@ -191,8 +195,8 @@ class TBaseComponent(object):
             mtxAttr = multMtx.matrixSum
 
         mtxAttr.connect(node.offsetParentMatrix, f=1)
-        node.t.set((0, 0, 0))
-        node.r.set((0, 0, 0))
+        node.t.set(tVal)
+        node.r.set(rVal)
 
     def connectToMultiInputs(self, inputs, enumNames, node, add=0):
         '''
@@ -220,6 +224,10 @@ class TBaseComponent(object):
                                                  name=self.getName('%s_%s_mtx' % (suffix, name)))
             return multMtx
 
+        tVal = node.t.get()
+        rVal = node.r.get()
+        node.t.set((0, 0, 0))
+        node.r.set((0, 0, 0))
         targMtx = node.worldMatrix[0].get()
         name = '_'.join(node.name().split('_')[2:])
         print name
@@ -242,8 +250,8 @@ class TBaseComponent(object):
 
             switchAttr.connect(switch.selector)
             switch.output.connect(node.offsetParentMatrix, f=1)
-            node.t.set((0, 0, 0))
-            node.r.set((0, 0, 0))
+            node.t.set(tVal)
+            node.r.set(rVal)
             node.inheritsTransform.set(0)
         for i, input in enumerate(inputs):
             multMtx = _getOffset(input)
@@ -268,6 +276,10 @@ class TBaseComponent(object):
         if name[0].lower() in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
             name = '_%s' % name
             print 'name changed: %s' % name
+        tVal = node.t.get()
+        rVal = node.r.get()
+        node.t.set((0, 0, 0))
+        node.r.set((0, 0, 0))
         targMtx = node.worldMatrix[0].get()
         indexOffset=0
 
@@ -318,8 +330,8 @@ class TBaseComponent(object):
             switchAttr = attribute.addEnumAttr(self.params, '%s_rotate_space' % name, [enum for enum in enumNames])
             switchAttr.connect(rotateSwitch.selector)
             blend.outputMatrix.connect(node.offsetParentMatrix, f=1)
-            node.t.set((0, 0, 0))
-            node.r.set((0, 0, 0))
+            node.t.set(tVal)
+            node.r.set(rVal)
             node.inheritsTransform.set(0)
 
         for i, input in enumerate(inputs):
