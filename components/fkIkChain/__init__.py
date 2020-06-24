@@ -94,8 +94,10 @@ class TFkIkChain(components.TBaseComponent):
             for i, div in enumerate(self.divs):
                 num = str(i+1).zfill(2)
                 j = pm.createNode('joint', name=self.getName('%s_jnt' % num))
+                if i > 0:
+                    j.setParent(self.joints_list[-1]['joint'])
                 self.joints_list.append({'joint': j, 'driver': div})
-                self.mapJointToGuideLocs(j, self.guide.divisionLocs[i])
+            self.mapJointToGuideLocs(self.joints_list[-1]['joint'], self.guide.locs[3])
 
     def addAttributes(self):
         attribute.addFloatAttr(self.params, 'bulge_amount')

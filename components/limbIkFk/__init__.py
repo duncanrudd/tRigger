@@ -231,9 +231,7 @@ class TLimbIkFk(components.TBaseComponent):
             j.setParent(parent)
             parent = j
 
-            j = pm.createNode('joint', name=self.getName('tip_jnt'))
-            self.joints_list.append({'joint': j, 'driver': self.result_tip})
-            j.setParent(parent)
+            self.mapJointToGuideLocs(j, self.guide.locs[3])
 
         # Call overloaded method of parent class
         components.TBaseComponent.addObjects(self, guide)

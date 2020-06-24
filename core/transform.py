@@ -194,8 +194,14 @@ def blend_T_R_matrices(t_mtx, r_mtx, name=None):
     node = pm.createNode('blendMatrix')
     if name:
         node.rename(name)
-    t_mtx.connect(node.inputMatrix)
-    r_mtx.connect(node.target[0].targetMatrix)
+    if type(t_mtx) == pm.general.Attribute:
+        t_mtx.connect(node.inputMatrix)
+    else:
+        node.inputMatrix.set(t_mtx)
+    if type(r_mtx) == pm.general.Attribute:
+        r_mtx.connect(node.target[0].targetMatrix)
+    else:
+        node.target[0].targetMatrix.set(r_mtx)
     node.target[0].weight.set(1)
     node.target[0].useTranslate.set(0)
     node.target[0].useScale.set(0)

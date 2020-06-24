@@ -58,6 +58,7 @@ class TControlArray(components.TBaseComponent):
                 if parent != self.base_srt:
                     parent = pm.PyNode(self.getName(parentName) + '_jnt')
                     j.setParent(parent)
+                    self.mapJointToGuideLocs(j, loc)
                 self.joints_list.append({'joint': j, 'driver': srt})
 
     def addSystems(self):

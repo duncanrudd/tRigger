@@ -334,3 +334,43 @@ def planeUpIcon(size=10, name='', colour=None):
         setColour(icon, colour)
     return icon
 
+def compassIcon(size=10, name='', colour=None):
+    icon = pm.circle(name=name, r=size*.9, ch=0, o=1, s=8, nr=(0, 1, 0))[0]
+    if name:
+        icon.rename(name)
+    if colour:
+        setColour(icon, colour)
+
+    north = triNorthIcon(size=size*.25)
+    pm.select('%s.cv[*]' % getShape(north).name())
+    pm.rotate((90, 0, 0), r=1)
+    pm.move((0, 0, size), r=1)
+    pm.parent(getShape(north), icon, s=1, r=1)
+    pm.delete(north)
+
+    east = triEastIcon(size=size * .25)
+    pm.select('%s.cv[*]' % getShape(east).name())
+    pm.rotate((-90, 0, 0), r=1)
+    pm.move((-size, 0, 0), r=1)
+    pm.parent(getShape(east), icon, s=1, r=1)
+    pm.delete(east)
+
+    west = triWestIcon(size=size * .25)
+    pm.select('%s.cv[*]' % getShape(west).name())
+    pm.rotate((-90, 0, 0), r=1)
+    pm.move((size, 0, 0), r=1)
+    pm.parent(getShape(west), icon, s=1, r=1)
+    pm.delete(west)
+
+    south = triSouthIcon(size=size * .25)
+    pm.select('%s.cv[*]' % getShape(south).name())
+    pm.rotate((90, 0, 0), r=1)
+    pm.move((0, 0, -size), r=1)
+    pm.parent(getShape(south), icon, s=1, r=1)
+    pm.delete(south)
+
+    pm.select(icon)
+
+    return icon
+
+
