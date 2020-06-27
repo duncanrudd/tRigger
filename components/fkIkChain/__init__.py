@@ -227,18 +227,27 @@ class TFkIkChain(components.TBaseComponent):
         # Motion path stuff
         # ---------------------------------
         for i, div in enumerate(self.divs):
-            num = str(i+1).zfill(2)
-            param = pm.listConnections(self.guide.divisionLocs[i], type='motionPath')[0].uValue.get()
-            mp = curve.createMotionPathNode(self.crv, uValue=param, frontAxis='x', upAxis='y',
-                                            name=self.getName('%s_mp' % num))
-            railMp = curve.createMotionPathNode(self.railCrv, uValue=param, follow=0,
-                                                name=self.getName('%s_rail_mp' % num))
-            upVec = mathOps.subtractVector([railMp.allCoordinates, mp.allCoordinates],
-                                           name=self.getName('%s_upVec' % num))
-            upVec.output3D.connect(mp.worldUpVector)
+            if i == 0:
+                ikStartMtx2Srt.outputTranslate.connect(div.t)
+                ikStartMtx2Srt.outputRotate.connect(div.r)
+                param = 0.0
+            elif i == len(self.divs):
+                param = 1.0
+                ikStartMtx2Srt.outputTranslate.connect(div.t)
+                ikStartMtx2Srt.outputRotate.connect(div.r)
+            else:
+                num = str(i+1).zfill(2)
+                param = pm.listConnections(self.guide.divisionLocs[i], type='motionPath')[0].uValue.get()
+                mp = curve.createMotionPathNode(self.crv, uValue=param, frontAxis='x', upAxis='y',
+                                                name=self.getName('%s_mp' % num))
+                railMp = curve.createMotionPathNode(self.railCrv, uValue=param, follow=0,
+                                                    name=self.getName('%s_rail_mp' % num))
+                upVec = mathOps.subtractVector([railMp.allCoordinates, mp.allCoordinates],
+                                               name=self.getName('%s_upVec' % num))
+                upVec.output3D.connect(mp.worldUpVector)
 
-            mp.allCoordinates.connect(div.t)
-            mp.rotate.connect(div.r)
+                mp.allCoordinates.connect(div.t)
+                mp.rotate.connect(div.r)
 
             # Squash n Stretch
             bulgeDist = pm.createNode('distanceBetween', name=self.getName('%s_bulge_dist' % num))

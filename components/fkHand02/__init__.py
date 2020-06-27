@@ -195,6 +195,8 @@ class TFkHand02(components.TBaseComponent):
                     spread.output.connect(buffer.ry)
                     if index == 1:
                         self.masterCtrl.ry.connect(spread.inputB)
+        # Not sure why this doesn't get added automatically?
+        self.controls_list.append(self.masterCtrl)
 
     def finish(self):
         self.setColours(self.guide)
@@ -205,7 +207,7 @@ class TFkHand02(components.TBaseComponent):
         nodeList = self.controls_list
         attrList = ['visibility']
         attribute.channelControl(nodeList=nodeList, attrList=attrList)
-        nodeList.remove(self.masterCtrl)
+        nodeList = [node for node in self.controls_list if not node == self.masterCtrl]
         attrList = ['tx', 'ty', 'tz']
         attribute.channelControl(nodeList=nodeList, attrList=attrList)
         attrList = ['rx', 'rz']

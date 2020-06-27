@@ -1,9 +1,10 @@
 from tRigger import components
-from tRigger.core import attribute, transform, dag, icon, mathOps
+from tRigger.core import attribute, transform, dag, icon, mathOps, anim
 import pymel.core as pm
 reload(components)
 reload(transform)
 reload(mathOps)
+reload(anim)
 
 import pymel.core as pm
 
@@ -66,19 +67,23 @@ class TReverseFootLean(components.TBaseComponent):
                                        name=self.getName('ik_tip'), xform=ikTipXform,
                                        parent=self.ikBall_ctrl, metaParent=self.ikBall_ctrl)
         # Build toe matrix
-        aimVec = _getVec(guide.locs[3], guide.locs[4], self.invert)
+        aimVec = _getVec(guide.locs[4], guide.locs[3], 0)
         upVecTemp = mathOps.getMatrixAxisAsVector(self.ikTip_ctrl.worldMatrix[0].get(), 'z')
         sideVec = upVecTemp.cross(aimVec).normal()
         upVec = aimVec.cross(sideVec).normal()
         startPos = pm.xform(guide.locs[4], q=1, ws=1, t=1)
 
-        toeXform = pm.datatypes.Matrix(aimVec, sideVec, upVec, startPos)
+
         if self.invert:
-            toeXform = mathOps.invertHandedness(toeXform)
+            toeXform = pm.datatypes.Matrix(aimVec, -sideVec, upVec, startPos)
+        else:
+            toeXform = pm.datatypes.Matrix(aimVec, sideVec, upVec, startPos)
+
 
         self.ikToe_ctrl = self.addCtrl(shape='pringle', size=ctrlSize,
                                        name=self.getName('ik_toe'), xform=toeXform, buffer=1,
                                        parent=self.ikTip_ctrl, metaParent=self.ikTip_ctrl)
+        # self.ikToe_ctrl.s.set(1, 1, 1)
 
         # Lean control
         self.ikLean_ctrl = self.addCtrl(shape='pringle', size=ctrlSize,
@@ -87,14 +92,22 @@ class TReverseFootLean(components.TBaseComponent):
 
         # End srt - this is what will be measured against the root to determine ik ankle displacement
         self.ikEnd_srt = dag.addChild(self.controls_list[-1], 'group', name=self.getName('ik_end_srt'))
-        transform.align(self.ikEnd_srt, self.base_srt)
+        xform = self.base_srt.worldMatrix[0].get()
+        if self.invert:
+            xform = mathOps.getInverseHandedMatrix(xform)
+        pm.xform(self.ikEnd_srt, ws=1, m=xform)
 
         # ----------------------
         # FK controls
         # ----------------------
+        parent = self.base_srt
+        if self.invert:
+            self.fk_negScale_srt = dag.addChild(self.base_srt, 'group', name=self.getName('fk_negScale_srt'))
+            parent = self.fk_negScale_srt
+            transform.align(parent, self.ikEnd_srt, scale=1)
         self.fkToe_ctrl = self.addCtrl(shape='pringle', size=ctrlSize*.67,
                                        name=self.getName('fk_toe'), xform=toeXform, buffer=1,
-                                       parent=self.base_srt, metaParent=self.base_srt)
+                                       parent=parent, metaParent=self.base_srt)
 
         if guide.root.add_joint.get():
             if self.invert:
@@ -129,9 +142,11 @@ class TReverseFootLean(components.TBaseComponent):
 
     def addAttributes(self):
         attribute.addFloatAttr(self.params, 'foot_scale', value=1.0)
-        attribute.addFloatAttr(self.params, 'ikfk_blend', minValue=0, maxValue=1)
+        #attribute.addFloatAttr(self.params, 'ikfk_blend', minValue=0, maxValue=1)
         if self.guide.attr_driven:
             attribute.addDividerAttr(self.params, 'Roll')
+            for attr in ['roll_foot', 'toe_lift_angle', 'ball_straight_angle']:
+                attribute.addFloatAttr(self.params, attr)
             for attr in  ['roll_heel', 'roll_ball', 'roll_tip']:
                 attribute.addAngleAttr(self.params, attr)
 
@@ -150,9 +165,29 @@ class TReverseFootLean(components.TBaseComponent):
 
     def addSystems(self):
         if self.guide.attr_driven:
-            self.params.roll_heel.connect(self.ikHeel_ctrl.rz)
-            self.params.roll_ball.connect(self.ikToe_ctrl.rz)
-            self.params.roll_tip.connect(self.ikTip_ctrl.rz)
+            footRollNegClamp = mathOps.clamp(self.params.roll_foot, -1000, 0, name=self.getName('footRoll_neg_clamp'))
+            rollHeelSum = mathOps.addAngles(footRollNegClamp.outputR, self.params.roll_heel,
+                                            name=self.getName('roll_heel_sum'))
+            rollHeelSum.output.connect(self.ikHeel_ctrl.rz)
+
+            footRollPosClamp = mathOps.clamp(self.params.roll_foot, 0, 1000, name=self.getName('footRoll_pos_clamp'))
+            footRollBallRemap = mathOps.remap(footRollPosClamp.outputR, self.params.toe_lift_angle,
+                                              self.params.ball_straight_angle, 1, 0,
+                                              name=self.getName('footRoll_ball_remap'))
+            rollBallSum = mathOps.addAngles(footRollPosClamp.outputR, self.params.roll_ball,
+                                            name=self.getName('roll_ball_sum'))
+            footRollBallEase = anim.easeCurve(footRollBallRemap.outValueX,
+                                              name=self.getName('footRoll_ball_ease_animCurve'))
+            footRollBallEase.output.connect(rollBallSum.weightA)
+            rollBallSum.output.connect(self.ikToe_ctrl.rz)
+
+            footRollToeMult = mathOps.reverse(footRollBallRemap.outValueX, name=self.getName('footRoll_toe_remap'))
+            rollToeSum = mathOps.addAngles(footRollPosClamp.outputR, self.params.roll_tip,
+                                            name=self.getName('roll_ball_sum'))
+            footRollToeEase = anim.easeCurve(footRollToeMult.outputX, easeOut=0,
+                                              name=self.getName('footRoll_ball_ease_animCurve'))
+            footRollToeEase.output.connect(rollToeSum.weightA)
+            rollToeSum.output.connect(self.ikTip_ctrl.rz)
 
             self.params.spin_heel.connect(self.ikHeel_ctrl.ry)
             self.params.spin_ball.connect(self.ikBall_ctrl.ry)
@@ -196,11 +231,9 @@ class TReverseFootLean(components.TBaseComponent):
                                            name=self.getName('fk_toe_offset_mtx'))
         toeRotMtx = transform.blend_T_R_matrices(pm.datatypes.Matrix(), toeMtx.matrixSum,
                                                     name=self.getName('fk_toe_rot_mtx'))
-        m = self.fkToe_ctrl.getParent().offsetParentMatrix.get()
-        eulerRot = pm.datatypes.EulerRotation()
-        rot = eulerRot.decompose(m, 'XYZ')
-        rotOffset = (pm.datatypes.degrees(rot[0]), pm.datatypes.degrees(rot[1]), pm.datatypes.degrees(rot[2]))
-        self.fkToe_ctrl.getParent().r.set(rotOffset)
+        tempDM = mathOps.decomposeMatrix(self.fkToe_ctrl.getParent().offsetParentMatrix)
+        self.fkToe_ctrl.getParent().rz.set(180 - tempDM.outputRotateZ.get())
+        pm.delete(tempDM)
         footMtx.matrixSum.connect(self.fkToe_ctrl.getParent().offsetParentMatrix)
         toeRotMtx.outputMatrix.connect(self.fkToe_ctrl.offsetParentMatrix)
         # Attach params shape to base srt
@@ -211,10 +244,9 @@ class TReverseFootLean(components.TBaseComponent):
 
         # fk lean
         if self.invert:
-            leanOffsetMtx = mathOps.multiplyMatrices([self.negMtx.outputMatrix,
-                                                      self.ikLean_ctrl.getParent().worldMatrix[0],
+            leanOffsetMtx = mathOps.multiplyMatrices([self.ikLean_ctrl.getParent().worldMatrix[0],
                                                       self.ikEnd_srt.worldInverseMatrix[0],
-                                                      self.base_srt.worldMatrix[0]],
+                                                      self.fk_negScale_srt.worldMatrix[0]],
                                                      name=self.getName('fk_lean_offset_mtx'))
         else:
             leanOffsetMtx = mathOps.multiplyMatrices([self.ikLean_ctrl.getParent().worldMatrix[0],
@@ -242,7 +274,7 @@ class TReverseFootLean(components.TBaseComponent):
 
         if self.guide.attr_driven:
             self.ikHeel_ctrl.getParent().v.set(0)
-            for ctrl in [self.ikHeel_ctrl, self.ikTip_ctrl, self.ikBall_ctrl, self.ikToe_ctrl]:
+            for ctrl in [self.ikHeel_ctrl, self.ikTip_ctrl, self.ikBall_ctrl, self.ikToe_ctrl, self.ikLean_ctrl]:
                 ctrl.is_tControl.set(0)
 
 

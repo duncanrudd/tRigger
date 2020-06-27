@@ -20,6 +20,7 @@ class TControlArray(components.TBaseComponent):
 
         ctrlSize = max(.1, mathOps.getDistance(guide.locs[0], guide.locs[-1]))
         self.srts = []
+        self.srtInverts = []
         for loc in locs:
             buffer = 0
             if loc.hasAttr('buffer'):
@@ -47,6 +48,7 @@ class TControlArray(components.TBaseComponent):
 
             srt = dag.addChild(self.rig, 'group', name=ctrl.name().replace('ctrl', 'srt'))
             self.srts.append(srt)
+            self.srtInverts.append(loc.invert.get())
             self.mapToGuideLocs(srt, loc)
             self.mapToGuideLocs(self.base_srt, guide.root)
             self.copyGuideMapping(srt, ctrl)
@@ -58,7 +60,7 @@ class TControlArray(components.TBaseComponent):
                 if parent != self.base_srt:
                     parent = pm.PyNode(self.getName(parentName) + '_jnt')
                     j.setParent(parent)
-                    self.mapJointToGuideLocs(j, loc)
+                self.mapJointToGuideLocs(j, loc)
                 self.joints_list.append({'joint': j, 'driver': srt})
 
     def addSystems(self):
@@ -67,9 +69,7 @@ class TControlArray(components.TBaseComponent):
         if local:
             self.localOffsetMtx = transform.pmMtx2fourFourMtx(self.base_srt.worldMatrix[0].get(),
                                                               name=self.getName('local_offset_mtx'))
-        if self.invert:
-                negMtx = mathOps.createComposeMatrix(inputScale=(-1, 1, 1),
-                                                     name=self.getName('neg_mtx'))
+        negMtx = None
         for index, srt in enumerate(self.srts):
             driver = self.controls_list[index+1].worldMatrix[0]
             if local:
@@ -77,7 +77,10 @@ class TControlArray(components.TBaseComponent):
                                                      self.localOffsetMtx.output],
                                                     name=srt.name().replace('_srt', '_local_mtx'))
                 driver = localMtx.matrixSum
-            if self.invert:
+            if self.invert != self.srtInverts[index]:
+                if not negMtx:
+                    negMtx = mathOps.createComposeMatrix(inputScale=(-1, 1, 1),
+                                                         name=self.getName('neg_mtx'))
                 neg = mathOps.multiplyMatrices([negMtx.outputMatrix, driver],
                                                name=srt.name().replace('_srt', '_negScale_mtx'))
                 driver = neg.matrixSum

@@ -45,6 +45,9 @@ class TReverseFootLeanGuide(guide.TGuideBaseComponent):
 
         self.leanLoc = self.addGuideLoc(self.getName('lean'), xform, self.root)
         self.leanLoc.t.set((4, -5, 0))
+        for loc in self.locs:
+            if loc != self.root:
+                loc.ry.set(180.0)
 
 
 def instantiateFromDagNode(dagNode):

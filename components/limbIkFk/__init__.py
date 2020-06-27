@@ -81,12 +81,16 @@ class TLimbIkFk(components.TBaseComponent):
         self.ik_ctrl = self.addCtrl(shape='squarePoint', size=ctrlSize * .3,
                                     name=self.getName('ik'), xform=ik_ctrl_mtx,
                                     parent=self.controls, metaParent=self.base_srt)
+        aimVec = _getVec(guide.locs[2], guide.locs[3], self.invert)
+        if aimVec[0] >= math.fabs(aimVec[1]):
+            self.twist = 'x'
+        else:
+            self.twist = 'y'
         if not guide.root.world_aligned_ik_ctrl.get():
-            aimVec = _getVec(guide.locs[2], guide.locs[3], self.invert)
             upVecTemp = mathOps.getMatrixAxisAsVector(guide.locs[3].worldMatrix[0].get(), 'z')
             sideVec = upVecTemp.cross(aimVec).normal()
             upVec = aimVec.cross(sideVec).normal()
-            if aimVec[0] >= math.fabs(aimVec[1]):
+            if self.twist == 'x':
                 ik_offset_mtx = pm.datatypes.Matrix(aimVec, sideVec, upVec, startPos)
             else:
                 if self.invert:
@@ -99,12 +103,19 @@ class TLimbIkFk(components.TBaseComponent):
             self.ik_ctrl.r.set(rVal)
         self.ik_displaced = dag.addChild(self.rig, 'group', name=self.getName('ik_displaced_srt'))
         self.ik_ctrl.worldMatrix[0].connect(self.ik_displaced.offsetParentMatrix)
+        transform.align(self.ik_displaced, self.base_srt, translate=0)
 
         # Pole Vector ctrl
         pole_ctrl_mtx = transform.getMatrixFromPos(pm.xform(guide.locs[4], q=1, ws=1, t=1))
         self.pole_ctrl = self.addCtrl(shape='ball', size=ctrlSize*.05,
                                       name=self.getName('ik_pole'), xform=pole_ctrl_mtx, parent=self.controls,
                                       metaParent=self.ik_ctrl)
+        self.pole_guide = curve.curveBetweenPoints((0, 0, 0), (1, 0, 0), numPoints=2,
+                                                   name=self.getName('pole_guide_crv'), degree=1)
+        self.pole_guide.setParent(self.controls)
+
+        # Pole spin srt
+        self.pole_follow_srt = dag.addChild(self.rig, 'group', name=self.getName('ik_pole_follow_srt'))
 
         # --------------------------------
         # RESULT
@@ -245,8 +256,9 @@ class TLimbIkFk(components.TBaseComponent):
         attribute.addFloatAttr(self.params, 'stretch', minValue=0, maxValue=1)
         attribute.addFloatAttr(self.params, 'softness', minValue=0, maxValue=1)
         attribute.addFloatAttr(self.params, 'length_mult', minValue=0, value=1)
-        attribute.addFloatAttr(self.params, 'pin_to_pole', minValue=0, maxValue=1)
         attribute.addFloatAttr(self.params, 'mid_slide', minValue=-1, maxValue=1)
+        attribute.addFloatAttr(self.params, 'pole_follows_ik', minValue=0, maxValue=1)
+        attribute.addFloatAttr(self.params, 'pin_to_pole', minValue=0, maxValue=1)
 
         attribute.addDividerAttr(self.params, 'BENDY')
         attribute.addBoolAttr(self.params, 'show_bendy_ctrls')
@@ -259,17 +271,21 @@ class TLimbIkFk(components.TBaseComponent):
         # Non roll base - starting point for basis and stable parent space for pole ctrl
         axis = 'x'
         angle=(1, 0, 0)
+        revAngle=(-1, 0, 0)
         if self.invert:
             axis = '-x'
             angle=(-1, 0, 0)
+            revAngle=(1, 0, 0)
         d = mathOps.decomposeMatrix(self.ik_displaced.worldMatrix[0], name=self.getName('ik_displaced_mtx2Srt'))
         targToBaseVec = mathOps.createTransformedPoint(d.outputTranslate, self.base_srt.worldInverseMatrix[0],
                                                        name=self.getName('ik_targ_to_base_vec'))
         base_angle = mathOps.angleBetween(angle, targToBaseVec.output, name=self.getName('ik_base_angle'))
         base_angle_mtx = mathOps.createComposeMatrix(inputRotate=base_angle.euler,
                                                      name=self.getName('ik_base_angle_mtx'))
+
         base_mtx = mathOps.multiplyMatrices([base_angle_mtx.outputMatrix, self.base_srt.worldMatrix[0]],
                                             name=self.getName('ik_base_mtx'))
+        base_mtx.matrixSum.connect(self.pole_follow_srt.offsetParentMatrix)
         ik_basis_mtx = pm.createNode('aimMatrix', name=self.getName('base_nonRoll_aim_mtx'))
         base_mtx.matrixSum.connect(ik_basis_mtx.inputMatrix)
         ik_basis_mtx.primaryMode.set(0)
@@ -281,9 +297,22 @@ class TLimbIkFk(components.TBaseComponent):
             ik_basis_mtx.secondaryInputAxis.set((0, 0, -1))
         self.pole_ctrl.worldMatrix[0].connect(ik_basis_mtx.secondaryTargetMatrix)
 
+        baseInverse = mathOps.inverseMatrix(base_mtx.matrixSum, name=self.getName('base_mtx_inverse'))
+        targLocalMtx = mathOps.multiplyMatrices([self.ik_displaced.worldMatrix[0], baseInverse.outputMatrix],
+                                                name=self.getName('ik_targ_local_mtx'))
+        localMtx2Srt = mathOps.decomposeMatrix(targLocalMtx.matrixSum, name=self.getName('ik_targ_local_mtx2Srt'))
+        poleSpin = mathOps.isolateRotationOnAxis(localMtx2Srt.outputRotate, 'x', name=self.getName('ik_pole_spin'))
+        #spinAttr = pm.general.Attribute('%s.outputRotate%s' % (poleSpin[1].name(), self.twist.upper()))
+        poleSpinOffset = mathOps.addAngles(poleSpin[1].outputRotateX, poleSpin[1].outputRotateX.get() * -1,
+                                           name=self.getName('ik_pole_spin_offset'))
+        driver = self.params.pole_follows_ik
+        driver.connect(poleSpinOffset.weightA)
+        driver.connect(poleSpinOffset.weightB)
+        poleSpinOffset.output.connect(self.pole_follow_srt.rx)
+
         # --IK SOLVER--
         #   Get main distances and ratios
-        d = mathOps.decomposeMatrix(self.base_srt.worldMatrix[0], name=self.getName('base_mtx2Srt'))
+
         targetDist = mathOps.distance(self.base_srt, self.ik_displaced, name=self.getName('ik_target_dist'))
         targetDistScaled = mathOps.divide(targetDist.distance, d.outputScaleX,
                                           name=self.getName('ik_target_dist_normal'))
@@ -385,7 +414,10 @@ class TLimbIkFk(components.TBaseComponent):
         exprString = 'float $upLen = %s.output;\n' % upperResult.name()
         exprString += 'float $lowLen = %s.output;\n' % lowerSolverLen.name()
         exprString += 'float $restLen = $upLen+$lowLen;\n'
-        exprString += 'float $targLen = %s.output;\n\n' % lowerPinStretchBlend.name()
+        exprString += 'float $targLen = %s.output;\n' % lowerPinStretchBlend.name()
+        exprString += 'float $minLen = abs($upLen - $lowLen)*1.01;\n'
+        exprString += 'if ($targLen < $minLen){\n\t'
+        exprString += '$targLen = $minLen;\n}\n\n'
         exprString += 'float $upSq = $upLen*$upLen;\n'
         exprString += 'float $lowSq = $lowLen*$lowLen;\n'
         exprString += 'float $targSq = $targLen*$targLen;\n\n'
@@ -570,12 +602,9 @@ class TLimbIkFk(components.TBaseComponent):
                                             separationMult.output,
                                             name=self.getName('separation_result'))
         separationNeg = mathOps.multiply(separationResult.output, -1, name=self.getName('separation_neg'))
-        if self.invert:
-            separationResult.output.connect(upper_sep.input1X)
-            separationNeg.output.connect(lower_sep.input1X)
-        else:
-            separationResult.output.connect(lower_sep.input1X)
-            separationNeg.output.connect(upper_sep.input1X)
+
+        separationResult.output.connect(lower_sep.input1X)
+        separationNeg.output.connect(upper_sep.input1X)
         # -----------------------------------------
         # Bendy ctrls
         # -----------------------------------------
@@ -588,12 +617,16 @@ class TLimbIkFk(components.TBaseComponent):
         upperMidStartAimMtx.secondaryMode.set(2)
         upperMidStartAimMtx.secondaryTargetVectorY.set(1)
 
-        upperMidEndAimMtx = pm.createNode('aimMatrix', name=self.getName('upper_mid_startAim_mtx'))
+        upperMidEndAimMtx = pm.createNode('aimMatrix', name=self.getName('upper_mid_endAim_mtx'))
         upperVec.output3D.connect(upperMidEndAimMtx.primary.primaryTargetVector)
         self.mid_ctrl.worldMatrix[0].connect(upperMidEndAimMtx.secondary.secondaryTargetMatrix)
         upperMidEndAimMtx.secondaryMode.set(2)
         upperMidEndAimMtx.secondaryTargetVectorY.set(1)
-        
+
+        if self.invert:
+            upperMidStartAimMtx.primaryInputAxisX.set(-1)
+            upperMidEndAimMtx.primaryInputAxisX.set(-1)
+
         upperMidAimMtx = transform.blendMatrices(upperMidStartAimMtx.outputMatrix, upperMidEndAimMtx.outputMatrix,
                                                  name=self.getName('upper_mid_aim_mtx'))
         upperMidPosMtx = mathOps.createComposeMatrix(inputTranslate=upperMidPos.output3D,
@@ -617,7 +650,7 @@ class TLimbIkFk(components.TBaseComponent):
         lowerMidStartAimMtx.secondaryMode.set(2)
         lowerMidStartAimMtx.secondaryTargetVectorY.set(1)
 
-        lowerMidEndAimMtx = pm.createNode('aimMatrix', name=self.getName('lower_mid_startAim_mtx'))
+        lowerMidEndAimMtx = pm.createNode('aimMatrix', name=self.getName('lower_mid_endAim_mtx'))
         lowerVec.output3D.connect(lowerMidEndAimMtx.primary.primaryTargetVector)
         self.result_end_avg.worldMatrix[0].connect(lowerMidEndAimMtx.secondary.secondaryTargetMatrix)
         lowerMidEndAimMtx.secondaryMode.set(2)
@@ -629,6 +662,10 @@ class TLimbIkFk(components.TBaseComponent):
                                                      name=self.getName('lower_mid_pos_mtx'))
         lowerMidMtx = transform.blend_T_R_matrices(lowerMidPosMtx.outputMatrix, lowerMidAimMtx.outputMatrix,
                                                    name=self.getName('lower_mid_mtx'))
+
+        if self.invert:
+            lowerMidStartAimMtx.primaryInputAxisX.set(-1)
+            lowerMidEndAimMtx.primaryInputAxisX.set(-1)
 
         mtxAttr = lowerMidMtx.outputMatrix
         if self.invert:
@@ -727,13 +764,21 @@ class TLimbIkFk(components.TBaseComponent):
         # ---------------------------------
         # Internal spaces switching setup
         # ---------------------------------
-        self.spaces['%s' % (self.pole_ctrl.name())] = 'limb_average: %s.matrixSum' % base_mtx.name()
+        self.spaces['%s' % (self.pole_ctrl.name())] = 'limb_average: %s.worldMatrix[0]' % self.pole_follow_srt.name()
 
         # Attach params shape to tip srt
         tempJoint = pm.createNode('joint')
         skn = pm.skinCluster(tempJoint, self.params)
         pm.skinCluster(skn, e=1, ai=self.result_tip, lw=1, wt=1)
         pm.delete(tempJoint)
+
+        # Connect pole guide
+        ikMidMtx2Srt = mathOps.decomposeMatrix(ik_mid_mtx.matrixSum, name=self.getName('ik_pole_guide_start_mtx2Srt'))
+        poleMtx2Srt = mathOps.decomposeMatrix(self.pole_ctrl.worldMatrix[0], name=self.getName('ik_pole_guide_end_mtx2Srt'))
+        ikMidMtx2Srt.outputTranslate.connect(self.pole_guide.controlPoints[0])
+        poleMtx2Srt.outputTranslate.connect(self.pole_guide.controlPoints[1])
+        self.pole_guide.overrideEnabled.set(1)
+        self.pole_guide.overrideDisplayType.set(1)
 
     def finish(self):
         # --------------------------------------------------
@@ -763,7 +808,7 @@ class TLimbIkFk(components.TBaseComponent):
         isIk.secondTerm.set(1)
         isIk.colorIfTrueR.set(0)
         isIk.colorIfFalseR.set(1)
-        for node in [self.ik_ctrl, self.pole_ctrl]:
+        for node in [self.ik_ctrl, self.pole_ctrl, self.pole_guide]:
             pm.setAttr(node.visibility, lock=0)
             isIk.outColorR.connect(node.visibility)
 

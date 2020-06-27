@@ -221,6 +221,8 @@ class TNeck02(components.TBaseComponent):
 
         # Head joint
         j = pm.createNode('joint', name=self.getName('end_jnt'))
+        j.setParent(self.joints_list[-1]['joint'])
+        self.mapJointToGuideLocs(j, self.guide.locs[3])
         self.joints_list.append({'joint': j, 'driver': self.ik_end_ctrl})
 
 

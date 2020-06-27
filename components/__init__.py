@@ -131,6 +131,7 @@ class TBaseComponent(object):
                 buffer.offsetParentMatrix.set(xform)
             buffer.t.set((0, 0, 0))
             buffer.r.set((0, 0, 0))
+            buffer.s.set((1, 1, 1))
         else:
             if parent:
                 ctrl.offsetParentMatrix.set(xform * parent.worldInverseMatrix[0].get())
@@ -406,7 +407,6 @@ class TBaseComponent(object):
         Returns:
             None
         '''
-        print 'Adding Control tags: %s' % self.controls_list
         for control in self.controls_list:
             parent = metadata.getMetaParent(control)
             tag = pm.controller(control)
