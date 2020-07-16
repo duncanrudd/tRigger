@@ -183,9 +183,9 @@ class TReverseFootLean(components.TBaseComponent):
 
             footRollToeMult = mathOps.reverse(footRollBallRemap.outValueX, name=self.getName('footRoll_toe_remap'))
             rollToeSum = mathOps.addAngles(footRollPosClamp.outputR, self.params.roll_tip,
-                                            name=self.getName('roll_ball_sum'))
+                                           name=self.getName('roll_ball_sum'))
             footRollToeEase = anim.easeCurve(footRollToeMult.outputX, easeOut=0,
-                                              name=self.getName('footRoll_ball_ease_animCurve'))
+                                             name=self.getName('footRoll_ball_ease_animCurve'))
             footRollToeEase.output.connect(rollToeSum.weightA)
             rollToeSum.output.connect(self.ikTip_ctrl.rz)
 
@@ -200,14 +200,14 @@ class TReverseFootLean(components.TBaseComponent):
             self.params.lean_edge.connect(self.ikBall_ctrl.rx)
             self.params.lean_side.connect(self.ikLean_ctrl.rx)
             self.params.lean_front.connect(self.ikLean_ctrl.rz)
-                
+
         # Ik foot edge roll system
         buffer = self.ikBall_ctrl.getParent()
         sideRollNeg = mathOps.multiplyAngleByScalar(self.ikBall_ctrl.rx, -1, name=self.getName('ik_sideRoll_invert'))
         sideRollNeg.output.connect(buffer.rx)
-        inner, outer = self.ikInner_srt, self.ikOuter_srt
+        outer, inner = self.ikInner_srt, self.ikOuter_srt
         if not self.invert:
-            outer, inner = self.ikInner_srt, self.ikOuter_srt
+            inner, outer = self.ikInner_srt, self.ikOuter_srt
 
         pm.transformLimits(inner, rx=(0, 1000), erx=(1, 0))
         pm.transformLimits(outer, rx=(-1000, 0), erx=(0, 1))
@@ -217,9 +217,6 @@ class TReverseFootLean(components.TBaseComponent):
         rAttr.connect(self.ikInner_srt.rx)
         rAttr.connect(self.ikOuter_srt.rx)
 
-        self.params.foot_scale.connect(self.ik_base_srt.sx)
-        self.params.foot_scale.connect(self.ik_base_srt.sy)
-        self.params.foot_scale.connect(self.ik_base_srt.sz)
         self.params.foot_scale.connect(self.base_srt.sx)
         self.params.foot_scale.connect(self.base_srt.sy)
         self.params.foot_scale.connect(self.base_srt.sz)
@@ -228,9 +225,9 @@ class TReverseFootLean(components.TBaseComponent):
         footMtx = mathOps.multiplyMatrices([self.ikToe_ctrl.worldMatrix[0], self.ikEnd_srt.worldInverseMatrix[0]],
                                            name=self.getName('fk_foot_offset_mtx'))
         toeMtx = mathOps.multiplyMatrices([self.ikTip_ctrl.worldMatrix[0], self.ikToe_ctrl.worldInverseMatrix[0]],
-                                           name=self.getName('fk_toe_offset_mtx'))
+                                          name=self.getName('fk_toe_offset_mtx'))
         toeRotMtx = transform.blend_T_R_matrices(pm.datatypes.Matrix(), toeMtx.matrixSum,
-                                                    name=self.getName('fk_toe_rot_mtx'))
+                                                 name=self.getName('fk_toe_rot_mtx'))
         tempDM = mathOps.decomposeMatrix(self.fkToe_ctrl.getParent().offsetParentMatrix)
         self.fkToe_ctrl.getParent().rz.set(180 - tempDM.outputRotateZ.get())
         pm.delete(tempDM)
@@ -274,8 +271,10 @@ class TReverseFootLean(components.TBaseComponent):
 
         if self.guide.attr_driven:
             self.ikHeel_ctrl.getParent().v.set(0)
-            for ctrl in [self.ikHeel_ctrl, self.ikTip_ctrl, self.ikBall_ctrl, self.ikToe_ctrl, self.ikLean_ctrl]:
+            ctrls = [self.ikHeel_ctrl, self.ikTip_ctrl, self.ikBall_ctrl, self.ikToe_ctrl, self.ikLean_ctrl]
+            for ctrl in ctrls:
                 ctrl.is_tControl.set(0)
+            attribute.channelControl(nodeList=ctrls, attrList=['tx', 'ty', 'tz', 'rx', 'ry', 'rz'])
 
 
 

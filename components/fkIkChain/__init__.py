@@ -231,10 +231,10 @@ class TFkIkChain(components.TBaseComponent):
                 ikStartMtx2Srt.outputTranslate.connect(div.t)
                 ikStartMtx2Srt.outputRotate.connect(div.r)
                 param = 0.0
-            elif i == len(self.divs):
+            elif i == len(self.divs)-1:
                 param = 1.0
-                ikStartMtx2Srt.outputTranslate.connect(div.t)
-                ikStartMtx2Srt.outputRotate.connect(div.r)
+                ikEndMtx2Srt.outputTranslate.connect(div.t)
+                ikEndMtx2Srt.outputRotate.connect(div.r)
             else:
                 num = str(i+1).zfill(2)
                 param = pm.listConnections(self.guide.divisionLocs[i], type='motionPath')[0].uValue.get()

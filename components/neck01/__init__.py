@@ -223,15 +223,20 @@ class TNeck01(components.TBaseComponent):
             for i, div in enumerate(self.divs):
                 num = str(i+1).zfill(2)
                 j = pm.createNode('joint', name=self.getName('%s_jnt' % num))
+                self.mapJointToGuideLocs(j, self.guide.divisionLocs[i])
+                if i > 0:
+                    j.setParent(self.joints_list[-1]['joint'])
                 self.joints_list.append({'joint': j, 'driver': div})
                 self.mapJointToGuideLocs(j, self.guide.divisionLocs[i])
 
         # Head shear joint
         j = pm.createNode('joint', name=self.getName('end_shear_jnt'))
+        j.setParent(self.joints_list[-1]['joint'])
         self.joints_list.append({'joint': j, 'driver': self.end_shear_srt})
 
         # Head joint
         j = pm.createNode('joint', name=self.getName('end_jnt'))
+        j.setParent(self.joints_list[-1]['joint'])
         self.joints_list.append({'joint': j, 'driver': self.ik_end_ctrl})
 
 

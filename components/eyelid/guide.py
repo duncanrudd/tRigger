@@ -61,3 +61,8 @@ def instantiateFromDagNode(dagNode):
 
 def buildGuide(**kwargs):
     return TEyelidGuide(**kwargs)
+
+def updateGuide(guideRoot):
+    if not guideRoot.hasAttr('bias_tweak_ctrls'):
+        attribute.addBoolAttr(guideRoot, 'bias_tweak_ctrls', value=False)
+

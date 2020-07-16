@@ -73,7 +73,7 @@ class TFkHand02(components.TBaseComponent):
                     metaParent = self.masterCtrl
                 ctrl = self.addCtrl(shape='pringle', size=ctrlSize*.15,
                                     name=self.getName('thumb_%s' % segNum), buffer=1,
-                                    xform=xform, parent=parent, metaParent=parent)
+                                    xform=xform, parent=parent, metaParent=metaParent)
                 parent = ctrl
                 self.fingerDict['thumb']['controls'].append(ctrl)
 
@@ -187,6 +187,9 @@ class TFkHand02(components.TBaseComponent):
                 iNum = str(index+1).zfill(2)
                 curl = mathOps.multiplyAngleByScalar(curlResults[curlIndex].output, weight.output1D,
                                                      name=self.getName('seg_%s_curl_%s_weight' % (num, iNum)))
+                if index == 1:
+                    self.masterCtrl.rz.connect(curl.inputB)
+                    self.masterCtrl.rx.connect(buffer.rx)
                 curl.output.connect(buffer.rz)
 
                 if index < 2:
@@ -210,8 +213,18 @@ class TFkHand02(components.TBaseComponent):
         nodeList = [node for node in self.controls_list if not node == self.masterCtrl]
         attrList = ['tx', 'ty', 'tz']
         attribute.channelControl(nodeList=nodeList, attrList=attrList)
-        attrList = ['rx', 'rz']
-        attribute.channelControl(nodeList=[self.masterCtrl], attrList=attrList)
+
+        # Alias attrs on master control
+        attrPairs = [
+            ['curl', self.masterCtrl.tx],
+            ['curl_bias', self.masterCtrl.tz],
+            ['spread', self.masterCtrl.ty],
+            ['swing', self.masterCtrl.ry],
+            ['roll', self.masterCtrl.rx],
+            ['bend', self.masterCtrl.rz],
+        ]
+        for pair in attrPairs:
+            pm.aliasAttr(pair[0], pair[1])
 
 def build(guide):
     '''

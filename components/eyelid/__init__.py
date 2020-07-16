@@ -45,6 +45,10 @@ class TEyelid(components.TBaseComponent):
         for index in range(guide.num_ctrls):
             num = str(index).zfill(2)
             param = (1.0 / (guide.num_ctrls - 1)) * index
+            if self.guide.root.bias_tweak_ctrls.get():
+                lowParam = param * param
+                highParam = 1 - ((1-param)*(1-param))
+                param = (lowParam*(1-param)) + (highParam*param)
 
             def _make_ctrl_mtx(pathPos, prefix='upper'):
                 localPathPos = mathOps.getTransformedPoint(pathPos, self.base_srt.worldInverseMatrix[0].get())
@@ -62,7 +66,7 @@ class TEyelid(components.TBaseComponent):
                 pathPos = curve.sampleCurvePosition(guide.upperCrv, param)
                 ctrlMtx = _make_ctrl_mtx(pathPos)*self.base_srt.worldMatrix[0].get()
                 ctrl = self.addCtrl(shape='triNorth', size=ctrlSize,
-                                    name=self.getName('%s_upper' % num), xform=ctrlMtx, parent=self.eyeball_ctrl,
+                                    name=self.getName('%s_upper' % num), xform=ctrlMtx, parent=self.ctrl,
                                     metaParent=self.eyeball_ctrl)
                 self.upperCtrls.append(ctrl)
                 srt = dag.addChild(self.rig_srt, 'group', self.getName('%s_upper_srt' % num))
@@ -75,7 +79,7 @@ class TEyelid(components.TBaseComponent):
                 pathPos = curve.sampleCurvePosition(guide.lowerCrv, param)
                 ctrlMtx = _make_ctrl_mtx(pathPos, prefix='lower')*self.base_srt.worldMatrix[0].get()
                 lowerCtrl = self.addCtrl(shape='triSouth', size=ctrlSize,
-                                         name=self.getName('%s_lower' % num), xform=ctrlMtx, parent=self.eyeball_ctrl,
+                                         name=self.getName('%s_lower' % num), xform=ctrlMtx, parent=self.ctrl,
                                          metaParent=self.eyeball_ctrl)
                 self.lowerCtrls.append(lowerCtrl)
                 srt = dag.addChild(self.rig_srt, 'group', self.getName('%s_lower_srt' % num))
@@ -88,7 +92,7 @@ class TEyelid(components.TBaseComponent):
                 pathPos = curve.sampleCurvePosition(guide.upperCrv, 0.0)
                 ctrlMtx = _make_ctrl_mtx(pathPos)*self.base_srt.worldMatrix[0].get()
                 self.inner_ctrl = self.addCtrl(shape='triEast', size=ctrlSize,
-                                               name=self.getName('inner'), xform=ctrlMtx, parent=self.eyeball_ctrl,
+                                               name=self.getName('inner'), xform=ctrlMtx, parent=self.ctrl,
                                                metaParent=self.eyeball_ctrl)
                 self.innerSrt = dag.addChild(self.rig_srt, 'group', self.getName('inner_srt'))
                 transform.align(self.innerSrt, self.inner_ctrl)
@@ -99,7 +103,7 @@ class TEyelid(components.TBaseComponent):
                 pathPos = curve.sampleCurvePosition(guide.upperCrv, 1.0)
                 ctrlMtx = _make_ctrl_mtx(pathPos)*self.base_srt.worldMatrix[0].get()
                 self.outer_ctrl = self.addCtrl(shape='triWest', size=ctrlSize,
-                                               name=self.getName('outer'), xform=ctrlMtx, parent=self.eyeball_ctrl,
+                                               name=self.getName('outer'), xform=ctrlMtx, parent=self.ctrl,
                                                metaParent=self.eyeball_ctrl)
                 self.outerSrt = dag.addChild(self.rig_srt, 'group', self.getName('outer_srt'))
                 transform.align(self.outerSrt, self.outer_ctrl)
@@ -173,7 +177,7 @@ class TEyelid(components.TBaseComponent):
             self.base_srt.worldMatrix[0].connect(self.rig_srt.offsetParentMatrix)
 
         for ctrl in self.controls_list:
-            if not ctrl == self.eyeball_ctrl:
+            if not ctrl in [self.eyeball_ctrl, self.params, self.ctrl]:
                 self.params.show_tweak_ctrls.connect(ctrl.visibility)
                 
         for index, ctrl in enumerate(self.upperCtrls):
@@ -286,7 +290,7 @@ class TEyelid(components.TBaseComponent):
         # Attach params shape to eyeball_ctrl
         tempJoint = pm.createNode('joint')
         skn = pm.skinCluster(tempJoint, self.params)
-        pm.skinCluster(skn, e=1, ai=self.eyeball_ctrl, lw=1, wt=1)
+        pm.skinCluster(skn, e=1, ai=self.ctrl, lw=1, wt=1)
         pm.delete(tempJoint)
 
     def finish(self):
