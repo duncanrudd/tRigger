@@ -161,7 +161,11 @@ class TEyelid(components.TBaseComponent):
             negAimMtx = mathOps.multiplyMatrices([self.negMtx.outputMatrix, mtxAttr],
                                                  name=self.getName('neg_tug_mtx'))
             mtxAttr = negAimMtx.matrixSum
-        tugMtx = transform.blendMatrices(mtxAttr, self.eyeball_ctrl.worldMatrix[0],
+        offset = transform.pmMtx2fourFourMtx(mtxAttr.get() * self.eyeball_ctrl.worldInverseMatrix[0].get(),
+                                             name=self.getName('ctrl2Aim_offset_mtx'))
+        ctrlMtx = mathOps.multiplyMatrices([offset.output, self.eyeball_ctrl.worldMatrix[0]],
+                                           name=self.getName('tug_ctrl_mtx'))
+        tugMtx = transform.blendMatrices(mtxAttr, ctrlMtx.matrixSum,
                                          name=self.getName('tug_mtx'))
         self.params.skin_tug.connect(tugMtx.target[0].weight)
         tugMtx.outputMatrix.connect(self.tugSrt.offsetParentMatrix)

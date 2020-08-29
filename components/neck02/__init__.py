@@ -55,15 +55,28 @@ class TNeck02(components.TBaseComponent):
                                          name=self.getName('aim'), xform=xform, parent=self.controls,
                                          metaParent=self.base_srt)
 
+        parent = self.base_srt
+        curveStartCtrl = self.fk_ctrls[0]
+        if self.guide.ik_start_ctrl:
+            # IK start ctrl
+
+            xform = self.fk_ctrls[0].worldMatrix[0].get()
+            self.ik_start_ctrl = self.addCtrl(shape='box', size=ctrlSize,
+                                         name=self.getName('ik_start'), xform=xform, parent=self.fk_ctrls[0],
+                                         metaParent=parent)
+            parent = self.ik_start_ctrl
+            curveStartCtrl = self.ik_start_ctrl
+
+        # mid_ctrl
+        self.ik_mid_ctrl = self.addCtrl(shape='squarePoint', size=ctrlSize * 1.25,
+                                        name=self.getName('ik_mid'), xform=self.root.worldMatrix[0].get(),
+                                        parent=self.controls, metaParent=parent)
+
         # IK control
         self.ik_end_ctrl = self.addCtrl(shape='box', size=ctrlSize,
                                         name=self.getName('ik_end'), xform=guide.locs[3].worldMatrix[0].get(),
-                                        parent=self.controls, metaParent=self.base_srt, buffer=1)
+                                        parent=self.controls, metaParent=self.ik_mid_ctrl, buffer=1)
 
-        # mid_ctrl
-        self.ik_mid_ctrl = self.addCtrl(shape='squarePoint', size=ctrlSize*1.25,
-                                        name=self.getName('ik_mid'), xform=self.root.worldMatrix[0].get(),
-                                        parent=self.controls, metaParent=self.base_srt)
         # mid twist srt
         self.mid_twist_srt = dag.addChild(self.rig, 'group', name=self.getName('mid_twist_srt'))
         self.ik_mid_ctrl.worldMatrix[0].connect(self.mid_twist_srt.offsetParentMatrix)
@@ -79,7 +92,7 @@ class TNeck02(components.TBaseComponent):
         tipOffset = mathOps.subtractVector([d.outputTranslate, tipMtx2Srt.outputTranslate],
                                            name=self.getName('tip_offset_vec'))
         dist1 = mathOps.getDistance(baseMtx, self.ik_end_ctrl)
-        dist2 = mathOps.getDistance(baseMtx, self.fk_ctrls[0])
+        dist2 = mathOps.getDistance(baseMtx, curveStartCtrl)
         midRatio = float(dist2)/(dist1+dist2)
         tipOffsetMult = mathOps.multiplyVector(tipOffset.output3D, (midRatio, midRatio, midRatio),
                                                name=self.getName('ik_mid_tip_offset_mult'))
@@ -90,11 +103,11 @@ class TNeck02(components.TBaseComponent):
                                                   name=self.getName('ik_mid_pos_mtx'))
 
         # mid rotate mtx
-        endLocalPos = mathOps.createTransformedPoint(d.outputTranslate, self.fk_ctrls[0].worldInverseMatrix[0],
+        endLocalPos = mathOps.createTransformedPoint(d.outputTranslate, curveStartCtrl.worldInverseMatrix[0],
                                                      name=self.getName('ik_end_2_base_space_pos'))
         ikAimAngle = mathOps.angleBetween((0, 1, 0), endLocalPos.output, name=self.getName('ik_aim_angle'))
         ikAngleMtx = mathOps.createComposeMatrix(inputRotate=ikAimAngle.euler, name=self.getName('ik_angle_mtx'))
-        ikAimMtx = mathOps.multiplyMatrices([ikAngleMtx.outputMatrix, self.fk_ctrls[0].worldMatrix[0]],
+        ikAimMtx = mathOps.multiplyMatrices([ikAngleMtx.outputMatrix, curveStartCtrl.worldMatrix[0]],
                                             name=self.getName('ik_aim_mtx'))
 
         blend = transform.blendMatrices(ikMidPosMtx.outputMatrix, ikAimMtx.matrixSum, name=self.getName('ik_mid_mtx'))
@@ -108,7 +121,7 @@ class TNeck02(components.TBaseComponent):
                                            name=self.getName('ik_mid_offset_vec'))
 
         # curve
-        rootMtx2Srt = mathOps.decomposeMatrix(self.fk_ctrls[0].worldMatrix[0], name=self.getName('fk_01_mtx2Srt'))
+        rootMtx2Srt = mathOps.decomposeMatrix(curveStartCtrl.worldMatrix[0], name=self.getName('fk_01_mtx2Srt'))
         points = [rootMtx2Srt.outputTranslate]
         for index, ctrl in enumerate(self.fk_ctrls[1:]):
             num = str(index+2).zfill(2)
@@ -137,7 +150,7 @@ class TNeck02(components.TBaseComponent):
         self.crv.worldSpace[0].connect(self.endTangent.inputCurve)
         self.endTangent.parameter.set(.99)
 
-        baseSideVec = mathOps.createMatrixAxisVector(self.fk_ctrls[0].worldMatrix[0], (-1, 0, 0),
+        baseSideVec = mathOps.createMatrixAxisVector(curveStartCtrl.worldMatrix[0], (-1, 0, 0),
                                                      name=self.getName('start_rail_side_vec'))
         baseOffsetVec = mathOps.createCrossProduct(self.startTangent.result.normalizedTangent, baseSideVec.output,
                                                    name=self.getName('start_rail_offset_vec'))
@@ -201,7 +214,7 @@ class TNeck02(components.TBaseComponent):
         # MAP TO GUIDE LOCS
         mappingPairs = [[self.ik_end_ctrl.getParent(), guide.locs[3]], [self.base_srt, guide.locs[0]],
                         [self.ik_end_ctrl, guide.locs[5]], [self.ik_mid_ctrl, guide.ctrlLocs[len(guide.ctrlLocs)/2]],
-                        [self.fk_ctrls[0], guide.ctrlLocs[0]]]
+                        [curveStartCtrl, guide.ctrlLocs[0]]]
         for div, loc in zip(self.divs, guide.divisionLocs):
             mappingPairs.append([div, loc])
         if self.guide.aimer:

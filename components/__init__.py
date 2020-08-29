@@ -25,7 +25,12 @@ class TRig(object):
         attribute.addBoolAttr(self.root, 'show_joints', value=1)
         attribute.addBoolAttr(self.root, 'show_controls', value=1)
         attribute.addBoolAttr(self.root, 'lock_geo', value=1)
+        attrList = ['hide_controls_on_playback', 'show_joints', 'show_controls', 'lock_geo']
+        attribute.channelControl(nodeList=[self.root], attrList=attrList, lock=0, channelBox=1)
+        attrList = ['tx', 'ty', 'tz', 'rx', 'ry', 'rz', 'sx', 'sy', 'sz', 'visibility']
+        attribute.channelControl(nodeList=[self.root], attrList=attrList)
         print 'New TRig instance created: %s' % name
+
 
 class TBaseComponent(object):
     '''

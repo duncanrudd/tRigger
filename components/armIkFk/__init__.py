@@ -196,14 +196,14 @@ class TArmIkFk(components.TBaseComponent):
         self.upper_mps = curve.nodesAlongCurve(self.upper_startBend_ctrl.worldMatrix[0],
                                                self.upper_endBend_ctrl.worldMatrix[0],
                                                guide.num_divisions, self.upper_crv,
-                                               self.getName('upperTwist'))
+                                               self.getName('upperTwist'), startParam=0.01, endParam=0.99)
 
         self.lower_crv = curve.curveBetweenPoints(self.mid_ctrl, self.result_end_avg, numPoints=4,
                                                   degree=3, name=self.getName('lowerTwist_crv'))
         self.lower_crv.setParent(self.rig)
         self.lower_mps = curve.nodesAlongCurve(self.lower_startBend_ctrl.worldMatrix[0],
                                                self.lower_endBend_ctrl.worldMatrix[0], guide.num_divisions,
-                                               self.lower_crv, self.getName('lowerTwist'))
+                                               self.lower_crv, self.getName('lowerTwist'), startParam=0.01, endParam=0.99)
 
         # Divs and Joints
         def _makeDiv(name, mp):
@@ -311,6 +311,29 @@ class TArmIkFk(components.TBaseComponent):
 
         # Joints
         if self.guide.add_joint:
+            drivers = [self.result_start_avg] + self.upperDivs + [self.result_mid_avg] + self.lowerDivs + [self.result_end_avg]
+            for i, driver in enumerate(drivers):
+                name = '_'.join(driver.name().split('_')[:-1]) + '_jnt'
+                j = pm.createNode('joint', name=name)
+                if len(self.joints_list) > 0:
+                    j.setParent(self.joints_list[-1]['joint'])
+                self.joints_list.append({'joint': j, 'driver': driver})
+
+            if self.guide.sleeve != 0:
+                drivers = [self.upperSleeveDivs]
+                if self.guide.sleeve == 2:
+                    drivers.append(self.sleeve_mid_avg)
+                drivers = drivers + self.lowerSleeveDivs
+                for i, driver in enumerate(drivers):
+                    name = '_'.join(driver.name().split('_')[:-1]) + '_jnt'
+                    j = pm.createNode('joint', name=name)
+                    if i > 0:
+                        j.setParent(self.joints_list[-1]['joint'])
+                    else:
+                        j.setParent(self.joints_list[0]['joint'])
+                    self.joints_list.append({'joint': j, 'driver': driver})
+
+            '''
             j = pm.createNode('joint', name=self.getName('start_avg_jnt'))
             self.joints_list.append({'joint': j, 'driver': self.result_start_avg})
 
@@ -326,6 +349,7 @@ class TArmIkFk(components.TBaseComponent):
             if self.guide.sleeve == 2:
                 j = pm.createNode('joint', name=self.getName('sleeve_mid_avg_jnt'))
                 self.joints_list.append({'joint': j, 'driver': self.sleeve_mid_avg})
+            '''
 
         # Call overloaded method of parent class
         components.TBaseComponent.addObjects(self, guide)

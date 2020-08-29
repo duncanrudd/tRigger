@@ -5,22 +5,26 @@ from tRigger.components import guide, attribute, transform
 reload(guide)
 
 class TEyelidGuide(guide.TGuideBaseComponent):
-    def __init__(self, guide_name='', guide_side='C', guide_index=0, num_ctrls=3, add_joint=1, local_rig=1, fromDagNode=0):
+    def __init__(self, guide_name='', guide_side='C', guide_index=0, num_ctrls=3, add_joint=1, local_rig=1,
+                 bias_tweak_ctrls=0, fromDagNode=0):
         guide.TGuideBaseComponent.__init__(self, guide_name, 'eyelid', guide_side, guide_index, fromDagNode=fromDagNode)
         self.num_ctrls = num_ctrls
         self.add_joint = add_joint
         self.local_rig = local_rig
-        for param in ['num_ctrls', 'add_joint', 'local_rig']:
+        self.bias_tweak_ctrls = bias_tweak_ctrls
+        for param in ['num_ctrls', 'add_joint', 'local_rig', 'bias_tweak_ctrls']:
             self.params.append(param)
         if not fromDagNode:
             attribute.addIntAttr(self.root, 'num_ctrls', num_ctrls)
             attribute.addBoolAttr(self.root, 'add_joint', add_joint)
             attribute.addBoolAttr(self.root, 'local_rig', local_rig)
+            attribute.addBoolAttr(self.root, 'bias_tweak_ctrls', value=False)
             self.addLocs()
         else:
             self.root.num_ctrls.set(self.num_ctrls)
             self.root.add_joint.set(self.add_joint)
             self.root.local_rig.set(self.local_rig)
+            self.root.bias_tweak_ctrls.set(self.bias_tweak_ctrls)
             self.locs = self.getGuideLocs(fromDagNode)
             self.upperCrv = pm.PyNode(self.getName('upper_crv'))
             self.lowerCrv = pm.PyNode(self.getName('lower_crv'))
@@ -57,6 +61,7 @@ def instantiateFromDagNode(dagNode):
                          num_ctrls=dagNode.num_ctrls.get(),
                          add_joint=dagNode.add_joint.get(),
                          local_rig=dagNode.local_rig.get(),
+                         bias_tweak_ctrls=dagNode.bias_tweak_ctrls.get(),
                          fromDagNode=dagNode)
 
 def buildGuide(**kwargs):

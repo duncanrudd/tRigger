@@ -36,6 +36,8 @@ class TFkChain(components.TBaseComponent):
         if guide.root.add_joint.get():
             for srt in self.srts:
                 j = pm.createNode('joint', name=srt.name().replace('srt', 'jnt'))
+                if srt != self.srts[0]:
+                    j.setParent(self.joints_list[-1]['joint'])
                 self.joints_list.append({'joint': j, 'driver': srt})
 
     def addSystems(self):
