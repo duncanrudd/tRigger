@@ -155,7 +155,7 @@ def multiplyRotationByScalar(input, weight, name=None):
 
     return node
 
-def getAngleBetweenVectors(v1, v2, vUp, degrees=1):
+def getAngleBetweenVectors(v1, v2, vUp=(0, 1, 0), degrees=1):
     '''
     returns the signed angle between v1 and v2
     '''
@@ -526,6 +526,38 @@ def connectSrt(src, dest, s=1, r=1, t=1):
 # -----------------------------------------------------------------------
 # VECTOR OPS
 # -----------------------------------------------------------------------
+def vectorBetween(start, end):
+    '''
+    Args:
+        start: node or vector to start from
+        end: node or vector to end at
+
+    Returns:
+        (pm.datatypes.Vector) end minus start
+    '''
+    startPos, endPos = getStartAndEnd(start, end)
+    newVec = pm.datatypes.Vector(endPos[0] - startPos[0], endPos[1] - startPos[1], endPos[2] - startPos[2])
+    return newVec
+
+def vectorSum(vec1, vec2):
+    '''
+    Args:
+        start: vector1
+        end: vector2
+
+    Returns:
+        (pm.datatypes.Vector) sum of vec1 and vec2
+    '''
+    newVec = pm.datatypes.Vector(vec1[0] + vec2[0], vec1[1] + vec2[1], vec1[2] + vec2[2])
+    return newVec
+
+def divideVectorByScalar(vec, mult):
+    newVec = (vec[0]/mult, vec[1]/mult, vec[2]/mult)
+    return newVec
+
+def multiplyVectorByScalar(vec, mult):
+    newVec = (vec[0]*mult, vec[1]*mult, vec[2]*mult)
+    return newVec
 
 def getStartAndEnd(start=None, end=None):
     '''
@@ -735,4 +767,10 @@ def isolateRotationOnAxis(rotationAttr, axis, name=''):
 
 
     return[quatNode, eulerNode]
+
+def setRange(value, minInput, maxInput, minOutput, maxOutput):
+    inputRange = maxInput - minInput
+    outputRange = maxOutput - minOutput
+    normVal = float(value - minInput) / float(inputRange)
+    return minOutput + (normVal * outputRange)
 

@@ -179,6 +179,16 @@ def bakeSrtToOffsetParentMtx(node):
     node.r.set((0, 0, 0))
     node.s.set((1, 1, 1))
 
+def bakeOffsetParentMtxToSrt(node):
+    '''
+    Zeros out the offsetParentMatrix and bakes the values into the channel box srt attributes
+    Args:
+        node: (pyNode) the node to bake
+    '''
+    mtx = node.worldMatrix[0].get()
+    node.offsetParentMatrix.set(pm.datatypes.Matrix())
+    pm.xform(node, ws=1, m=mtx)
+
 def blend_T_R_matrices(t_mtx, r_mtx, name=None):
     '''
     Creates a blend Matrix node with T and R matrices as inputs. Result is the translate and scale from T_mtx and the

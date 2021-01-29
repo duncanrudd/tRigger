@@ -188,6 +188,12 @@ def getNextAvailableIndex(attr):
             if not attr[element].listConnections():
                 return element
 
+def breakConnection(attr):
+    conns = pm.listConnections(attr, p=1, c=1)
+    if conns:
+        if len(conns) != 0:
+            pm.disconnectAttr(conns[0][1], conns[0][0])
+
 
 
 

@@ -143,6 +143,7 @@ class TEyelid(components.TBaseComponent):
         attribute.addFloatAttr(self.params, 'blink_height', minValue=0.0, maxValue=1.0)
         attribute.addFloatAttr(self.params, 'auto_lids', minValue=0.0, maxValue=1.0)
         attribute.addFloatAttr(self.params, 'skin_tug', minValue=0.0, maxValue=1.0)
+        attribute.channelControl(nodeList=[self.params], attrList=['show_tweak_ctrls'], lock=0, channelBox=1)
 
     def addSystems(self):
         # AIM STUFF
@@ -151,6 +152,7 @@ class TEyelid(components.TBaseComponent):
                                                      self.getName('aim_elevation_mtx')])
         mtxAttr = aimMtx[1].outputMatrix
         if self.invert:
+            negMtx = mathOps.createComposeMatrix(inputScale=(-1, 1, 1), name=self.getName('neg_mtx'))
             negAimMtx = mathOps.multiplyMatrices([self.negMtx.outputMatrix, mtxAttr],
                                                  name=self.getName('neg_aim_mtx'))
             mtxAttr = negAimMtx.matrixSum
@@ -228,12 +230,15 @@ class TEyelid(components.TBaseComponent):
             dist = mathOps.getDistance(self.base_srt, ctrl)
             localMtx = mathOps.multiplyMatrices([ctrl.matrix, ctrl.offsetParentMatrix],
                                                 name=self.getName('%s_upper_ctrl_mtx' % num))
+            if self.invert:
+                negMtx.outputMatrix.connect(localMtx.matrixIn[2])
             localDm = mathOps.decomposeMatrix(localMtx.matrixSum, name=self.getName('%s_upper_ctrl_mtx2Srt' % num))
 
 
-            dist = mathOps.getDistance(self.base_srt, self.lowerCtrls[index])
             localMtx = mathOps.multiplyMatrices([self.lowerCtrls[index].matrix, self.lowerCtrls[index].offsetParentMatrix],
                                                 name=self.getName('%s_lower_ctrl_mtx' % num))
+            if self.invert:
+                negMtx.outputMatrix.connect(localMtx.matrixIn[2])
             lowerLocalDm = mathOps.decomposeMatrix(localMtx.matrixSum, name=self.getName('%s_lower_ctrl_mtx2Srt' % num))
 
             pb = mathOps.pairBlend(translateB=localDm.outputTranslate, translateA=lowerLocalDm.outputTranslate,
@@ -255,6 +260,7 @@ class TEyelid(components.TBaseComponent):
             scaledPos = mathOps.multiplyVector(normalPos.output, (dist, dist, dist),
                                                name=self.getName('%s_upper_clamped_pos' % num))
 
+            dist = mathOps.getDistance(self.base_srt, self.lowerCtrls[index])
             scaledPos.output.connect(self.upperSrts[index].t)
             upperPb.outRotate.connect(self.upperSrts[index].r)
 

@@ -88,6 +88,13 @@ class TControlArray(components.TBaseComponent):
 
     def finish(self):
         self.setColours(self.guide)
+        for ctrl in self.controls_list:
+            if 'L_' in ctrl.name():
+                colour = pm.Attribute('guide.left_colour').get()
+                icon.setColourRGB(ctrl, colour)
+            elif 'R_' in ctrl.name():
+                colour = pm.Attribute('guide.right_colour').get()
+                icon.setColourRGB(ctrl, colour)
 
         ctrls = [node for node in self.controls_list if not node == self.params]
 

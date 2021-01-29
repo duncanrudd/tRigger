@@ -165,9 +165,10 @@ class TVariableFK(components.TBaseComponent):
                 dist = pm.createNode('distanceBetween', name=self.getName('ctrl_%s_%s_dist' % (ctrlNum, divNum)))
                 dist.point1X.set(param)
                 ctrl.position.connect(dist.point2X)
-                weight = mathOps.remap(dist.distance, 0, ctrl.falloff, 1, 0,
-                                       name=self.getName('ctrl_%s_%s_weight' % (ctrlNum, divNum)))
-                weight.outValueX.connect(rot.weightA)
+                remap = mathOps.remap(dist.distance, 0, ctrl.falloff, 1, 0,
+                                       name=self.getName('ctrl_%s_%s_remap' % (ctrlNum, divNum)))
+                weight = anim.easeCurve(remap.outValueX, name=self.getName('ctrl_%s_%s_weight' % (ctrlNum, divNum)))
+                weight.output.connect(rot.weightA)
                 if rots:
                     rots[-1].output.connect(rot.inputB)
                 rots.append(rot)

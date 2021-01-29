@@ -320,7 +320,7 @@ class TArmIkFk(components.TBaseComponent):
                 self.joints_list.append({'joint': j, 'driver': driver})
 
             if self.guide.sleeve != 0:
-                drivers = [self.upperSleeveDivs]
+                drivers = self.upperSleeveDivs
                 if self.guide.sleeve == 2:
                     drivers.append(self.sleeve_mid_avg)
                 drivers = drivers + self.lowerSleeveDivs
@@ -975,16 +975,23 @@ class TArmIkFk(components.TBaseComponent):
         stretchBlend.output.connect(self.result_mid_avg.sz)
 
         for index, node in enumerate(self.upperSleeveDivs):
-            conn = pm.listConnections(self.upperDivs[index].sy, plugs=1)[0]
-            conn.connect(node.sy)
-            conn.connect(node.sz)
-            baseMtx2Srt.outputScaleX.connect(node.sx)
+            if node != self.upperSleeveDivs[-1]:
+                print node.name()
+                print pm.listConnections(self.upperDivs[index].sy, plugs=1)
+                conn = pm.listConnections(self.upperDivs[index].sy, plugs=1)[0]
+                conn.connect(node.sy)
+                conn.connect(node.sz)
+                baseMtx2Srt.outputScaleX.connect(node.sx)
+            else:
+                stretchBlend.output.connect(node.sy)
+                stretchBlend.output.connect(node.sz)
 
         for index, node in enumerate(self.lowerSleeveDivs):
-            conn = pm.listConnections(self.lowerDivs[index].sy, plugs=1)[0]
-            conn.connect(node.sy)
-            conn.connect(node.sz)
-            baseMtx2Srt.outputScaleX.connect(node.sx)
+            if node != self.upperSleeveDivs[-1]:
+                conn = pm.listConnections(self.lowerDivs[index].sy, plugs=1)[0]
+                conn.connect(node.sy)
+                conn.connect(node.sz)
+                baseMtx2Srt.outputScaleX.connect(node.sx)
 
         # ---------------------------------
         # Internal spaces switching setup

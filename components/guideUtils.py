@@ -177,6 +177,9 @@ def buildFromGuide(guideRoot=None, buildLevel='objects'):
     rObj.geo.overrideDisplayType.set(2)
     rObj.root.lock_geo.connect(rObj.geo.overrideEnabled)
 
+    # Adding the original rig class instance to the dictionary so it can be accessed by post build scripts
+    returnDict['rObj'] = rObj
+
     # Post build scripts
     if customStepDict:
         cleanUpPath = 0
