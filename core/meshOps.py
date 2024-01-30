@@ -2,6 +2,7 @@ import pymel.core as pm
 import maya.api.OpenMaya as om
 import math
 import tRigger.core.mathOps as mathOps
+import tRigger.core.attribute as attribute
 reload(mathOps)
 
 def testIfInsideMesh(targMesh, point=(0.0, 0.0, 0.0), dir=(0.0, 0.0, 1.0)):
@@ -59,6 +60,7 @@ def meshAlongCurve(crv, upVec=(1, 0, 0), sides=8, radius=3.0, taper = 1.0):
             sideVec = tangent ^ om.MVector(upVec)
             sideVec.normalize()
             upVec = sideVec ^ tangent
+
             upVec.normalize()
 
             # Build matrix to transform seed points into
@@ -91,3 +93,52 @@ def meshAlongCurve(crv, upVec=(1, 0, 0), sides=8, radius=3.0, taper = 1.0):
 
             meshFn.addPolygon(faceArray, 1, .001)
     print 'mesh created'
+
+def returnClosestUV(src, targ):
+    shape = pm.listRelatives(src, c=1, s=1)[0]
+    if type(targ) == pm.nodetypes.Transform:
+        pos = targ.worldMatrix[0].get().translate.get()
+    else:
+        pos = targ
+
+    if pm.nodeType(shape) == 'mesh':
+        reader = pm.createNode('closestPointOnMesh')
+        reader.inPosition.set(pos)
+        shape.worldMesh[0].connect(reader.inMesh)
+    elif pm.nodeType(shape) == 'nurbsSurface':
+        reader = pm.createNode('closestPointOnSurface')
+        reader.inPosition.set(pos)
+        shape.worldSpace[0].connect(reader.inputSurface)
+
+    uv = [reader.parameterU.get(), reader.parameterV.get()]
+
+    pm.delete(reader)
+    return (uv)
+
+
+def pinToMesh(mesh, srcPos):
+    '''
+    Check if a uvPin node exists on mesh. creates one if not
+    Args:
+        mesh: geometry to pin to
+        srcPos: node or position from which to sample UVs
+
+    Returns:
+        matrix output attribute from uvPin node
+    '''
+    shapes = pm.listRelatives(mesh, c=1, s=1)
+    try:
+        pin = pm.listConnections(shapes[0], d=1, s=0, type='uvPin')[0]
+    except:
+        pin = pm.createNode('uvPin')
+        shapes[0].worldMesh[0].connect(pin.deformedGeometry)
+        if len(shapes) > 0:
+            shapes[1].worldMesh[0].connect(pin.originalGeometry)
+
+    uv = returnClosestUV(mesh, srcPos)
+    slot = pin.coordinate.evaluateNumElements()
+    pin.coordinate[slot].coordinateU.set(uv[0])
+    pin.coordinate[slot].coordinateV.set(uv[1])
+
+    return pin.outputMatrix[slot]
+

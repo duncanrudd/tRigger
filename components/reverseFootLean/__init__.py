@@ -136,7 +136,7 @@ class TReverseFootLean(components.TBaseComponent):
             self.joints_list.append({'joint': j, 'driver': self.lean_srt})
 
         # MAP TO GUIDE LOCS
-        mappingPairs = [[self.ik_base_srt, guide.locs[1]]]
+        mappingPairs = [[self.ik_base_srt, guide.locs[1]], [self.fkToe_ctrl, guide.locs[4]]]
         for pair in mappingPairs:
             self.mapToGuideLocs(pair[0], pair[1])
 
@@ -240,17 +240,18 @@ class TReverseFootLean(components.TBaseComponent):
         pm.delete(tempJoint)
 
         # fk lean
-        if self.invert:
-            leanOffsetMtx = mathOps.multiplyMatrices([self.ikLean_ctrl.getParent().worldMatrix[0],
-                                                      self.ikEnd_srt.worldInverseMatrix[0],
-                                                      self.fk_negScale_srt.worldMatrix[0]],
-                                                     name=self.getName('fk_lean_offset_mtx'))
-        else:
-            leanOffsetMtx = mathOps.multiplyMatrices([self.ikLean_ctrl.getParent().worldMatrix[0],
-                                                      self.ikEnd_srt.worldInverseMatrix[0],
-                                                      self.base_srt.worldMatrix[0]],
-                                                     name=self.getName('fk_lean_offset_mtx'))
-        leanOffsetMtx.matrixSum.connect(self.lean_srt.offsetParentMatrix)
+        if self.guide.add_joint:
+            if self.invert:
+                leanOffsetMtx = mathOps.multiplyMatrices([self.ikLean_ctrl.getParent().worldMatrix[0],
+                                                          self.ikEnd_srt.worldInverseMatrix[0],
+                                                          self.fk_negScale_srt.worldMatrix[0]],
+                                                         name=self.getName('fk_lean_offset_mtx'))
+            else:
+                leanOffsetMtx = mathOps.multiplyMatrices([self.ikLean_ctrl.getParent().worldMatrix[0],
+                                                          self.ikEnd_srt.worldInverseMatrix[0],
+                                                          self.base_srt.worldMatrix[0]],
+                                                         name=self.getName('fk_lean_offset_mtx'))
+            leanOffsetMtx.matrixSum.connect(self.lean_srt.offsetParentMatrix)
 
     def finish(self):
         self.setColours(self.guide)

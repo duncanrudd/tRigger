@@ -123,8 +123,9 @@ class TFkHand02(components.TBaseComponent):
                 if knuckleSrt:
                     print knuckleSrt
                     ctrl = finger['controls'][index+1]
-                    blendMtx = transform.blendMatrices(ctrl.getParent().worldMatrix[0], ctrl.worldMatrix[0],
+                    blendMtx = transform.blendMatrices(ctrl.worldMatrix[0], ctrl.getParent().getParent().worldMatrix[0],
                                                        name=ctrl.name().replace('_ctrl', '_blend_mtx'))
+                    blendMtx.target[0].useTranslate.set(0)
                     mtxAttr = blendMtx.outputMatrix
                     if self.invert:
                         mtx = mathOps.multiplyMatrices([negMtx.outputMatrix, mtxAttr],

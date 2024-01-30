@@ -83,7 +83,10 @@ def createCurveInfo(crv, name=None):
     node = pm.createNode('curveInfo')
     if name:
         node.rename(name)
-    crv.worldSpace[0].connect(node.inputCurve)
+    if pm.nodeType(crv) == 'subCurve':
+        crv.outputCurve.connect(node.inputCurve)
+    else:
+        crv.worldSpace[0].connect(node.inputCurve)
     return node
 
 def createPointOnCurve(crv, name=None):
@@ -104,6 +107,18 @@ def getCurveLength(crv):
     crvLength = node.arcLength.get()
     pm.delete(node)
     return crvLength
+
+def getPartialCurveLength(crv, start, end):
+    subCrv = pm.createNode('subCurve')
+    pm.lockNode(subCrv, lock=1)
+    subCrv.minValue.set(start)
+    subCrv.maxValue.set(end)
+    crv.worldSpace[0].connect(subCrv.inputCurve)
+    length = getCurveLength(subCrv)
+    pm.lockNode(subCrv, lock=0)
+    pm.delete(subCrv)
+    return(length)
+
 
 def scaleCVs(nodes, scale):
     if type(nodes) == pm.nodetypes.Transform:

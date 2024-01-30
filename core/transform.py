@@ -241,7 +241,10 @@ def blendMatrices(mtx1, mtx2, name=None, weight=0.5):
         mtx2.connect(node.target[0].targetMatrix)
     else:
         node.target[0].targetMatrix.set(mtx2)
-    node.target[0].weight.set(weight)
+    if type(weight) == pm.general.Attribute:
+        weight.connect(node.target[0].weight)
+    else:
+        node.target[0].weight.set(weight)
 
     return node
 
@@ -285,6 +288,31 @@ def getOppositeMatrix(mtx):
     # invert x component of y and z axes
     mtx.a10 *= -1
     mtx.a20 *= -1
+
+    return mtx
+
+def getMirrorMatrix(mtx):
+    '''
+    Calculates a matrix mirrored on the x axis such that the orientation is mirrored
+    Args:
+        mtx: (pm.datatypes.Matrix) the matrix to mirror
+
+    Returns:
+        (pm.datatypes.Matrix) the mirrored matrix
+    '''
+    # invert x position
+    mtx.a30 *= -1
+
+    # invert x and y components of z axis
+    mtx.a20 *= -1
+    mtx.a21 *= -1
+
+    # invert y and z components of y axis
+    mtx.a11 *= -1
+    mtx.a12 *= -1
+
+    # invert x component of x axis
+    mtx.a00 *= -1
 
     return mtx
 

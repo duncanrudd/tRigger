@@ -26,20 +26,17 @@ class TArc(components.TBaseComponent):
         if self.invert:
             xform = mathOps.invertHandedness(xform)
         self.mid_ctrl = self.addCtrl(shape='box', size=ctrlSize * .125, name=self.getName('mid'), xform=xform,
-                                     parent=self.base_srt, metaParent=self.start_ctrl, buffer=1)
+                                     parent=self.controls, metaParent=self.start_ctrl, buffer=1)
 
         xform = pm.PyNode(guide.locs[-1]).worldMatrix[0].get()
         if self.invert:
             xform = mathOps.invertHandedness(xform)
         self.end_ctrl = self.addCtrl(shape='box', size=ctrlSize * .2, name=self.getName('end'), xform=xform,
-                                     parent=self.base_srt, metaParent=self.mid_ctrl)
+                                     parent=self.controls, metaParent=self.mid_ctrl)
 
-        initPoints = [(i, 0, 0) for i in range(4)]
+        initPoints = [(i, 0, 0) for i in range(3)]
         self.crv = curve.curveThroughPoints(name=self.getName('crv'), positions=initPoints, degree=2)
         self.crv.setParent(self.rig)
-
-        self.railCrv = curve.curveThroughPoints(name=self.getName('rail'), positions=initPoints, degree=2)
-        self.railCrv.setParent(self.rig)
 
         self.divs = []
         for index in range(guide.num_divisions):
@@ -65,91 +62,45 @@ class TArc(components.TBaseComponent):
         attribute.addAngleAttr(self.params, 'end_twist')
 
     def addSystems(self):
-        self.mid_ctrl.getParent().inheritsTransform.set(0)
         baseMtx2Srt = mathOps.decomposeMatrix(self.base_srt.worldMatrix[0], name=self.getName('base_mtx2Srt'))
         startMtx2Srt = mathOps.decomposeMatrix(self.start_ctrl.worldMatrix[0], name=self.getName('start_mtx2Srt'))
         midMtx2Srt = mathOps.decomposeMatrix(self.mid_ctrl.worldMatrix[0], name=self.getName('mid_mtx2Srt'))
         endMtx2Srt = mathOps.decomposeMatrix(self.end_ctrl.worldMatrix[0], name=self.getName('end_mtx2Srt'))
 
-        midPosMtx = transform.blendMatrices(self.start_ctrl.worldMatrix[0], self.end_ctrl.worldMatrix[0],
-                                            name=self.getName('mid_pos_mtx'))
-        midMtx = transform.blend_T_R_matrices(midPosMtx.outputMatrix, self.base_srt.worldMatrix[0])
-        midMtx.outputMatrix.connect(self.mid_ctrl.getParent().offsetParentMatrix)
+        mainVec = mathOps.subtractVector([startMtx2Srt.outputTranslate, endMtx2Srt.outputTranslate],
+                                         name=self.getName('main_vec'))
+        mainNorm = mathOps.normalize(mainVec.output3D, name=self.getName('main_norm'))
+        startVec = mathOps.subtractVector([startMtx2Srt.outputTranslate, midMtx2Srt.outputTranslate],
+                                          name=self.getName('start_vec'))
+        startDist = mathOps.createDotProduct(startVec.output3D, mainNorm.output, normalize=0, name=self.getName('startDist'))
 
-        transform.align(self.mid_ctrl, self.guide.locs[2])
-        transform.bakeSrtToOffsetParentMtx(self.mid_ctrl)
 
-        midBlendMtx = transform.blend_T_R_matrices(self.mid_ctrl.worldMatrix[0],
-                                                  self.mid_ctrl.getParent().worldMatrix[0],
-                                                  name=self.getName('mid_blend_mtx'))
-        midRefMtx = mathOps.inverseMatrix(midBlendMtx.outputMatrix, name=self.getName('mid_ref_mtx'))
-        midInWorldPos = mathOps.pairBlend(startMtx2Srt.outputTranslate, midMtx2Srt.outputTranslate, weight=0.5,
-                                   name=self.getName('mid_in_pos_blend'))
-        midOutWorldPos = mathOps.pairBlend(midMtx2Srt.outputTranslate, endMtx2Srt.outputTranslate, weight=0.5,
-                                           name=self.getName('mid_out_pos_blend'))
-        midInLocalPos = mathOps.createTransformedPoint(midInWorldPos.outTranslate, midRefMtx.outputMatrix,
-                                                       name=self.getName('mid_in_local_pos'))
-        midOutLocalPos = mathOps.createTransformedPoint(midOutWorldPos.outTranslate, midRefMtx.outputMatrix,
-                                                       name=self.getName('mid_out_local_pos'))
-        mid_in_pos = mathOps.createTransformedPoint(midInLocalPos.output, self.mid_ctrl.worldMatrix[0],
-                                                    name=self.getName('mid_in_pos'))
-        mid_out_pos = mathOps.createTransformedPoint(midOutLocalPos.output, self.mid_ctrl.worldMatrix[0],
-                                                    name=self.getName('mid_out_pos'))
-
-        offsetVec = (0, 0, 1)
-        if self.invert:
-            offsetVec = (0, 0, -1)
-        railStartPos = mathOps.createTransformedPoint(offsetVec, self.start_ctrl.worldMatrix[0],
-                                                      name=self.getName('start_rail_pos'))
-        railEndPos = mathOps.createTransformedPoint(offsetVec, self.end_ctrl.worldMatrix[0],
-                                                    name=self.getName('end_rail_pos'))
-        railInLocalPos = mathOps.addVector([midInLocalPos.output, (0, 0, 1)], name=self.getName('rail_in_local_pos'))
-        railOutLocalPos = mathOps.addVector([midOutLocalPos.output, (0, 0, 1)], name=self.getName('rail_out_local_pos'))
-        railInPos = mathOps.createTransformedPoint(railInLocalPos.output3D, self.mid_ctrl.worldMatrix[0],
-                                                   name=self.getName('rail_in_pos'))
-        railOutPos = mathOps.createTransformedPoint(railOutLocalPos.output3D, self.mid_ctrl.worldMatrix[0],
-                                                    name=self.getName('rail_out_pos'))
+        # CONSTRAIN MID CONTROL BUFFER
+        aimMtx = transform.createAimMatrix(self.start_ctrl, self.end_ctrl, name=self.getName('aim_mtx'))
+        mainDist = mathOps.distance((0, 0, 0), mainVec.output3D, name=self.getName('main_dist'))
+        startRatio = startDist.outputX.get() / mainDist.distance.get()
+        midMult = mathOps.multiply(mainDist.distance, startRatio, name=self.getName('mid_mult'))
+        aimMtx.outputMatrix.connect(self.mid_ctrl.getParent().offsetParentMatrix)
+        midMult.output.connect(self.mid_ctrl.getParent().tx)
+        displace = (self.guide.locs[2].worldMatrix[0].get() * self.mid_ctrl.worldInverseMatrix.get()).translate.get()[2]
+        self.mid_ctrl.getParent().tz.set(displace)
 
         startMtx2Srt.outputTranslate.connect(self.crv.controlPoints[0])
-        mid_in_pos.output.connect(self.crv.controlPoints[1])
-        mid_out_pos.output.connect(self.crv.controlPoints[2])
-        endMtx2Srt.outputTranslate.connect(self.crv.controlPoints[3])
-
-        railStartPos.output.connect(self.railCrv.controlPoints[0])
-        railInPos.output.connect(self.railCrv.controlPoints[1])
-        railOutPos.output.connect(self.railCrv.controlPoints[2])
-        railEndPos.output.connect(self.railCrv.controlPoints[3])
+        midMtx2Srt.outputTranslate.connect(self.crv.controlPoints[1])
+        endMtx2Srt.outputTranslate.connect(self.crv.controlPoints[2])
 
         for index, div in enumerate(self.divs):
-            num = str(index+1).zfill(2)
+            num = str(index + 1).zfill(2)
             param = (1.0 / (self.guide.num_divisions - 1)) * index
-            mp = curve.createMotionPathNode(self.crv, uValue=param, frontAxis='x', upAxis='z', wut=1,
-                                            name=self.getName('%s_mp' % num))
-            railMp = curve.createMotionPathNode(self.railCrv, uValue=param, follow=0,
-                                                name=self.getName('%s_rail_mp' % num))
-            railMtx = mathOps.createComposeMatrix(inputTranslate = railMp.allCoordinates,
-                                                  name=self.getName('%s_rail_mtx' % num))
-            railMtx.outputMatrix.connect(mp.worldUpMatrix)
+            mp = curve.createMotionPathNode(self.crv, name=self.getName('%s_mp' % num), follow=0)
+            mp.uValue.set(param)
 
-            mp.allCoordinates.connect(div.t)
-            mp.rotate.connect(div.r)
-            baseMtx2Srt.outputScale.connect(div.s)
+            posMtx = mathOps.createComposeMatrix(inputTranslate=mp.allCoordinates)
 
-            endsTwistSum = mathOps.addAngles(self.params.start_twist, self.params.end_twist,
-                                             name=self.getName('ends_twist_%s_sum' % num))
-            twistSum = mathOps.addAngles(self.params.mid_twist, endsTwistSum.output,
-                                         name=self.getName('twist_%s_sum' % num))
-            startMult = 1 - param
-            endMult = param
-            midMult = (0.5 - (math.fabs(0.5-param)))*2
-            if self.invert:
-                startMult *=-1
-                midMult *=-1
-                endMult *=-1
-            endsTwistSum.weightA.set(startMult)
-            endsTwistSum.weightB.set(endMult)
-            twistSum.weightA.set(midMult)
-            twistSum.output.connect(mp.frontTwist)
+            divMtx = transform.blend_T_R_matrices(posMtx.outputMatrix, aimMtx.outputMatrix,
+                                                  name=self.getName('div_%s_mtx' % num))
+
+            divMtx.outputMatrix.connect(div.offsetParentMatrix)
 
         # Attach params shape to mid ctrl
         tempJoint = pm.createNode('joint')
@@ -163,10 +114,13 @@ class TArc(components.TBaseComponent):
         nodes = [node for node in self.controls_list if not node == self.params]
         attribute.channelControl(nodeList=nodes, attrList=['rotateOrder'], keyable=1, lock=0)
 
-        attrList = ['visibility', 'sx', 'sy', 'sz']
+        attrList = ['visibility']
         attribute.channelControl(nodeList=self.controls_list, attrList=attrList)
 
-        attrList = ['start_twist', 'mid_twist', 'end_twist']
+        attrList = ['sx', 'sy', 'sz']
+        attribute.channelControl(nodeList=[self.start_ctrl, self.end_ctrl], attrList=attrList)
+
+        attrList = []
         for attr in attrList:
             attribute.proxyAttribute(pm.Attribute('%s.%s' % (self.params.name(), attr)), self.mid_ctrl)
 

@@ -104,7 +104,7 @@ class TGuideBaseComponent(object):
         crv.inheritsTransform.set(0)
         crv.setParent(self.root)
         pm.xform(crv, ws=1, m=pm.datatypes.Matrix())
-        dag.setDisplayType(crv, 'template')
+        dag.setDisplayType(crv, 'reference')
         return crv
 
     # -------------------------------------------------------------------

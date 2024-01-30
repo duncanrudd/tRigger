@@ -57,25 +57,7 @@ class TDrivenJoint(object):
     def build(self):
         # Add attrs to buffer
         for i in range(self.numTargets):
-            num = str(i+1).zfill(2)
-            attribute.addDividerAttr(self.buffer, 'target_%s' % num)
-            inputAttr = attribute.addFloatAttr(self.buffer, 'target_%s_input' % num)
-            startAttr = attribute.addFloatAttr(self.buffer, 'target_%s_start' % num)
-            endAttr = attribute.addFloatAttr(self.buffer, 'target_%s_end' % num, value=1)
-            interpAttr = attribute.addEnumAttr(self.buffer, 'target_%s_interpolation' % num,
-                                               ['none', 'linear', 'smooth', 'spline'])
-            interpAttr.set(1)
-            mtxAttr = attribute.addMatrixAttr(self.buffer, 'target_%s_mtx' % num)
-
-            # Add network to normalize and connect target inputs to target matrices
-            norm = pm.createNode('remapValue', name='%s_target_%s_remap' % (self.name, num))
-            interpAttr.connect(norm.value[0].value_Interp)
-            startAttr.connect(norm.inputMin)
-            endAttr.connect(norm.inputMax)
-            inputAttr.connect(norm.inputValue)
-            blend = transform.blendMatrices(pm.datatypes.Matrix(), mtxAttr, name='%s_target_%s_mtx' % (self.name, num))
-            norm.outValue.connect(blend.target[0].weight)
-            blend.outputMatrix.connect(self.resultMtx.matrixIn[i])
+            addTarget(self.buffer)
 
 def createTargetLocs(buffer):
     targAttrs = [attr for attr in pm.listAttr(buffer) if '_mtx' in attr]
@@ -182,6 +164,30 @@ def buildFromFile(filename):
 
     for key in djDict.keys():
         buildFromDict(djDict[key])
+
+def addTarget(buffer):
+    targAttrs = [attr for attr in pm.listAttr(buffer) if '_mtx' in attr]
+    name = buffer.name().replace('_buffer_srt', '')
+    resultMtx = pm.PyNode(buffer.name().replace('_buffer_srt', '_result_mtx'))
+    num = str(len(targAttrs)+1).zfill(2)
+    attribute.addDividerAttr(buffer, 'target_%s' % num)
+    inputAttr = attribute.addFloatAttr(buffer, 'target_%s_input' % num)
+    startAttr = attribute.addFloatAttr(buffer, 'target_%s_start' % num)
+    endAttr = attribute.addFloatAttr(buffer, 'target_%s_end' % num, value=1)
+    interpAttr = attribute.addEnumAttr(buffer, 'target_%s_interpolation' % num,
+                                       ['none', 'linear', 'smooth', 'spline'])
+    interpAttr.set(1)
+    mtxAttr = attribute.addMatrixAttr(buffer, 'target_%s_mtx' % num)
+
+    # Add network to normalize and connect target inputs to target matrices
+    norm = pm.createNode('remapValue', name='%s_target_%s_remap' % (name, num))
+    interpAttr.connect(norm.value[0].value_Interp)
+    startAttr.connect(norm.inputMin)
+    endAttr.connect(norm.inputMax)
+    inputAttr.connect(norm.inputValue)
+    blend = transform.blendMatrices(pm.datatypes.Matrix(), mtxAttr, name='%s_target_%s_mtx' % (name, num))
+    norm.outValue.connect(blend.target[0].weight)
+    blend.outputMatrix.connect(resultMtx.matrixIn[len(targAttrs)])
 
 
 '''

@@ -44,12 +44,20 @@ class TLimbIkFk(components.TBaseComponent):
 
         # Build mid matrix
         aimVec = _getVec(guide.locs[3], guide.locs[1])
+        flip = aimVec[0] < 0
+        if self.invert:
+            flip = aimVec[0] > 0
+
         sideVec = upVec.cross(aimVec).normal()
         upVec = aimVec.cross(sideVec).normal()
         if self.invert:
             sideVec = aimVec.cross(upVec).normal()
             upVec = sideVec.cross(aimVec).normal()
         startPos = pm.xform(guide.locs[1], q=1, ws=1, t=1)
+
+        if flip and not self.reversePole:
+            sideVec *= -1
+            upVec *= -1
 
         midXform = pm.datatypes.Matrix(aimVec, sideVec, upVec, startPos)
 
@@ -243,6 +251,12 @@ class TLimbIkFk(components.TBaseComponent):
             parent = j
 
             self.mapJointToGuideLocs(j, self.guide.locs[3])
+
+            j = pm.createNode('joint', name=self.getName('end_jnt'))
+            self.joints_list.append({'joint': j, 'driver': self.result_tip})
+            j.setParent(parent)
+
+            self.mapJointToGuideLocs(j, self.guide.locs[4])
 
         # Call overloaded method of parent class
         components.TBaseComponent.addObjects(self, guide)

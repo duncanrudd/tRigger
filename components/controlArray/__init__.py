@@ -86,6 +86,12 @@ class TControlArray(components.TBaseComponent):
                 driver = neg.matrixSum
             driver.connect(srt.offsetParentMatrix)
 
+        # Attach params shape to base srt
+        tempJoint = pm.createNode('joint')
+        skn = pm.skinCluster(tempJoint, self.params)
+        pm.skinCluster(skn, e=1, ai=self.base_srt, lw=1, wt=1)
+        pm.delete(tempJoint)
+
     def finish(self):
         self.setColours(self.guide)
         for ctrl in self.controls_list:

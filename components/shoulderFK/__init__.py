@@ -16,7 +16,6 @@ class TShoulderFK(components.TBaseComponent):
     def addObjects(self, guide):
 
         # Build initial matrix
-        print (guide.root, guide.locs)
         start, end = mathOps.getStartAndEnd(guide.root, guide.locs[1])
         aimVec = (pm.datatypes.Vector(end) - pm.datatypes.Vector(start)).normal()
         if self.comp_side == 'R':

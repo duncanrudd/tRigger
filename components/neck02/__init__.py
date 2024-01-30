@@ -129,7 +129,8 @@ class TNeck02(components.TBaseComponent):
             dm = mathOps.decomposeMatrix(ctrl.worldMatrix[0], name=self.getName('fk_%s_mtx2Srt' % num))
             tipOffsetMult = mathOps.multiplyVector(tipOffset.output3D, (mult, mult, mult),
                                                    name=self.getName('ik_%s_tip_offset_mult' % num))
-            mult = 1.0 - mathOps.getDistance((0, 0, 0), ((mult-0.5), 0, 0))
+            mult = 1.0 - (mathOps.getDistance((0, 0, 0), ((mult-0.5), 0, 0))*2)
+            mult = mathOps.ease(mult)
             midOffsetMult = mathOps.multiplyVector(midOffset.output3D, (mult, mult, mult),
                                                    name=self.getName('ik_%s_mid_offset_mult' % num))
             posSum = mathOps.addVector([dm.outputTranslate, tipOffsetMult.output, midOffsetMult.output],
@@ -212,7 +213,10 @@ class TNeck02(components.TBaseComponent):
             self.divs.append(node)
 
         # MAP TO GUIDE LOCS
-        mappingPairs = [[self.ik_end_ctrl.getParent(), guide.locs[3]], [self.base_srt, guide.locs[0]],
+        baseNode = self.base_srt
+        if self.guide.ik_start_ctrl:
+            baseNode = self.ik_start_ctrl
+        mappingPairs = [[self.ik_end_ctrl.getParent(), guide.locs[3]], [baseNode, guide.locs[0]],
                         [self.ik_end_ctrl, guide.locs[5]], [self.ik_mid_ctrl, guide.ctrlLocs[len(guide.ctrlLocs)/2]],
                         [curveStartCtrl, guide.ctrlLocs[0]]]
         for div, loc in zip(self.divs, guide.divisionLocs):

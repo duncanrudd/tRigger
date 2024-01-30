@@ -47,8 +47,7 @@ class TFkDistributedGuide(guide.TGuideBaseComponent):
 
     def addLocs(self):
         self.num_segments = self.root.num_segments.get()
-        locs = self.locs
-        locs.remove(self.root)
+        locs = [loc for loc in self.locs if not loc == self.root]
         locsDict = {}
         for loc in locs:
             locsDict[loc.name()] = pm.xform(loc, q=1, m=1)

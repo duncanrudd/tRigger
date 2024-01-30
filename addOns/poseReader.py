@@ -9,7 +9,7 @@ reload(mathOps)
 reload(anim)
 
 class TPoseReader(object):
-    def __init__(self, name, ref, target, numPoses=4, axis='x', createLocs=1):
+    def __init__(self, name, ref, target, numPoses=4, axis='x', refAxis='x', outputMult=1.0, createLocs=1):
         '''
         Ouputs a 0-1 value for each pose on the edge of an imaginary disc based on the angle between ref and target
         vectors.
@@ -30,6 +30,7 @@ class TPoseReader(object):
         target.message.connect(self.config.target)
         attribute.addMultiMessageAttr(self.config, 'poses')
         attribute.addStringAttr(self.config, 'axis', value=axis)
+        attribute.addStringAttr(self.config, 'refAxis', value=refAxis)
         attribute.addBoolAttr(self.config, 'is_tPoseReader')
 
         for i in range(numPoses):
@@ -56,30 +57,28 @@ class TPoseReader(object):
         # or [0, 0] if ref and target are aligned
         axisCheck = mathOps.getMatrixAxisAsVector(localTargetMtx.matrixSum, axis.lower())
         targ = (1, 0, 0)
-        axisIndex = 0
+        axisIndex = {'x': 0, 'y': 1, 'z':2}[refAxis]
         if 'y' in axis.lower():
             targ = (0, 1, 0)
-            axisIndex = 1
         elif 'z' in axis.lower():
             targ = (0, 0, 1)
-            axisIndex = 2
         if axisCheck[axisIndex] < 0.0:
             targ = (targ[0]*-1, targ[1]*-1, targ[2]*-1)
         targetAxis = mathOps.createMatrixAxisVector(localTargetMtx.matrixSum, targ,
                                                     name='%s_target_axis' % name)
         targetProjection = mathOps.normalize(targ, name='%starget_projection_vec' % name)
 
-        if 'x' not in axis.lower():
+        if 'x' not in refAxis.lower():
             targetAxis.outputX.connect(targetProjection.input1X)
-        if 'y' not in axis.lower():
+        if 'y' not in refAxis.lower():
             targetAxis.outputY.connect(targetProjection.input1Y)
-        if 'z' not in axis.lower():
+        if 'z' not in refAxis.lower():
             targetAxis.outputZ.connect(targetProjection.input1Z)
 
         projectionCheck = pm.createNode('condition', name='%s_target_projection_check' % name)
         dist = pm.createNode('distanceBetween', name='%s_projection_check_dist' % name)
 
-        sourceAttr = pm.general.Attribute('%s.output%s' % (targetAxis.name(), axis.upper()))
+        sourceAttr = pm.general.Attribute('%s.output%s' % (targetAxis.name(), refAxis.upper()))
         destAttr = pm.general.Attribute('%s.point1%s' % (dist.name(), axis.upper()))
         sourceAttr.connect(destAttr)
         dist.point2.set((0, 0, 0))
@@ -87,17 +86,21 @@ class TPoseReader(object):
         projectionCheck.secondTerm.set(1)
         projectionCheck.colorIfTrueR.set(1)
         projectionCheck.colorIfFalseR.set(0)
-        destAttr = pm.general.Attribute('%s.input1%s' % (targetProjection.name(), axis.upper()))
+        destAttr = pm.general.Attribute('%s.input1%s' % (targetProjection.name(), refAxis.upper()))
         projectionCheck.outColorR.connect(destAttr)
 
         # Measure the angle between ref and target vectors and normalize the 0 - half pi radian range
-        poseAngle = mathOps.angleBetween(targetAxis.output,
-                                         (math.fabs(targ[0]), math.fabs(targ[1]), math.fabs(targ[2])),
-                                         name='%s_pose_angle' % name)
+        refTarg = (1, 0, 0)
+        if 'y' in refAxis.lower():
+            refTarg = (0, 1, 0)
+        elif 'z' in refAxis.lower():
+            refTarg = (0, 0, 1)
+
+        poseAngle = mathOps.angleBetween(targetAxis.output, refTarg, name='%s_pose_angle' % name)
         poseAngleNormal = mathOps.convert(poseAngle.angle, 0.636537,
                                           name='%s_pose_angle_normalized' % name)
         poseStrength = pm.createNode('condition', name='%s_pose_strength' % name)
-        sourceAttr = pm.general.Attribute('%s.output%s' % (targetAxis.name(), axis.upper()))
+        sourceAttr = pm.general.Attribute('%s.output%s' % (targetAxis.name(), refAxis.upper()))
         sourceAttr.connect(poseStrength.firstTerm)
         poseStrength.operation.set(5)
         poseAngleNormal.output.connect(poseStrength.colorIfFalseR)
@@ -112,9 +115,9 @@ class TPoseReader(object):
             z = math.sin(step * i)
 
             refAngle = (0, y, z)
-            if 'y' in axis.lower():
+            if 'y' in refAxis.lower():
                 refAngle = (y, 0, z)
-            elif 'y' in axis.lower():
+            elif 'y' in refAxis.lower():
                 refAngle = (y, z, 0)
             angle = mathOps.angleBetween(targetProjection.output, refAngle,
                                          name='%s_pose_%s_angle' % (name, num))
@@ -156,9 +159,14 @@ def serialize(config):
     Returns:
         (dictionary) data required to rebuild the poseReader
     '''
+    try:
+        refAxis = config.refAxis.get()
+    except:
+        refAxis = config.axis.get()
     returnDict = {'name': config.name().replace('_poseReader', ''),
                   'ref': config.ref.get().name(),
                   'axis': config.axis.get(),
+                  'refAxis': refAxis,
                   'target': config.target.get().name(),
                   'targets': []}
 
@@ -178,8 +186,12 @@ def serialize(config):
     return returnDict
 
 def buildFromDict(dict):
+    try:
+        refAxis = dict['refAxis']
+    except:
+        refAxis = dict['axis']
     pr = TPoseReader(name=dict['name'], ref=pm.PyNode(dict['ref']), target=pm.PyNode(dict['target']),
-                     numPoses=len(dict['targets']), axis=dict['axis'], createLocs=0)
+                     numPoses=len(dict['targets']), axis=dict['axis'], refAxis=refAxis, createLocs=0)
     poseNodes = pm.listConnections(pr.config.poses, s=1, d=0)
 
     for index, target in enumerate(dict['targets']):

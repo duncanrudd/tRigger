@@ -506,8 +506,6 @@ class TMouth03(components.TBaseComponent):
                 colour = pm.Attribute('guide.left_colour').get()
             icon.setColourRGB(node, colour)
 
-
-
     def finish(self):
         self.setColours()
 

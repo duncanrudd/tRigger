@@ -19,6 +19,7 @@ class TFkChainGuide(guide.TGuideBaseComponent):
         else:
             self.locs = self.getGuideLocs(fromDagNode)
             self.num_segments = self.root.num_segments.get()
+            self.crv = pm.PyNode(self.getName(self.getName('crv')))
 
         self.installComponentCallbacks()
 

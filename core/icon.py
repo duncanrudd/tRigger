@@ -8,8 +8,6 @@ def setColour(node, colour=None):
     if nodelist is not supplied, will attempt to work on selected nodes.
 
     '''
-    if not colour:
-        raise RuntimeError, 'color not specified. You must supply either a string or integer.'
     colourDict = {
                    'center': 14,    # green
                    'right': 13,     # red

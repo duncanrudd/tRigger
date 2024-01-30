@@ -416,11 +416,15 @@ class TMouth01(components.TBaseComponent):
                                         name=self.getName('upper_rest_len'))
         upperStretch = mathOps.divide(upperRestLen.output, upperCrvLen.arcLength,
                                       name=self.getName('upper_stretch'))
+        upperStretchScaled = mathOps.multiply(upperStretch.outputX, baseMtx2Srt.outputScaleX,
+                                              name=self.getName('upper_stretch_scaled'))
         
         lowerRestLen = mathOps.multiply(lowerCrvLen.arcLength.get(), baseMtx2Srt.outputScaleX,
                                         name=self.getName('lower_rest_len'))
         lowerStretch = mathOps.divide(lowerRestLen.output, lowerCrvLen.arcLength,
                                       name=self.getName('lower_stretch'))
+        lowerStretchScaled = mathOps.multiply(lowerStretch.outputX, baseMtx2Srt.outputScaleX,
+                                              name=self.getName('lower_stretch_scaled'))
 
         # Drive Divs
         div_mps = []
@@ -557,9 +561,9 @@ class TMouth01(components.TBaseComponent):
                 rollAttr.connect(alignDiv.ry)
             else:
                 # Squash n stretch
-                stretchAttr = upperStretch.outputX
+                stretchAttr = upperStretchScaled.output
                 if prefix != 'upper':
-                    stretchAttr = lowerStretch.outputX
+                    stretchAttr = lowerStretchScaled.output
                 midDist = 1 - (math.fabs(0.5 - param)*2)
                 endEase = 1 - ((1-midDist) * (1-midDist) * (1-midDist))
                 stretch = mathOps.multiply(self.params.preserve_volume, endEase,

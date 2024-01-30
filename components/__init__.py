@@ -158,22 +158,29 @@ class TBaseComponent(object):
 
         return ctrl
 
-    def addOutput(self, node):
+    def addOutput(self, node, world=1):
         '''
-        Exposes the worldMatrix of a node within the component for use by another component. A matrix attr is added
+        Exposes the worldMatrix (or local matrix if world=0) of a node within the component for use by another component. A matrix attr is added
         to the component's 'output' group
         Args:
             node: (PyNode) the node whose matrix needs to be exposed
+            world: (boolean) if true, worldMatrix attr is connected, if false, matrix attr is connected.
 
         Returns: (pyMel.Attribute) the newly created matrix attribute
 
         '''
-        conns = [conn for conn in pm.listConnections(self.output, p=1, c=1, s=1) if conn[1] == node.worldMatrix[0]]
+        if world:
+            conns = [conn for conn in pm.listConnections(self.output, p=1, c=1, s=1) if conn[1] == node.worldMatrix[0]]
+        else:
+            conns = [conn for conn in pm.listConnections(self.output, p=1, c=1, s=1) if conn[1] == node.matrix]
         if conns:
             return conns[0][0]
         else:
             attr = attribute.addMatrixAttr(self.output, '%s_outMtx' % node.name())
-            node.worldMatrix[0].connect(attr)
+            if world:
+                node.worldMatrix[0].connect(attr)
+            else:
+                node.matrix.connect(attr)
             return attr
 
     def connectToInput(self, input, node):
@@ -189,8 +196,11 @@ class TBaseComponent(object):
         '''
         tVal = node.t.get()
         rVal = node.r.get()
-        node.t.set((0, 0, 0))
-        node.r.set((0, 0, 0))
+        try:
+            node.t.set((0, 0, 0))
+            node.r.set((0, 0, 0))
+        except:
+            print 'one or more translate or rotate attrs cannot be reset - they may have incoming connections'
         targMtx = node.worldMatrix[0].get()
         mtxAttr = input
         suffix = input.name().split('.')[1].replace('_mtx', '')
@@ -201,8 +211,11 @@ class TBaseComponent(object):
             mtxAttr = multMtx.matrixSum
 
         mtxAttr.connect(node.offsetParentMatrix, f=1)
-        node.t.set(tVal)
-        node.r.set(rVal)
+        try:
+            node.t.set(tVal)
+            node.r.set(rVal)
+        except:
+            print 'one or more translate or rotate attrs cannot be reset - they may have incoming connections'
 
     def connectToMultiInputs(self, inputs, enumNames, node, add=0):
         '''
@@ -659,4 +672,3 @@ class TBaseComponent(object):
         print 'Finished: %s' % self.comp_name
 
 # Test commit to pre2020 branch
-

@@ -24,6 +24,9 @@ def addScalar(inputs, name=None, operation=1):
 def subtractScalar(inputs, name=None):
     return addScalar(inputs, name, operation=2)
 
+def averageScalar(inputs, name=None):
+    return addScalar(inputs, name, operation=3)
+
 def addVector(inputs, name=None, operation=1):
     node = pm.createNode('plusMinusAverage')
     node.operation.set(operation)
@@ -285,8 +288,19 @@ def distance(start, end, name):
     node = pm.createNode('distanceBetween')
     if name:
         node.rename(name)
-    start.worldMatrix[0].connect(node.inMatrix1)
-    end.worldMatrix[0].connect(node.inMatrix2)
+    if type(start)==pm.nodetypes.Transform:
+        start.worldMatrix[0].connect(node.inMatrix1)
+    elif type(start) == pm.general.Attribute:
+        start.connect(node.point1)
+    else:
+        node.point1.set(start)
+
+    if type(end) == pm.nodetypes.Transform:
+        end.worldMatrix[0].connect(node.inMatrix2)
+    elif type(end) == pm.general.Attribute:
+        end.connect(node.point2)
+    else:
+        node.point2.set(end)
 
     return node
 
@@ -303,6 +317,13 @@ def convert(input, factor, name=None):
     else:
         node.conversionFactor.set(factor)
     return node
+
+def ease(input, min=0, max=1):
+    easeOut = input * input
+    easeIn = input + (input-easeOut)
+
+    return (easeOut * (1-input)) + (easeIn * input)
+
 
 
 # -----------------------------------------------------------------------
@@ -501,7 +522,7 @@ def vectors2Mtx44(vec1, vec2, vec3, vec4=[0, 0, 0], name=''):
         node.in21.set(vec3[1])
         node.in22.set(vec3[2])
 
-    if type(vec3) == pm.general.Attribute:
+    if type(vec4) == pm.general.Attribute:
         vec4.children()[0].connect(node.in30)
         vec4.children()[1].connect(node.in31)
         vec4.children()[2].connect(node.in32)
@@ -558,6 +579,24 @@ def divideVectorByScalar(vec, mult):
 def multiplyVectorByScalar(vec, mult):
     newVec = (vec[0]*mult, vec[1]*mult, vec[2]*mult)
     return newVec
+
+def createMultiplyVectorByScalar(vec, mult, name=''):
+    node = pm.createNode('multiplyDivide')
+    if name:
+        node.rename(name)
+    if type(vec) == pm.general.Attribute:
+        vec.connect(node.input1)
+    else:
+        node.input1.set(vec)
+    if type(mult) == pm.general.Attribute:
+        mult.connect(node.input2X)
+        mult.connect(node.input2Y)
+        mult.connect(node.input2Z)
+    else:
+        node.input2.set((mult, mult, mult))
+    return node
+
+
 
 def getStartAndEnd(start=None, end=None):
     '''
@@ -773,4 +812,13 @@ def setRange(value, minInput, maxInput, minOutput, maxOutput):
     outputRange = maxOutput - minOutput
     normVal = float(value - minInput) / float(inputRange)
     return minOutput + (normVal * outputRange)
+
+def easeOut(value):
+    return (value * value)
+
+def easeIn(value):
+    return(1-((1-value)*(1-value)))
+
+def smoothStep(value):
+    return((easeOut(value)*(1-value)) + (easeIn(value)*value))
 

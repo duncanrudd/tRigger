@@ -12,7 +12,7 @@ axisDict = {'x': pm.datatypes.Vector(10, 0, 0),
             }
 
 class TNeck02Guide(guide.TGuideBaseComponent):
-    def __init__(self, guide_name='', guide_side='C', guide_index=0, num_divisions=4, num_ctrls=3, aimer=1, ik_start_ctrl=0,
+    def __init__(self, guide_name='', guide_side='C', guide_index=0, num_divisions=4, num_ctrls=3, aimer=1, ik_start_ctrl=0, sCurve=0, side_rail=0,
                  fromDagNode=0):
         guide.TGuideBaseComponent.__init__(self, guide_name, 'neck02', guide_side, guide_index, fromDagNode=fromDagNode)
         self.num_divisions = num_divisions
@@ -21,13 +21,17 @@ class TNeck02Guide(guide.TGuideBaseComponent):
         self.ctrlLocs = []
         self.aimer=aimer
         self.ik_start_ctrl = ik_start_ctrl
-        for param in ['num_divisions', 'num_ctrls', 'aimer', 'ik_start_ctrl']:
+        self.sCurve = sCurve
+        self.side_rail = side_rail
+        for param in ['num_divisions', 'num_ctrls', 'aimer', 'ik_start_ctrl', 'sCurve', 'side_rail']:
             self.params.append(param)
         if not fromDagNode:
             attribute.addIntAttr(self.root, 'num_divisions', num_divisions)
             attribute.addIntAttr(self.root, 'num_ctrls', minValue=3, value=num_ctrls)
             attribute.addBoolAttr(self.root, 'aimer', aimer)
             attribute.addBoolAttr(self.root, 'ik_start_ctrl', ik_start_ctrl)
+            attribute.addBoolAttr(self.root, 'sCurve', sCurve)
+            attribute.addBoolAttr(self.root, 'side_rail', sCurve)
             self.addLocs()
             attribute.addBoolAttr(self.root, 'add_joint')
         else:
@@ -170,6 +174,8 @@ def instantiateFromDagNode(dagNode):
                         dagNode.num_ctrls.get(),
                         dagNode.aimer.get(),
                         dagNode.ik_start_ctrl.get(),
+                        dagNode.sCurve.get(),
+                        dagNode.side_rail.get(),
                         fromDagNode=dagNode)
 
 
@@ -179,4 +185,8 @@ def buildGuide(**kwargs):
 def updateGuide(guideRoot):
     if not guideRoot.hasAttr('ik_start_ctrl'):
         attribute.addBoolAttr(guideRoot, 'ik_start_ctrl', 0)
+    if not guideRoot.hasAttr('sCurve'):
+        attribute.addBoolAttr(guideRoot, 'sCurve', 0)
+    if not guideRoot.hasAttr('side_rail'):
+        attribute.addBoolAttr(guideRoot, 'side_rail', 0)
 

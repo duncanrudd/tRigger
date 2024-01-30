@@ -34,6 +34,9 @@ class TReverseFoot(components.TBaseComponent):
             else:
                 return (pm.datatypes.Vector(start) - pm.datatypes.Vector(end)).normal()
 
+        if self.invert:
+            self.negMtx = mathOps.createComposeMatrix(inputScale=(-1, 1, 1), name=self.getName('neg_mtx'))
+
         # ----------------------
         # IK controls
         # ----------------------
@@ -85,7 +88,8 @@ class TReverseFoot(components.TBaseComponent):
             upVecTemp = mathOps.getMatrixAxisAsVector(self.controls_list[-1].worldMatrix[0].get(), 'z')
             sideVec = upVecTemp.cross(aimVec).normal()
             if self.invert:
-                sideVec = aimVec.cross(upVecTemp).normal()
+                pass
+                # sideVec = aimVec.cross(upVecTemp).normal()
             upVec = aimVec.cross(sideVec).normal()
             startPos = pm.xform(guide.locs[index+7], q=1, ws=1, t=1)
 
@@ -105,11 +109,13 @@ class TReverseFoot(components.TBaseComponent):
         # ----------------------
         # FK controls
         # ----------------------
+        print 'locs: ' + '\n'.join([loc.name() for loc in guide.locs])
         refControls = self.controls_list[3:]
         refControls.append(self.ikEnd_srt)
         refControls.reverse()
         self.blendMtxList = []
         self.fkCtrls = []
+        self.srts = []
         for index, ik in enumerate(refControls):
             if index == 1:
                 parent = self.base_srt
@@ -132,7 +138,8 @@ class TReverseFoot(components.TBaseComponent):
                 aimMtx.secondaryInputAxis.set((0, 0, 1))
                 aimMtx.secondaryTargetVector.set((0, 0, 1))
                 if self.invert:
-                    aimMtx.secondaryTargetVector.set((0, 0, -1))
+                    pass
+                    # aimMtx.secondaryTargetVector.set((0, 0, -1))
 
                 ctrlMtx = mathOps.multiplyMatrices([aimMtx.outputMatrix, refParent.worldInverseMatrix[0]],
                                                    name=self.getName('fk_%s_reverse_mtx' % num))
@@ -144,11 +151,17 @@ class TReverseFoot(components.TBaseComponent):
                 self.blendMtxList.append(blendMtx)
                 self.fkCtrls.append(ctrl)
 
+                srt = dag.addChild(self.rig, 'group', name=self.getName(ctrl.name().replace('_ctrl', '_out_srt')))
+                mtx = ctrl.worldMatrix[0]
+                if self.invert:
+                    m = mathOps.multiplyMatrices([self.negMtx.outputMatrix, mtx],
+                                                 name=self.getName('out_%s_mtx' % num))
+                    mtx = m.matrixSum
+                mtx.connect(srt.offsetParentMatrix)
+                self.srts.append(srt)
 
 
         if guide.root.add_joint.get():
-            if self.invert:
-                negMtx = mathOps.createComposeMatrix(inputScale=(-1, 1, 1), name=self.getName('neg_mtx'))
             for i in range(self.guide.tarsi_segs + 1):
                 num = str(i+1).zfill(2)
                 j = pm.createNode('joint', name=self.getName('%s_jnt' % num))
@@ -158,7 +171,7 @@ class TReverseFoot(components.TBaseComponent):
                     driver = self.fkCtrls[i-1]
                 if self.invert and i > 0:
                     out_srt = dag.addChild(self.rig, 'group', self.getName('out_%s_srt' % num))
-                    out_mtx = mathOps.multiplyMatrices([negMtx.outputMatrix, driver.worldMatrix[0]],
+                    out_mtx = mathOps.multiplyMatrices([self.negMtx.outputMatrix, driver.worldMatrix[0]],
                                                        name=self.getName('out_%s_mtx' % num))
                     out_mtx.matrixSum.connect(out_srt.offsetParentMatrix)
 
@@ -171,7 +184,8 @@ class TReverseFoot(components.TBaseComponent):
 
 
         # MAP TO GUIDE LOCS
-        mappingPairs = [[self.ik_base_srt, guide.locs[1]]]
+        mappingPairs = [[self.ik_base_srt, guide.locs[1]],
+                        [self.srts[-1], guide.locs[4]]]
         for pair in mappingPairs:
             self.mapToGuideLocs(pair[0], pair[1])
 
@@ -240,8 +254,8 @@ class TReverseFoot(components.TBaseComponent):
                 num = str(tarsi + 1).zfill(2)
                 attr = pm.general.Attribute('%s.lean_tarsi_%s' % (self.params.name(), num))
                 attr.connect(self.tarsiCtrls[tarsi].rx)
-                
-                
+
+
         # Ik foot side roll system
         buffer = self.ikBall_ctrl.getParent()
         sideRollNeg = mathOps.multiplyAngleByScalar(self.ikBall_ctrl.rx, -1, name=self.getName('ik_sideRoll_invert'))

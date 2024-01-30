@@ -11,6 +11,8 @@ class TReverseFootLeanGuide(guide.TGuideBaseComponent):
     def __init__(self, guide_name='', guide_side='C', guide_index=0, add_joint=1, attr_driven=0, fromDagNode=0):
         guide.TGuideBaseComponent.__init__(self, guide_name, 'reverseFootLean',
                                            guide_side, guide_index, fromDagNode=fromDagNode)
+        self.add_joint = add_joint
+        self.attr_driven = attr_driven
         for param in ['add_joint', 'attr_driven']:
             self.params.append(param)
             self.attr_driven = attr_driven
