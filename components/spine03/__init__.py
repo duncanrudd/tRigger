@@ -134,8 +134,15 @@ class TSpine03(components.TBaseComponent):
                                             name=self.getName('ik_%s_offset' % name))
             return offset
 
+        baseMtx = transform.decomposeMatrix(self.base_srt, name=self.getName('base_mtx2Srt'))
+
         # Default length
         dist = mathOps.getDistance(self.ik_start_ctrl, self.ik_end_ctrl) * .25
+
+        chainDist = mathOps.distance(self.ik_start_ctrl, self.ik_end_ctrl, name=self.getName('chain_distance'))
+        chainDistScaled = mathOps.divide(chainDist, baseMtx.outputScaleX, name=self.getName('chain_dist_scaled'))
+        chainStretch = mathOps.divide(dist*4, chainDistScaled.outputX, name=self.getName('chain_stretch'))
+        offsetMult = mathOps.multiply(chainStretch.outputX, chainStretch.outputX, name=self.getName('chain_mult'))
 
         # mid position mtx
         ikStartMtx2Srt = mathOps.decomposeMatrix(self.ik_start_ctrl.worldMatrix[0],
@@ -196,10 +203,14 @@ class TSpine03(components.TBaseComponent):
 
             midWeight = 1.0 - mathOps.getDistance((0, 0, 0), ((weight - 0.5), 0, 0))
             midMult = midWeight * midWeight
-            startBasePoint = (ctrl.worldMatrix[0].get() * self.ik_start_ctrl.worldInverseMatrix[0].get()).translate.get()
+            startBaseVec = (ctrl.worldMatrix[0].get() * self.ik_start_ctrl.worldInverseMatrix[0].get()).translate.get()
+            startBasePoint = mathOps.multiplyVector(startBaseVec, offsetMult.output,
+                                                    name=self.getName('ik_%s_start_basePoint' % num))
             startOffsetPoint = mathOps.createTransformedPoint(startBasePoint, self.ik_start_ctrl.worldMatrix[0],
                                                               name=self.getName('ik_%s_start_offsetPoint' % num))
-            endBasePoint = (ctrl.worldMatrix[0].get() * self.ik_end_ctrl.worldInverseMatrix[0].get()).translate.get()
+            endBaseVec = (ctrl.worldMatrix[0].get() * self.ik_end_ctrl.worldInverseMatrix[0].get()).translate.get()
+            endBasePoint = mathOps.multiplyVector(endBaseVec, offsetMult.output,
+                                                  name=self.getName('ik_%s_end_basePoint' % num))
             endOffsetPoint = mathOps.createTransformedPoint(endBasePoint, self.ik_end_ctrl.worldMatrix[0],
                                                             name=self.getName('ik_%s_end_offsetPoint' % num))
             ikPoint = mathOps.pairBlend(translateA=startOffsetPoint.output, translateB=endOffsetPoint.output,

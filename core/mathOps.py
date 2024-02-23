@@ -393,7 +393,10 @@ def multiplyMatrices(mtxList, name=None):
     if name:
         mtx.rename(name)
     for i in range(len(mtxList)):
-        mtxList[i].connect(mtx.matrixIn[i])
+        if type(mtxList[i]) == pm.Attribute:
+            mtxList[i].connect(mtx.matrixIn[i])
+        else:
+            mtx.matrixIn[i].set( mtxList[i])
     return mtx
 
 def decomposeMatrix(mtx, recycle=1, name=None):

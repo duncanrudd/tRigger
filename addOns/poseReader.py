@@ -9,7 +9,7 @@ reload(mathOps)
 reload(anim)
 
 class TPoseReader(object):
-    def __init__(self, name, ref, target, numPoses=4, axis='x', refAxis='x', outputMult=1.0, createLocs=1):
+    def __init__(self, name, ref, target, numPoses=4, axis='x', refAxis='x', outputMult=1.0, createLocs=1, createZero=0):
         '''
         Ouputs a 0-1 value for each pose on the edge of an imaginary disc based on the angle between ref and target
         vectors.
@@ -50,6 +50,12 @@ class TPoseReader(object):
 
         refInput = ref.worldInverseMatrix[0]
         targetInput = target.worldMatrix[0]
+        if createZero:
+            if ref.worldMatrix[0].get().rotate.get() != targetInput.get().rotate.get():
+                offset = mathOps.multiplyMatrices([ref.worldMatrix[0].get() * targetInput.get().inverse(), targetInput],
+                                                  name='%s_offsetMtx' % name)
+                targetInput = offset.matrixSum
+
         localTargetMtx = mathOps.multiplyMatrices([targetInput, refInput], name='%s_local_target_mtx' % name)
         ref.worldMatrix[0].connect(self.config.offsetParentMatrix)
 

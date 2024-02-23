@@ -451,17 +451,19 @@ class TLimbIkFk(components.TBaseComponent):
         # --------------------------------
         # FK Matrices
         fkAttrs = [self.fk_start_ctrl.worldMatrix[0], self.fk_mid_ctrl.worldMatrix[0], self.fk_end_ctrl.worldMatrix[0]]
-        if self.invert:
-            def _offsetMtx(source, dest, name, index):
-                offset = dest.worldMatrix[0].get() * source.worldInverseMatrix[0].get()
-                offset_mtx = mathOps.vectors2Mtx44(offset[0], offset[1], offset[2], offset[3],
-                                                   name=self.getName('fk_%s_offset_mtx' % name))
-                mtx = mathOps.multiplyMatrices([offset_mtx.output, source.worldMatrix[0]],
-                                               name=self.getName('fk_%s_mtx') % name)
-                fkAttrs[index] = mtx.matrixSum
 
+        def _offsetMtx(source, dest, name, index):
+            offset = dest.worldMatrix[0].get() * source.worldInverseMatrix[0].get()
+            offset_mtx = mathOps.vectors2Mtx44(offset[0], offset[1], offset[2], offset[3],
+                                               name=self.getName('fk_%s_offset_mtx' % name))
+            mtx = mathOps.multiplyMatrices([offset_mtx.output, source.worldMatrix[0]],
+                                           name=self.getName('fk_%s_mtx') % name)
+            fkAttrs[index] = mtx.matrixSum
+        if self.invert:
             _offsetMtx(self.fk_start_ctrl, self.result_start, 'start', 0)
             _offsetMtx(self.fk_mid_ctrl, self.result_mid, 'mid', 1)
+            _offsetMtx(self.fk_end_ctrl, self.result_end, 'end', 2)
+        elif self.guide.root.world_aligned_ik_ctrl.get():
             _offsetMtx(self.fk_end_ctrl, self.result_end, 'end', 2)
 
         # IK Matrices

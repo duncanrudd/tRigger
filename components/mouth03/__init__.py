@@ -432,7 +432,7 @@ class TMouth03(components.TBaseComponent):
             if self.jaw:
                 jawPoint = curve.createNearestPointOnCurve(self.jaw_crv, mp.allCoordinates,
                                                            name=self.getName('%s_div_%s_jaw_point' % (prefix, num)))
-                jawMp = curve.createMotionPathNode(self.jaw_crv, uValue=jawPoint.result.parameter,
+                jawMp = curve.createMotionPathNode(self.jaw_crv, uValue=paramBlend.output,
                                                    wut=2, wuo=self.jaw_srt, fractionMode=0,
                                                    upAxis='y', name=self.getName('%s_div_%s_jaw_mp' % (prefix, num)))
                 if param <= 0.5:
@@ -442,7 +442,7 @@ class TMouth03(components.TBaseComponent):
                     else:
                         weight = param*2
                         attr = startFollowRev.outputX
-                    weightMult = mathOps.multiply(attr, weight,
+                    weightMult = mathOps.blendScalarAttrs(attr, 1.0, weight,
                                                   name=self.getName('%s_div_%s_jaw_weight' % (prefix, num)))
                 else:
                     if prefix == 'upper':
@@ -451,7 +451,7 @@ class TMouth03(components.TBaseComponent):
                     else:
                         weight = 1-((param-0.5)*2)
                         attr = endFollowRev.outputX
-                    weightMult = mathOps.multiply(attr, weight,
+                    weightMult = mathOps.blendScalarAttrs(attr, 1.0, weight,
                                                   name=self.getName('%s_div_%s_jaw_weight' % (prefix, num)))
                 pb = mathOps.pairBlend(rotateA=baseMp.rotate, rotateB=jawMp.rotate, weight=weightMult.output, quatBlend=1,
                                        name=self.getName('%s_div_%s_jaw_blend' % (prefix, num)))
